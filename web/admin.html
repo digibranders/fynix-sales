@@ -297,13 +297,13 @@ function vOverview(){
      '<div class="stat"><b>'+claimed.toLocaleString('en-IN')+'</b><span>Claims across services</span></div>'+
      '<div class="stat"><b>'+(total?Math.round(claimed/total*100):0)+'%</b><span>Claimed</span></div>'+
      '<div class="stat"><b>'+P.filter(function(p){return p.active&&!p.invited;}).length+'</b><span>Active salespeople</span></div></div>';
-  h+='<div class="two"><div class="blk"><h2>Services</h2>'+(W.length?W.map(function(w){
+  h+='<div class="two"><div class="blk"><h2>Services</h2>'+(W.length?W.map(function(w,i){
     var pct=w.leadCount?Math.round(w.claimedCount/w.leadCount*100):0;
-    return '<div class="wsrow"><span class="wsn">'+esc(w.name)+(S.cat==='all'?' '+ct(w.category):'')+'</span><span class="bar" aria-hidden="true"><i style="width:'+pct+'%"></i></span><span class="muted num">'+w.claimedCount+' / '+w.leadCount+'</span><span class="num" style="text-align:right">'+pct+'%</span></div>';}).join(''):'<div class="muted">No workspaces yet.</div>')+'</div>'+
+    return '<div class="wsrow"><span class="wsn"><span class="muted num" style="margin-right:8px">'+(i+1)+'</span>'+esc(w.name)+(S.cat==='all'?' '+ct(w.category):'')+'</span><span class="bar" aria-hidden="true"><i style="width:'+pct+'%"></i></span><span class="muted num">'+w.claimedCount+' / '+w.leadCount+'</span><span class="num" style="text-align:right">'+pct+'%</span></div>';}).join(''):'<div class="muted">No workspaces yet.</div>')+'</div>'+
     '<div class="blk"><h2>Recent activity</h2>'+(function(){var a=D.activity.filter(function(x){return S.cat==='all'||!x.category||x.category===S.cat;}).slice(0,8);
       return a.length?'<ul class="act">'+a.map(function(x){return '<li><span>'+esc(x.text)+'</span><small>'+(x.sub?esc(x.sub)+' · ':'')+when(x.at)+'</small></li>';}).join('')+'</ul>':'<div class="muted">Nothing yet.</div>';})()+'</div></div>';
-  h+='<div class="blk"><h2>Salespeople this month</h2>'+(P.length?'<div class="tw"><table><thead><tr><th>Name</th>'+(S.cat==='all'?'<th>Category</th>':'')+'<th>Services</th><th>Assigned</th><th>Contacted</th><th>Meetings</th><th>Won</th></tr></thead><tbody>'+
-    P.map(function(p){return '<tr><td><span class="own static">'+av(p)+esc(p.name)+'</span></td>'+(S.cat==='all'?'<td>'+ct(p.category)+'</td>':'')+'<td>'+wsOf(p)+'</td><td>'+num(p.stats.assigned)+'</td><td>'+num(p.stats.contacted)+'</td><td>'+num(p.stats.meetings)+'</td><td>'+num(p.stats.won)+'</td></tr>';}).join('')+'</tbody></table></div>':'<div class="muted">No salespeople yet.</div>')+'</div>';
+  h+='<div class="blk"><h2>Salespeople this month</h2>'+(P.length?'<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>'+(S.cat==='all'?'<th>Category</th>':'')+'<th>Services</th><th>Assigned</th><th>Contacted</th><th>Meetings</th><th>Won</th></tr></thead><tbody>'+
+    P.map(function(p,i){return '<tr><td class="muted num">'+(i+1)+'</td><td><span class="own static">'+av(p)+esc(p.name)+'</span></td>'+(S.cat==='all'?'<td>'+ct(p.category)+'</td>':'')+'<td>'+wsOf(p)+'</td><td>'+num(p.stats.assigned)+'</td><td>'+num(p.stats.contacted)+'</td><td>'+num(p.stats.meetings)+'</td><td>'+num(p.stats.won)+'</td></tr>';}).join('')+'</tbody></table></div>':'<div class="muted">No salespeople yet.</div>')+'</div>';
   var cats=S.cat==='all'?CATS:[S.cat];
   h+='<div class="blk"><h2>Monthly targets</h2>'+cats.map(function(c){var t=D.targets[c]||{contacted:0,meetings:0,won:0};
     return '<div class="tgt" data-targets="'+c+'"><h3>'+esc(catName(c))+'</h3>'+
@@ -315,9 +315,9 @@ function vOverview(){
 function vWorkspaces(){
   var W=D.workspaces.filter(inCat);
   var h=head('Services','What your team sells','<button class="btn dark" data-new="ws">'+PLUS+'Add service</button>');
-  h+=W.length?'<div class="tw"><table><thead><tr><th>Service</th>'+(S.cat==='all'?'<th>Category</th>':'')+'<th>Lists</th><th>Salespeople</th><th>Leads</th><th>Claimed</th></tr></thead><tbody>'+W.map(function(w){
+  h+=W.length?'<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Service</th>'+(S.cat==='all'?'<th>Category</th>':'')+'<th>Lists</th><th>Salespeople</th><th>Leads</th><th>Claimed</th></tr></thead><tbody>'+W.map(function(w,i){
     var m=w.memberIds.length;
-    return '<tr class="click" data-ws="'+esc(w.id)+'"><td><span class="wsn">'+esc(w.name)+'</span></td>'+(S.cat==='all'?'<td>'+ct(w.category)+'</td>':'')+'<td class="muted">'+(w.listIds.map(function(i){var l=list(i);return l?esc(l.name):'';}).join(', ')||'None')+'</td><td>'+num(m)+'</td><td>'+num(w.leadCount)+'</td><td>'+num(w.claimedCount)+'</td></tr>';}).join('')+'</tbody></table></div>':'<div class="tw"><div class="empty"><b>No workspaces yet</b>Add one to start assigning leads.</div></div>';
+    return '<tr class="click" data-ws="'+esc(w.id)+'"><td class="muted num">'+(i+1)+'</td><td><span class="wsn">'+esc(w.name)+'</span></td>'+(S.cat==='all'?'<td>'+ct(w.category)+'</td>':'')+'<td class="muted">'+(w.listIds.map(function(i){var l=list(i);return l?esc(l.name):'';}).join(', ')||'None')+'</td><td>'+num(m)+'</td><td>'+num(w.leadCount)+'</td><td>'+num(w.claimedCount)+'</td></tr>';}).join('')+'</tbody></table></div>':'<div class="tw"><div class="empty"><b>No workspaces yet</b>Add one to start assigning leads.</div></div>';
   return h+'<p class="hint">Each service belongs to one category and only uses that category\'s lists and people. Select a row to manage it.</p>';
 }
 
@@ -348,17 +348,17 @@ function vLeads(){
   var leadHead = isScale
     ? '<th>Person</th><th>Company</th><th>Job Title</th>'
     : (S.cat==='all' ? '<th>Lead</th><th>Company / Area</th><th>Category</th>' : '<th>Store</th><th>Area</th>');
-  h+='<div class="tw"><table><thead><tr>'+leadHead+cols.map(function(c){return '<th>'+esc(c.name)+'</th>';}).join('')+'</tr></thead><tbody>'+(res.leads.length?res.leads.map(function(l){
+  h+='<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th>'+leadHead+cols.map(function(c){return '<th>'+esc(c.name)+'</th>';}).join('')+'</tr></thead><tbody>'+(res.leads.length?res.leads.map(function(l,i){
     var leadCols = isScale
       ? '<td style="font-weight:500">'+esc(l.name)+'</td><td>'+esc(l.company||'—')+'</td><td class="muted">'+esc(l.jobTitle||'—')+'</td>'
       : (S.cat==='all'
           ? '<td style="font-weight:500">'+esc(l.name)+'</td><td class="muted">'+esc(l.category==='scale'?(l.company||l.area):l.area)+'</td><td>'+ct(l.category)+'</td>'
           : '<td style="font-weight:500">'+esc(l.name)+'</td><td class="muted">'+esc(l.area)+'</td>');
-    return '<tr>'+leadCols+cols.map(function(c){
+    return '<tr><td class="muted num">'+((res.page-1)*res.pageSize+i+1)+'</td>'+leadCols+cols.map(function(c){
       var w=ws(l.category+'-'+c.key);
       if(!w) return '<td class="muted" title="Not offered in '+esc(catName(l.category))+'">&ndash;</td>';
       var o=l.owners[c.key];
-      return '<td><button class="own'+(o?'':' none')+'" data-own="'+esc(l.id)+'|'+esc(w.id)+'" aria-label="Change owner for '+esc(l.name)+' in '+esc(w.name)+'">'+(o?'<span class="av">'+esc(o.name.split(' ').map(function(x){return x[0];}).join('').slice(0,2).toUpperCase())+'</span>'+esc(o.name.split(' ')[0]):'Unassigned')+'</button></td>';}).join('')+'</tr>';}).join(''):'<tr><td colspan="'+(4+cols.length)+'"><div class="empty"><b>No leads match</b>Try a different search.</div></td></tr>')+'</tbody></table></div>';
+      return '<td><button class="own'+(o?'':' none')+'" data-own="'+esc(l.id)+'|'+esc(w.id)+'" aria-label="Change owner for '+esc(l.name)+' in '+esc(w.name)+'">'+(o?'<span class="av">'+esc(o.name.split(' ').map(function(x){return x[0];}).join('').slice(0,2).toUpperCase())+'</span>'+esc(o.name.split(' ')[0]):'Unassigned')+'</button></td>';}).join('')+'</tr>';}).join(''):'<tr><td colspan="'+(5+cols.length)+'"><div class="empty"><b>No leads match</b>Try a different search.</div></td></tr>')+'</tbody></table></div>';
   var pages=Math.max(1,Math.ceil(res.total/res.pageSize));
   h+='<div class="pager"><span>'+res.total.toLocaleString('en-IN')+' leads</span><button class="btn sm" data-lpage="-1"'+(res.page<=1?' disabled':'')+'>Previous</button><span class="num">'+res.page+' / '+pages+'</span><button class="btn sm" data-lpage="1"'+(res.page>=pages?' disabled':'')+'>Next</button></div>';
   return h+'<p class="hint">Click an owner to reassign or release that lead. A dash means the category does not offer that service. Salespeople never see these names.</p>';
@@ -374,9 +374,9 @@ function loadLeads(keepFocus){
 function vTeam(){
   var P=D.people.filter(pInCat);
   var h=head('Team','Everyone who can sign in','<button class="btn dark" data-new="person">'+PLUS+'Invite member</button>');
-  h+='<div class="tw"><table><thead><tr><th>Name</th><th>Role</th><th>Category</th><th>Services</th><th>Status</th><th></th></tr></thead><tbody>'+P.map(function(p){
+  h+='<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th><th>Role</th><th>Category</th><th>Services</th><th>Status</th><th></th></tr></thead><tbody>'+P.map(function(p,i){
     var self=p.id===D.me.id;
-    return '<tr><td><span class="own static">'+av(p)+'<span>'+esc(p.name)+'<br><small class="muted">'+esc(p.email)+'</small></span></span></td><td class="role">'+(p.role==='superadmin'?'Superadmin':'Sales')+'</td><td>'+(p.role==='superadmin'?ct(null):ct(p.category))+'</td><td>'+wsOf(p)+'</td>'+
+    return '<tr><td class="muted num">'+(i+1)+'</td><td><span class="own static">'+av(p)+'<span>'+esc(p.name)+'<br><small class="muted">'+esc(p.email)+'</small></span></span></td><td class="role">'+(p.role==='superadmin'?'Superadmin':'Sales')+'</td><td>'+(p.role==='superadmin'?ct(null):ct(p.category))+'</td><td>'+wsOf(p)+'</td>'+
       '<td><span class="dotl'+(p.active&&!p.invited?'':' off')+'"><i></i>'+(!p.active?'Deactivated':p.invited?'Invited':'Active')+'</span></td>'+
       '<td style="text-align:right;white-space:nowrap">'+(p.role==='sales'?'<button class="btn sm" data-editpeople="'+esc(p.id)+'">Services</button> ':'')+(self?'':'<button class="btn sm" data-reset="'+esc(p.id)+'">Reset password</button> <button class="btn sm" data-toggle="'+esc(p.id)+'">'+(p.active?'Deactivate':'Reactivate')+'</button>')+'</td></tr>';}).join('')+'</tbody></table></div>';
   return h+'<p class="hint">A salesperson belongs to one category and can only see that category\'s data. Superadmins see both.</p>';
