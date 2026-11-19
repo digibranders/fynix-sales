@@ -508,6 +508,15 @@ dl{margin:0}
 .kv dd{margin:0;overflow-wrap:anywhere;min-width:0}
 .kw-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
 .kw-tag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:12px;background:var(--hover);border:1px solid var(--line);color:var(--fg)}
+.c-name .name{font-size:15px;font-weight:600;line-height:1.3;color:var(--fg)}
+.top-title{display:none}
+html.modal-locked, body.modal-locked{overflow:hidden!important;touch-action:none;overscroll-behavior:none;height:100%}
+.modal{touch-action:pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.st-preview{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:500;line-height:1}
+.st-preview .st-lbl{color:var(--muted);font-weight:400}
+.st-preview .st-from{color:var(--muted);font-weight:500}
+.st-preview .st-arr{color:var(--muted);font-size:11px}
+.st-preview .st-val{font-weight:600}
 .c-comp{font-weight:500}
 .c-comp .sm{font-weight:normal;color:var(--muted)}
 .c-title{color:var(--muted)}
@@ -697,8 +706,9 @@ textarea:hover{border-color:var(--faint)}
   .ws-btn .tile-ic{width:22px;height:22px}
   .ws-btn .tile-ic svg{width:14px;height:14px}
   .pop-h{padding:4px 8px 2px;font-size:11.5px}
-  .brand{margin-right:0}
-  .brand-t{display:none}
+  .brand{display:none!important}
+  .top-title{display:inline-flex;align-items:center;font-size:16px;font-weight:600;color:#fff;margin-right:6px}
+  .head:not(.head-d){display:none!important}
   .top .combo{margin-right:0}
   .who{margin-left:4px;border-left:0;padding-left:0}
   .who{gap:2px}
@@ -716,9 +726,13 @@ textarea:hover{border-color:var(--faint)}
   .gsearch{transition:width .42s cubic-bezier(.32,.72,0,1)}
   .gsearch input{transition:padding .42s cubic-bezier(.32,.72,0,1),background-color .3s ease,color .3s ease}
   .gsearch svg{transition:left .42s cubic-bezier(.32,.72,0,1),transform .42s cubic-bezier(.32,.72,0,1),width .3s ease,height .3s ease}
-  .ws-btn{transition:padding .42s cubic-bezier(.32,.72,0,1),gap .42s cubic-bezier(.32,.72,0,1),background .2s ease}
+  .ws-btn{background:transparent!important;box-shadow:none!important;border:0!important;padding:0 2px!important;height:auto!important;color:#fff!important;font-size:15px!important;font-weight:500!important;gap:3px!important;transition:padding .42s cubic-bezier(.32,.72,0,1),gap .42s cubic-bezier(.32,.72,0,1),background .2s ease}
+  .ws-btn:hover,.ws-btn:active{background:transparent!important}
+  .ws-btn .tile-ic{display:none!important}
+  .ws-btn .chev{stroke:#fff;width:10px;height:6px;margin:0 0 0 2px}
   /* while the search is open the workspace and user stay in the bar; the workspace just folds down to its icon to make room */
-  .ws-btn b{display:inline-block;max-width:120px;overflow:hidden;white-space:nowrap;transition:max-width .42s cubic-bezier(.32,.72,0,1),opacity .22s ease}
+  .ws-btn b{display:inline-block;max-width:120px;overflow:hidden;white-space:nowrap;transition:max-width .42s cubic-bezier(.32,.72,0,1),opacity .22s ease;color:#fff;font-size:15px;font-weight:500}
+  .top.search-open .top-title{display:none!important}
   .top.search-open .ws-btn b{max-width:0;opacity:0}
   .top.search-open .ws-btn{gap:4px;padding:0 8px}
   .top.search-open .gsearch{width:calc(100% - 144px);height:32px;margin-left:auto;border-radius:16px}
@@ -814,11 +828,11 @@ textarea:hover{border-color:var(--faint)}
   .tablewrap{border-top:0;overflow:visible}
   table,tbody{display:block;min-width:0}
   thead{display:none}
-  tbody tr{display:grid;grid-template-columns:28px minmax(0,1fr) auto;grid-template-areas:"sr name act" ". area area" ". phone phone" ". web web";
+  tbody tr{display:grid;grid-template-columns:28px minmax(0,1fr) auto;grid-template-areas:"sr name act" ". area act";
     gap:3px 8px;padding:14px 0;border-bottom:1px solid var(--line);align-items:center}
   td{display:block;height:auto;border:0;padding:0!important}
   .c-sr{grid-area:sr;align-self:start;padding-top:2px!important}
-  .c-name{grid-area:name}.c-act{grid-area:act}.c-area{grid-area:area}.c-phone{grid-area:phone}.c-web{grid-area:web}.c-comp{grid-area:area}.c-title{grid-area:web}
+  .c-name{grid-area:name}.c-act{grid-area:act;align-self:center}.c-area{grid-area:area}.c-phone{grid-area:phone}.c-web{grid-area:web}.c-comp{grid-area:area}.c-title{grid-area:web}
   .c-area .sm{display:inline;margin-left:6px}
   .pager{flex-direction:column;align-items:flex-start}
 
@@ -847,16 +861,16 @@ textarea:hover{border-color:var(--faint)}
   button.qsec .chev{display:block;margin:0;stroke:var(--muted)}
   button.qsec[aria-expanded="true"] .chev{transform:rotate(180deg)}
   .list:not(.closed-open) .closed-item{display:none}
-  .item-wrap{border:1px solid var(--line);border-radius:12px;margin:0 0 8px;background:var(--bg)}
-  .item{grid-template-columns:22px minmax(0,1fr) max-content;grid-template-areas:"no name name" ". sub sub" ". tags fu";column-gap:6px;border-radius:12px;padding:12px;min-height:0;align-items:start}
+  .item-wrap{border:0;border-bottom:1px solid var(--line);border-radius:0;margin:0;background:none;box-shadow:none}
+  .item{grid-template-columns:22px minmax(0,1fr) max-content;grid-template-areas:"no name name" ". sub sub" ". tags fu";column-gap:6px;border-radius:0;padding:12px 0;min-height:0;align-items:start}
   .item:hover,.split.show-detail .item[aria-current="true"]{background:none}
   .item .no{grid-area:no;grid-column:auto;padding-top:1px}
   .item .name{grid-area:name;grid-column:auto;font-size:15px;white-space:normal}
   .m-sub{display:block;grid-area:sub;font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .item .st{display:none}
-  .item .stgt{display:flex;flex-wrap:wrap;align-items:center;gap:5px;grid-area:tags;margin-top:8px;min-width:0}
+  .item .stgt{display:inline-flex;align-items:center;grid-area:tags;margin-top:6px;min-width:0}
   .item .stgt.flat{gap:6px}
-  .item .fu{grid-area:fu;margin-top:8px;font-size:12.5px;justify-self:end;white-space:nowrap;line-height:1.5}
+  .item .fu{grid-area:fu;margin-top:6px;font-size:12.5px;justify-self:end;white-space:nowrap;line-height:1.5}
   .item .last{display:none}
   .item-wrap.has-act .name,.item-wrap.has-act .m-sub{padding-right:88px;box-sizing:border-box}
   .act2{display:flex;top:10px;right:10px;transform:none}
@@ -895,10 +909,11 @@ textarea:hover{border-color:var(--faint)}
   <div class="wrap">
     <div class="zl">
       <span class="brand"><i aria-hidden="true"></i><span class="brand-t">Fynix Sales</span></span>
+      <span class="top-title" id="top-title">Leads</span>
       <div class="combo" id="ws-dd"></div>
     </div>
     <nav class="tabs" role="tablist" aria-label="Sales sections"><span class="pill" id="pill" aria-hidden="true"></span>
-      <button class="tab" role="tab" id="tab-info" data-tab="info"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span class="tl">Information</span> <span class="c" id="cnt-info">0</span></button>
+      <button class="tab" role="tab" id="tab-info" data-tab="info"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span class="tl">Leads</span> <span class="c" id="cnt-info">0</span></button>
       <button class="tab" role="tab" id="tab-assigned" data-tab="assigned"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg><span class="tl">Assigned</span> <span class="c" id="cnt-assigned">0</span></button>
       <button class="tab" role="tab" id="tab-kpi" data-tab="kpi"><svg class="ti ti-kpi" viewBox="0 0 24 24" aria-hidden="true"><path class="k1" d="M5 20V11"/><path class="k2" d="M12 20V4"/><path class="k3" d="M19 20v-6"/></svg><span class="tl">KPIs</span></button>
       <button class="tab tab-profile" role="tab" id="tab-profile" data-tab="profile"><span class="ti ti-av" id="tab-av" aria-hidden="true">PS</span><span class="tl">Profile</span></button>
@@ -1029,6 +1044,33 @@ textarea:hover{border-color:var(--faint)}
   function fmtAt(ms){ var d = new Date(ms); return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+', '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); }
   function failToast(e){ toast((e && e.message) || 'Something went wrong. Please try again.'); }
 
+  function toTitleCase(s){
+    if(!s) return '';
+    return String(s).toLowerCase().replace(/(^|[^a-zA-Z0-9'])([a-z])/g, function(m, p1, p2){
+      return p1 + p2.toUpperCase();
+    });
+  }
+
+  function lockScroll(){
+    document.documentElement.classList.add('modal-locked');
+    document.body.classList.add('modal-locked');
+  }
+  function unlockScroll(){
+    document.documentElement.classList.remove('modal-locked');
+    document.body.classList.remove('modal-locked');
+  }
+  function bindScrim(sc){
+    if(!sc) return;
+    sc.addEventListener('touchmove',function(e){if(e.target===sc)e.preventDefault();},{passive:false});
+  }
+
+  function assignedStagePreview(w){
+    if(!w||!w.status||w.status==='New'){
+      return '<span class="st-preview st-new"><span class="st-lbl">Stage:</span> <span class="st-val">New</span></span>';
+    }
+    return '<span class="st-preview st-moved"><span class="st-from">New</span> <span class="st-arr" aria-hidden="true">&rarr;</span> <span class="st-val '+sclass(w.status)+'">'+esc(w.status)+'</span></span>';
+  }
+
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function user(id){return USERS.filter(function(u){return u.id===id;})[0];}
   function W(l){return l.work[state.service]||null;}
@@ -1097,6 +1139,11 @@ textarea:hover{border-color:var(--faint)}
   }
 
   function chrome(){
+    var tt=document.getElementById('top-title');
+    if(tt){
+      var tabTitles={info:'Leads',assigned:'Assigned',kpi:'KPIs',profile:'Profile'};
+      tt.textContent=tabTitles[state.tab]||'Leads';
+    }
     document.getElementById('cnt-info').textContent=open_().length;
     document.getElementById('cnt-assigned').textContent=mine().length;
     ['info','assigned','kpi','profile'].forEach(function(t){document.getElementById('tab-'+t).setAttribute('aria-selected',state.tab===t);});
@@ -1109,7 +1156,7 @@ textarea:hover{border-color:var(--faint)}
     placePill();
   }
 
-  /* ---------- Information tab ---------- */
+  /* ---------- Leads tab ---------- */
   function renderInfo(){
     var all=open_();
     var rows=all.filter(function(l){
@@ -1120,9 +1167,9 @@ textarea:hover{border-color:var(--faint)}
     if(state.page>=pages) state.page=pages-1;
     var slice=rows.slice(state.page*PAGE,state.page*PAGE+PAGE);
 
-    var h='<div class="head"><h1>Information</h1><span class="sub">'+esc(svcName())+'</span></div>'+
+    var h='<div class="head"><h1>Leads</h1><span class="sub">'+esc(svcName())+'</span></div>'+
       '<div class="tools">'+
-      ddHtml('area','Filter by area')+ddHtml('cat','Filter by category')+
+      ddHtml('area','Filter by area')+ddHtml('cat','Filter by category')+toolsWsHtml()+
       '<span class="grow num">'+rows.length+' of '+all.length+' leads</span></div>';
 
     if(!rows.length){
@@ -1130,7 +1177,7 @@ textarea:hover{border-color:var(--faint)}
     } else {
       var tableHead = isScale()
         ? '<thead><tr><th class="sr">Sr. no</th><th>Person</th><th>Company</th><th>Job Title</th><th>Personal Number</th><th></th></tr></thead>'
-        : '<thead><tr><th class="sr">Sr. no</th><th>Store</th><th>Area</th><th>Phone</th><th>Website</th><th></th></tr></thead>';
+        : '<thead><tr><th class="sr">Sr. no</th><th>Brand</th><th>Area</th><th></th></tr></thead>';
 
       var rowsHtml = slice.map(function(l,n){
         if (isScale()) {
@@ -1138,19 +1185,19 @@ textarea:hover{border-color:var(--faint)}
           var w = safeUrl(l.web);
           return '<tr class="lead-row" data-assign="'+l.id+'" style="cursor:pointer">'+
             '<td class="sr num c-sr">'+(state.page*PAGE+n+1)+'</td>'+
-            '<td class="c-name"><div class="name">'+esc(l.name)+'</div>'+(l.email.length?'<div class="sm muted">'+esc(l.email[0])+'</div>':'')+alsoHtml(l)+'</td>'+
-            '<td class="c-comp"><b>'+(l.company?esc(l.company):'<span class="dash">—</span>')+'</b>'+(w?'<div class="sm"><a class="ext" href="'+esc(w)+'" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()"><span>'+esc(domain(w))+'</span><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1h6v6M9 1L1 9"/></svg></a></div>':'')+'</td>'+
-            '<td class="c-title">'+(l.title?esc(l.title):'<span class="dash">—</span>')+'</td>'+
+            '<td class="c-name"><div class="name">'+esc(toTitleCase(l.name))+'</div>'+(l.email.length?'<div class="sm muted">'+esc(l.email[0])+'</div>':'')+alsoHtml(l)+'</td>'+
+            '<td class="c-comp"><b>'+(l.company?esc(toTitleCase(l.company)):'<span class="dash">—</span>')+'</b>'+(w?'<div class="sm"><a class="ext" href="'+esc(w)+'" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()"><span>'+esc(domain(w))+'</span><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1h6v6M9 1L1 9"/></svg></a></div>':'')+'</td>'+
+            '<td class="c-title">'+(l.title?esc(toTitleCase(l.title)):'<span class="dash">—</span>')+'</td>'+
             '<td class="num c-phone">'+(pNum?'<span class="num">'+esc(pNum)+'</span>':'<span class="dash">—</span>')+'</td>'+
-            '<td class="r c-act" onclick="event.stopPropagation()"><button class="btn xs assign" data-assign="'+l.id+'" aria-label="Review and assign '+esc(l.name)+'">Assign</button></td>'+
+            '<td class="r c-act"><button class="btn xs assign" data-assign="'+l.id+'" aria-label="Review and assign '+esc(toTitleCase(l.name))+'">Assign</button></td>'+
           '</tr>';
         }
-        var w=safeUrl(l.web);
-        return '<tr><td class="sr num c-sr">'+(state.page*PAGE+n+1)+'</td><td class="c-name"><div class="name">'+esc(l.name)+'</div>'+alsoHtml(l)+'</td>'+
-        '<td class="c-area">'+(l.area?esc(l.area):'<span class="dash">—</span>')+'<div class="sm">'+esc(l.city)+'</div></td>'+
-        '<td class="num c-phone">'+(l.phone?esc(l.phone):'<span class="dash">—</span>')+'</td>'+
-        '<td class="c-web">'+(w?'<a class="ext" href="'+esc(w)+'" target="_blank" rel="noopener noreferrer" aria-label="Visit '+esc(l.name)+' website (opens in a new tab)"><span>'+esc(domain(w))+'</span><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1h6v6M9 1L1 9"/></svg></a>':'')+'</td>'+
-        '<td class="r c-act"><button class="btn xs assign" data-assign="'+l.id+'" aria-label="Review and assign '+esc(l.name)+'">Assign</button></td></tr>';
+        return '<tr class="lead-row" data-assign="'+l.id+'" style="cursor:pointer">'+
+          '<td class="sr num c-sr">'+(state.page*PAGE+n+1)+'</td>'+
+          '<td class="c-name"><div class="name">'+esc(toTitleCase(l.name))+'</div>'+alsoHtml(l)+'</td>'+
+          '<td class="c-area">'+(l.area?esc(toTitleCase(l.area)):'<span class="dash">—</span>')+(l.city?'<div class="sm">'+esc(toTitleCase(l.city))+'</div>':'')+'</td>'+
+          '<td class="r c-act"><button class="btn xs assign" data-assign="'+l.id+'" aria-label="Review and assign '+esc(toTitleCase(l.name))+'">Assign</button></td>'+
+        '</tr>';
       }).join('');
 
       h+='<div class="tablewrap"><table>'+tableHead+'<tbody>'+rowsHtml+'</tbody></table></div>'+
@@ -1252,9 +1299,18 @@ textarea:hover{border-color:var(--faint)}
     if(prev==='who'||next==='who') renderWho();
     if(prev==='nt'||next==='nt') renderNt(true);
     if(prev==='ws'||next==='ws') renderWs();
-    function inView(x){return x!==''&&x!=='who'&&x!=='ws'&&x!=='stage'&&x!=='fu'&&x!=='sf'&&x!=='nt';}
+    if(prev==='tools-ws'||next==='tools-ws') renderInfo();
+    function inView(x){return x!==''&&x!=='who'&&x!=='ws'&&x!=='tools-ws'&&x!=='stage'&&x!=='fu'&&x!=='sf'&&x!=='nt';}
     if(state.tab==='assigned'&&(prev==='stage'||next==='stage'||prev==='fu'||next==='fu'||prev==='sf'||next==='sf')) renderAssigned();
     if(state.tab==='info'&&(inView(prev)||inView(next))) renderInfo();
+  }
+  function toolsWsHtml(){
+    var open=state.open==='tools-ws', s=svcById(state.service);
+    return '<div class="combo" id="tools-ws-dd"><button type="button" class="field combo-btn" data-ddbtn="tools-ws" data-toolswsbtn aria-label="Switch service" aria-haspopup="listbox" aria-expanded="'+open+'"><span>'+esc(s.name)+'</span>'+CHEV+'</button>'+
+      (open?'<div class="pop"><div class="sm pop-h">Service</div><div class="opts" role="listbox">'+SERVICES.map(function(x){
+        var free=LEADS.filter(function(l){return l.open.indexOf(x.id)>-1;}).length;
+        var mineN=LEADS.filter(function(l){return l.work[x.id]&&l.work[x.id].owner===state.user;}).length;
+        return optHtml('data-wsopt',x.id,x.name,free+' open \u00b7 '+mineN+' assigned',x.id===state.service,false,svcIcon(x));}).join('')+'</div></div>':'')+'</div>';
   }
   function renderWs(){
     var open=state.open==='ws', s=svcById(state.service);
@@ -1339,17 +1395,18 @@ textarea:hover{border-color:var(--faint)}
   function openModal(id){
     var l=byId(id); if(!l||W(l)) return;
     state.modal=id;
+    lockScroll();
     function kv(k,v){return '<div class="kv"><dt>'+k+'</dt><dd>'+v+'</dd></div>';}
     if (isScale()) {
       var pNum = l.personalNumber || l.phone;
       var loc = [l.city, l.state, l.country].filter(Boolean).join(', ');
       var li = safeUrl(l.linkedin);
       layer.innerHTML='<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">'+
-        '<div class="m-head"><div><h2 id="m-title">'+esc(l.name)+'</h2><div class="sm">'+esc([l.title, l.company].filter(Boolean).join(' · ') || loc)+'</div></div><button class="x" id="m-x" aria-label="Close">×</button></div>'+
+        '<div class="m-head"><div><h2 id="m-title">'+esc(toTitleCase(l.name))+'</h2><div class="sm">'+esc([l.title, l.company].filter(Boolean).join(' · ') || loc)+'</div></div><button class="x" id="m-x" aria-label="Close">×</button></div>'+
         '<dl>'+
-        kv('Full Name', '<span style="font-weight:600">'+esc(l.name)+'</span>')+
-        kv('Company', (l.company ? '<b>'+esc(l.company)+'</b>' : '<span class="dash">—</span>') + (l.web ? '<br>' + webHtml(l) : ''))+
-        kv('Job Title', l.title ? esc(l.title) : '<span class="dash">—</span>')+
+        kv('Full Name', '<span style="font-weight:600">'+esc(toTitleCase(l.name))+'</span>')+
+        kv('Company', (l.company ? '<b>'+esc(toTitleCase(l.company))+'</b>' : '<span class="dash">—</span>') + (l.web ? '<br>' + webHtml(l) : ''))+
+        kv('Job Title', l.title ? esc(toTitleCase(l.title)) : '<span class="dash">—</span>')+
         kv('Email', emailsHtml(l))+
         kv('Personal Number', pNum ? '<span class="num">'+esc(pNum)+'</span>'+copyBtn(pNum) : '<span class="dash">Not listed</span>')+
         kv('Keywords', keywordsHtml(l))+
@@ -1359,7 +1416,7 @@ textarea:hover{border-color:var(--faint)}
         '<div class="m-foot"><button class="btn" id="m-cancel">Cancel</button><button class="btn assign" id="m-go">Assign to me</button></div></div></div>';
     } else {
       layer.innerHTML='<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">'+
-        '<div class="m-head"><div><h2 id="m-title">'+esc(l.name)+'</h2><div class="sm">'+esc(catLabel(l.cat))+' · '+esc(l.area||l.city)+'</div></div><button class="x" id="m-x" aria-label="Close">×</button></div>'+
+        '<div class="m-head"><div><h2 id="m-title">'+esc(toTitleCase(l.name))+'</h2><div class="sm">'+esc(catLabel(l.cat))+' · '+esc(toTitleCase(l.area||l.city))+'</div></div><button class="x" id="m-x" aria-label="Close">×</button></div>'+
         '<dl>'+kv('Phone',l.phone?'<span class="num">'+esc(l.phone)+'</span>'+copyBtn(l.phone):'<span class="dash">Not listed</span>')+
         kv('Email',emailsHtml(l))+kv('Website',webHtml(l))+kv('WhatsApp',waHtml(l))+
         kv('Address',esc(l.addr)+'<br><a href="'+esc(mapsUrl(l))+'" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>')+
@@ -1368,11 +1425,14 @@ textarea:hover{border-color:var(--faint)}
     }
     document.getElementById('m-go').focus();
     document.getElementById('m-x').onclick=document.getElementById('m-cancel').onclick=closeModal;
-    document.getElementById('scrim').addEventListener('mousedown',function(e){if(e.target.id==='scrim')closeModal();});
+    var sc=document.getElementById('scrim');
+    bindScrim(sc);
+    sc.addEventListener('mousedown',function(e){if(e.target.id==='scrim')closeModal();});
     document.getElementById('m-go').onclick=function(){assign(id);};
   }
   /* Close with a slide down on phones (and a short fade on desktop), then remove it. */
   function closeModal(){
+    unlockScroll();
     state.modal=null;
     var sc=layer.querySelector('.scrim');
     if(!sc){layer.innerHTML='';return;}
@@ -1385,17 +1445,18 @@ textarea:hover{border-color:var(--faint)}
   function openInfo(id){
     var l=byId(id); if(!l) return;
     state.modal='info';
+    lockScroll();
     function kv(k,v){return '<div class="kv"><dt>'+k+'</dt><dd>'+v+'</dd></div>';}
     if (isScale()) {
       var pNum = l.personalNumber || l.phone;
       var loc = [l.city, l.state, l.country].filter(Boolean).join(', ');
       var li = safeUrl(l.linkedin);
       layer.innerHTML='<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">'+
-        '<div class="m-head"><div><h2 id="m-title">'+esc(l.name)+'</h2><div class="sm">'+esc([l.title, l.company].filter(Boolean).join(' · ') || loc)+'</div></div><button class="x" id="m-x" aria-label="Close">\u00d7</button></div>'+
+        '<div class="m-head"><div><h2 id="m-title">'+esc(toTitleCase(l.name))+'</h2><div class="sm">'+esc([l.title, l.company].filter(Boolean).join(' · ') || loc)+'</div></div><button class="x" id="m-x" aria-label="Close">\u00d7</button></div>'+
         '<dl>'+
-        kv('Full Name', '<span style="font-weight:600">'+esc(l.name)+'</span>')+
-        kv('Company', (l.company ? '<b>'+esc(l.company)+'</b>' : '<span class="dash">—</span>') + (l.web ? '<br>' + webHtml(l) : ''))+
-        kv('Job Title', l.title ? esc(l.title) : '<span class="dash">—</span>')+
+        kv('Full Name', '<span style="font-weight:600">'+esc(toTitleCase(l.name))+'</span>')+
+        kv('Company', (l.company ? '<b>'+esc(toTitleCase(l.company))+'</b>' : '<span class="dash">—</span>') + (l.web ? '<br>' + webHtml(l) : ''))+
+        kv('Job Title', l.title ? esc(toTitleCase(l.title)) : '<span class="dash">—</span>')+
         kv('Email', emailsHtml(l))+
         kv('Personal Number', pNum ? '<span class="num">'+esc(pNum)+'</span>'+copyBtn(pNum) : '<span class="dash">Not listed</span>')+
         kv('Keywords', keywordsHtml(l))+
@@ -1404,7 +1465,7 @@ textarea:hover{border-color:var(--faint)}
         '</dl></div></div>';
     } else {
       layer.innerHTML='<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">'+
-        '<div class="m-head"><div><h2 id="m-title">'+esc(l.name)+'</h2><div class="sm">'+esc(catLabel(l.cat))+' \u00b7 '+esc(l.area||l.city)+'</div></div><button class="x" id="m-x" aria-label="Close">\u00d7</button></div>'+
+        '<div class="m-head"><div><h2 id="m-title">'+esc(toTitleCase(l.name))+'</h2><div class="sm">'+esc(catLabel(l.cat))+' \u00b7 '+esc(toTitleCase(l.area||l.city))+'</div></div><button class="x" id="m-x" aria-label="Close">\u00d7</button></div>'+
         '<dl>'+kv('Phone',l.phone?'<span class="num">'+esc(l.phone)+'</span>'+copyBtn(l.phone):'<span class="dash">Not listed</span>')+
         kv('WhatsApp',waHtml(l))+kv('Email',emailsHtml(l))+kv('Website',webHtml(l))+
         kv('Address',esc(l.addr)+'<br><a href="'+esc(mapsUrl(l))+'" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>')+
@@ -1412,7 +1473,9 @@ textarea:hover{border-color:var(--faint)}
     }
     document.getElementById('m-x').focus();
     document.getElementById('m-x').onclick=closeModal;
-    document.getElementById('scrim').addEventListener('mousedown',function(e){if(e.target.id==='scrim')closeModal();});
+    var sc=document.getElementById('scrim');
+    bindScrim(sc);
+    sc.addEventListener('mousedown',function(e){if(e.target.id==='scrim')closeModal();});
   }
   document.addEventListener('keydown',function(e){
     if(e.key!=='Escape') return;
@@ -1515,7 +1578,7 @@ textarea:hover{border-color:var(--faint)}
 
     var h='<div class="head'+(state.showDetail?' head-d':'')+'">'+(state.showDetail?'<button type="button" class="head-back" data-back aria-label="Back to the Assigned list"><svg viewBox="0 0 8 14" aria-hidden="true"><path d="M7 1L1 7l6 6"/></svg></button>':'')+'<h1>Assigned</h1><span class="sub">'+esc(svcName())+'</span></div>';
     if(!list.length){
-      view.innerHTML=h+'<div class="tablewrap"><div class="empty"><b>'+(owned.length?'No stores match':'Nothing assigned yet')+'</b>'+(owned.length?'Clear the search or the stage filter.':'Open Information and assign a store to yourself.')+'</div></div>';
+      view.innerHTML=h+'<div class="tablewrap"><div class="empty"><b>'+(owned.length?'No leads match':'Nothing assigned yet')+'</b>'+(owned.length?'Clear the search or the stage filter.':'Open Leads and assign a lead to yourself.')+'</div></div>';
       return;
     }
     var all=queue(list);
@@ -1537,9 +1600,9 @@ textarea:hover{border-color:var(--faint)}
         var pNum = isScale() ? (l.personalNumber || l.phone) : l.phone;
         var dg = pNum ? pNum.replace(/\D/g,'') : '', wl=waLink(l);
         var subTxt = isScale() ? (esc([l.title, l.company].filter(Boolean).join(' · ') || l.city)) : esc(l.area||l.city);
-        var acts=hasAct?'<span class="act2">'+(dg?'<a class="a2" href="tel:+'+dg+'" aria-label="Call '+esc(l.name)+'">'+tileOf('call')+'</a>':'')+(wl?'<a class="a2" href="'+esc(wl)+'" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp '+esc(l.name)+'">'+tileOf('whatsapp')+'</a>':'')+'</span>':'';
+        var acts=hasAct?'<span class="act2">'+(dg?'<a class="a2" href="tel:+'+dg+'" aria-label="Call '+esc(toTitleCase(l.name))+'">'+tileOf('call')+'</a>':'')+(wl?'<a class="a2" href="'+esc(wl)+'" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp '+esc(toTitleCase(l.name))+'">'+tileOf('whatsapp')+'</a>':'')+'</span>':'';
         return '<div class="item-wrap'+(hasAct?' has-act':'')+(closed?' closed-item':'')+'"><button class="item" role="listitem" data-pick="'+l.id+'" aria-current="'+(l.id===state.selected)+'"><span class="no num">'+n+'</span>'+
-          '<span class="name">'+esc(l.name)+'</span><span class="m-sub">'+subTxt+'</span><span class="st '+sclass(w.status)+'">'+esc(w.status)+'</span><span class="stgt'+(state.stageFilter?'':' flat')+'" aria-label="Stages reached, current stage is '+esc(w.status)+'">'+stageTags(w)+'</span>'+fu+'<span class="last">'+esc(ucfirst(agoText(w.last)))+'</span></button>'+acts+'</div>';
+          '<span class="name">'+esc(toTitleCase(l.name))+'</span><span class="m-sub">'+subTxt+'</span><span class="st">'+assignedStagePreview(w)+'</span><span class="stgt" aria-label="Current stage is '+esc(w.status)+'">'+assignedStagePreview(w)+'</span>'+fu+'<span class="last">'+esc(ucfirst(agoText(w.last)))+'</span></button>'+acts+'</div>';
       }).join('');
     }).join('');
     h+='<div class="split'+(state.showDetail?' show-detail':'')+'"><div class="list'+(state.closedOpen?' closed-open':'')+'" role="list"><div class="qhead" aria-hidden="true"><span>Sr.</span><span>'+(isScale()?'Lead':'Store')+'</span><span>Stage</span><span>Follow-up</span><span class="c-last">Last touched</span><span></span></div>'+body+'</div>'+detail(cur,flat.indexOf(cur)+1)+'</div>';
@@ -1755,12 +1818,15 @@ textarea:hover{border-color:var(--faint)}
   function openFlow(id){
     var l=byId(id), w=l&&W(l); if(!w) return;
     state.modal='flow';
+    lockScroll();
     layer.innerHTML='<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">'+
-      '<div class="m-head"><div><h2 id="m-title">Activity</h2><div class="sm">'+esc(l.name)+'</div></div><button class="x" id="m-x" aria-label="Close">\u00d7</button></div>'+
+      '<div class="m-head"><div><h2 id="m-title">Activity</h2><div class="sm">'+esc(toTitleCase(l.name))+'</div></div><button class="x" id="m-x" aria-label="Close">\u00d7</button></div>'+
       '<div class="flow-body">'+activityList(activityItems(w).reverse())+'</div></div></div>';
     document.getElementById('m-x').focus();
     document.getElementById('m-x').onclick=closeModal;
-    document.getElementById('scrim').addEventListener('mousedown',function(e){if(e.target.id==='scrim')closeModal();});
+    var sc=document.getElementById('scrim');
+    bindScrim(sc);
+    sc.addEventListener('mousedown',function(e){if(e.target.id==='scrim')closeModal();});
   }
 
   function detail(l,sr){
@@ -1781,7 +1847,7 @@ textarea:hover{border-color:var(--faint)}
     var detailSub = isScale() ? (esc([l.title, l.company].filter(Boolean).join(' · ') || l.city)) : esc(l.area||l.city);
     return '<div class="detail">'+
       '<button type="button" class="drawer-x" data-back aria-label="Close panel">\u00d7</button>'+
-      '<div class="d-head"><div><h1>'+(isPhone()?'<button type="button" class="d-back" data-back aria-label="Back to the Assigned list"><svg viewBox="0 0 8 14" aria-hidden="true"><path d="M7 1L1 7l6 6"/></svg></button>':'')+esc(l.name)+'<button type="button" class="info-i" data-info="'+l.id+'" aria-label="'+(isScale()?'Lead info':'Store info')+'" title="'+(l.email.length?esc(l.email.join(', ')):(pNum||''))+'">'+tileOf('info')+'</button></h1><div class="sm">'+detailSub+' · Last touched '+esc(agoText(w.last))+'</div></div></div>'+
+      '<div class="d-head"><div><h1>'+(isPhone()?'<button type="button" class="d-back" data-back aria-label="Back to the Assigned list"><svg viewBox="0 0 8 14" aria-hidden="true"><path d="M7 1L1 7l6 6"/></svg></button>':'')+esc(toTitleCase(l.name))+'<button type="button" class="info-i" data-info="'+l.id+'" aria-label="'+(isScale()?'Lead info':'Store info')+'" title="'+(l.email.length?esc(l.email.join(', ')):(pNum||''))+'">'+tileOf('info')+'</button></h1><div class="sm">'+detailSub+' · Last touched '+esc(agoText(w.last))+'</div></div></div>'+
       acts+
       (isPhone()
         ? phoneStage(w,stageOpts)+'<div class="sf"><div><div class="k">Next follow-up</div>'+fuBox+'</div></div>'+phoneActivity(w)+'</div>'
@@ -1859,10 +1925,13 @@ textarea:hover{border-color:var(--faint)}
   }
   function sheet(title,sub,body){
     state.modal='sheet';
+    lockScroll();
     layer.innerHTML='<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">'+
       '<div class="m-head"><div><h2 id="m-title">'+esc(title)+'</h2>'+(sub?'<div class="sm" id="sh-sub">'+sub+'</div>':'')+'</div><button class="x" id="m-x" aria-label="Close">\u00d7</button></div>'+body+'</div></div>';
     document.getElementById('m-x').onclick=closeModal;
-    document.getElementById('scrim').addEventListener('mousedown',function(e){if(e.target.id==='scrim')closeModal();});
+    var sc=document.getElementById('scrim');
+    bindScrim(sc);
+    sc.addEventListener('mousedown',function(e){if(e.target.id==='scrim')closeModal();});
   }
   function noteItems(q){
     var s=(q||'').trim().toLowerCase();
@@ -1870,7 +1939,7 @@ textarea:hover{border-color:var(--faint)}
     if(!list.length) return '<p class="sm nt-none">'+(s?'No notes match.':'You have not written any notes yet. Add one from a lead in Assigned.')+'</p>';
     return list.slice(0,100).map(function(n,i){
       var sv=svcById(n.svc);
-      return '<button type="button" class="nt-item" data-noteopen="'+esc(n.lead.id)+'|'+esc(n.svc)+'"><span class="nt-no num">'+(i+1)+'</span><span class="nt-body"><span class="nt-top"><b>'+esc(n.lead.name)+'</b><span class="sm">'+esc(fmtAt(n.at))+'</span></span><span class="sm">'+esc(n.stage)+(sv?' \u00b7 '+esc(sv.name):'')+'</span><span class="nt-text">'+esc(n.text)+'</span></span></button>';
+      return '<button type="button" class="nt-item" data-noteopen="'+esc(n.lead.id)+'|'+esc(n.svc)+'"><span class="nt-no num">'+(i+1)+'</span><span class="nt-body"><span class="nt-top"><b>'+esc(toTitleCase(n.lead.name))+'</b><span class="sm">'+esc(fmtAt(n.at))+'</span></span><span class="sm">'+esc(n.stage)+(sv?' \u00b7 '+esc(sv.name):'')+'</span><span class="nt-text">'+esc(n.text)+'</span></span></button>';
     }).join('');
   }
   function openNotes(){
@@ -1920,6 +1989,7 @@ textarea:hover{border-color:var(--faint)}
 
   function openPassword(){
     state.modal='pw';
+    lockScroll();
     layer.innerHTML='<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">'+
       '<div class="m-head"><div><h2 id="m-title">Change password</h2><div class="sm">Use at least 10 characters.</div></div><button class="x" id="m-x" aria-label="Close">×</button></div>'+
       '<div class="pw-body"><label class="k" for="pw-cur">Current password</label><input class="pwf" id="pw-cur" type="password" autocomplete="current-password">'+
@@ -1928,7 +1998,9 @@ textarea:hover{border-color:var(--faint)}
       '<div class="m-foot"><button class="btn" id="m-cancel">Cancel</button><button class="btn assign" id="pw-go">Save password</button></div></div></div>';
     document.getElementById('pw-cur').focus();
     document.getElementById('m-x').onclick=document.getElementById('m-cancel').onclick=closeModal;
-    document.getElementById('scrim').addEventListener('mousedown',function(e){if(e.target.id==='scrim')closeModal();});
+    var sc=document.getElementById('scrim');
+    bindScrim(sc);
+    sc.addEventListener('mousedown',function(e){if(e.target.id==='scrim')closeModal();});
     document.getElementById('pw-go').onclick=function(){
       var cur=document.getElementById('pw-cur').value, nw=document.getElementById('pw-new').value, again=document.getElementById('pw-again').value, err=document.getElementById('pw-err'), go=document.getElementById('pw-go');
       err.textContent='';
@@ -1941,11 +2013,14 @@ textarea:hover{border-color:var(--faint)}
   }
   function openSignAll(){
     state.modal='signall';
+    lockScroll();
     layer.innerHTML='<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">'+
       '<div class="m-head"><div><h2 id="m-title">Sign out of all devices?</h2><div class="sm">You will need to sign in again on every phone and computer, including this one.</div></div><button class="x" id="m-x" aria-label="Close">×</button></div>'+
       '<div class="m-foot"><button class="btn" id="m-cancel">Cancel</button><button class="btn assign" id="sa-go">Sign out everywhere</button></div></div></div>';
     document.getElementById('m-x').onclick=document.getElementById('m-cancel').onclick=closeModal;
-    document.getElementById('scrim').addEventListener('mousedown',function(e){if(e.target.id==='scrim')closeModal();});
+    var sc=document.getElementById('scrim');
+    bindScrim(sc);
+    sc.addEventListener('mousedown',function(e){if(e.target.id==='scrim')closeModal();});
     document.getElementById('sa-go').onclick=function(){api('POST','/api/auth/logout-all').then(function(){window.location.href='/login';}).catch(function(){window.location.href='/login';});};
   }
 
@@ -1997,7 +2072,7 @@ textarea:hover{border-color:var(--faint)}
     var seg='<div class="kseg" role="group" aria-label="Period">'+KP_PERIODS.map(function(x){return '<button type="button" data-kp="'+x[0]+'"'+(p===x[0]?' class="on" aria-pressed="true"':' aria-pressed="false"')+'><span class="l-long">'+x[1]+'</span><span class="l-short">'+x[2]+'</span></button>';}).join('')+'</div>';
     var h='<div class="head khead"><h1>KPIs</h1><span class="sub">'+esc(svcName())+'<span class="l-long"> · '+esc(user(state.user).name)+'</span></span>'+seg+'</div>';
     if(!m.length){
-      view.innerHTML=h+'<div class="tablewrap"><div class="empty"><b>No leads assigned yet</b>Your numbers appear here once you assign leads in Information.</div></div>';
+      view.innerHTML=h+'<div class="tablewrap"><div class="empty"><b>No leads assigned yet</b>Your numbers appear here once you assign leads in Leads.</div></div>';
       return;
     }
     var att;
