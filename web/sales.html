@@ -613,12 +613,12 @@ button.qsec .chev{display:none}
 .d-head h1{display:flex;align-items:center;gap:8px}
 .srn{color:var(--faint);font-weight:400}
 .acts{display:flex;gap:8px;flex-wrap:wrap;padding-bottom:14px}
-.actb{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 14px 0 6px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--fg);font-weight:500;font-size:13px;cursor:pointer}
+.actb{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px 0 5px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--fg);font-weight:500;font-size:13px;cursor:pointer}
 .actb:hover{background:var(--hover);text-decoration:none}
 .actb.off{opacity:.5;cursor:default;pointer-events:none}
 .actb.off .tile-ic{filter:grayscale(1)}
-.actb .tile-ic{width:26px;height:26px;border-radius:7px}
-.actb .tile-ic svg{width:16px;height:16px}
+.actb .tile-ic{width:24px;height:24px;border-radius:7px}
+.actb .tile-ic svg{width:15px;height:15px}
 .ico{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .sf{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:14px 0;border-top:1px solid var(--line)}
 .sf .k{font-size:12px;color:var(--muted);margin-bottom:6px}
@@ -841,9 +841,9 @@ textarea:hover{border-color:var(--faint)}
   .seg button{flex:none}
   .facts{grid-template-columns:1fr}
   .acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
-  .actb{justify-content:flex-start;height:40px;padding:0 10px 0 12px;gap:8px;font-size:13px;white-space:nowrap;min-width:0}
+  .actb{justify-content:flex-start;height:34px;padding:0 10px 0 6px;gap:8px;font-size:13px;white-space:nowrap;min-width:0}
   .actb .tile-ic{width:22px;height:22px;border-radius:6px}
-  .actb .tile-ic svg{width:14px;height:14px}
+  .actb .tile-ic svg{width:13px;height:13px}
   .sf{grid-template-columns:1fr}
   .split,.split.show-detail{grid-template-columns:1fr;border-top:0;min-height:0}
   .split.show-detail .list{display:none}
@@ -900,6 +900,55 @@ textarea:hover{border-color:var(--faint)}
   @media (prefers-reduced-motion:reduce){.scrim .modal,.scrim.leaving .modal{animation:none}}
   .m-foot{padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
 }
+
+/* ---------- phone: service label, Filters button and right-hand drawer ---------- */
+.ws-lbl,.tools-p{display:none}
+.tools-d{display:contents}
+.fscrim{position:fixed;inset:0;background:rgba(10,15,25,.45);opacity:0;visibility:hidden;transition:opacity .3s ease,visibility 0s .3s;z-index:40}
+.fscrim.open{opacity:1;visibility:visible;transition:opacity .3s ease}
+.fdrawer{position:fixed;top:0;right:0;bottom:0;width:min(88vw,380px);background:var(--bg);color:var(--fg);z-index:41;display:flex;flex-direction:column;
+  transform:translateX(100%);visibility:hidden;transition:transform .38s cubic-bezier(.32,.72,0,1),visibility 0s .38s;box-shadow:-14px 0 40px rgba(17,19,24,.2);padding-top:env(safe-area-inset-top,0px)}
+.fdrawer.open{transform:none;visibility:visible;transition:transform .38s cubic-bezier(.32,.72,0,1)}
+.fd-h{display:flex;align-items:center;justify-content:space-between;padding:12px 8px 12px 16px;border-bottom:1px solid var(--line);flex:none}
+.fd-h h2{margin:0;font-size:17px;font-weight:600}
+.fd-x{width:40px;height:40px;border:0;background:none;border-radius:20px;cursor:pointer;display:grid;place-items:center;color:var(--fg)}
+.fd-x:hover{background:var(--hover)}
+.fd-x svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round}
+.fd-b{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:0 16px}
+.fd-sec{padding:14px 0;border-bottom:1px solid var(--line)}
+.fd-sec:last-child{border-bottom:0}
+.fd-t{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 6px}
+.fd-acc{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;background:none;border:0;padding:2px 0;font:inherit;color:inherit;cursor:pointer;text-align:left;min-height:40px}
+.fd-acc b{font-weight:600;display:block}
+.fd-acc .v{color:var(--muted);font-size:13px}
+.fd-acc[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.fd-sec .field{width:100%;margin:8px 0 6px;font-size:16px;height:38px}
+.fd-list{max-height:250px}
+.fd-f{display:flex;gap:10px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);flex:none}
+.fd-f .btn{height:42px;font-size:14px;border-radius:9px}
+.fd-f .primary{flex:1}
+.ftags{display:flex;flex-wrap:wrap;gap:6px}
+.ftag{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 8px 0 11px;border-radius:8px;border:0;background:var(--sel);color:var(--fg);font:inherit;font-size:13px;font-weight:500;cursor:pointer;max-width:100%}
+.ftag span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ftag svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;flex:none}
+.ti-leads{stroke-width:1.75}
+@media (min-width:821px){.fscrim,.fdrawer{display:none}}
+@media (max-width:820px){
+  .ws-btn{display:none!important}
+  .ws-lbl{display:inline-flex;align-items:center;color:rgba(255,255,255,.72);font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:36vw;transition:max-width .42s cubic-bezier(.32,.72,0,1),opacity .22s ease}
+  .ws-lbl::before{content:"";width:1px;height:16px;background:rgba(255,255,255,.32);margin-right:10px;flex:none}
+  .top.search-open .ws-lbl{max-width:0;opacity:0}
+  .tools-d{display:none}
+  .tools-p{display:flex;flex-direction:column;align-items:stretch;gap:8px;width:100%}
+  .tp-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%}
+  .tools-p .ftags:empty{display:none}
+  .tools-p .num{color:var(--muted);font-size:12.5px}
+  .fbtn{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 11px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit;font-size:13px;font-weight:500;cursor:pointer;flex:none;-webkit-tap-highlight-color:transparent}
+  .fbtn:active{background:var(--hover)}
+  .fbtn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .fbtn .fb-n{background:var(--ink);color:var(--ink-fg);font:600 10.5px/16px system-ui,sans-serif;min-width:16px;height:16px;border-radius:8px;text-align:center;padding:0 4px;font-style:normal}
+  .fbtn .fb-n:empty{display:none}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -913,7 +962,7 @@ textarea:hover{border-color:var(--faint)}
       <div class="combo" id="ws-dd"></div>
     </div>
     <nav class="tabs" role="tablist" aria-label="Sales sections"><span class="pill" id="pill" aria-hidden="true"></span>
-      <button class="tab" role="tab" id="tab-info" data-tab="info"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span class="tl">Leads</span> <span class="c" id="cnt-info">0</span></button>
+      <button class="tab" role="tab" id="tab-info" data-tab="info"><svg class="ti ti-leads" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="8" r="3.3"/><path d="M3.6 19.2c0-3.4 2.8-5.6 6.4-5.6s6.4 2.2 6.4 5.6"/><path d="M19 4.3v5M16.5 6.8h5"/></svg><span class="tl">Leads</span></button>
       <button class="tab" role="tab" id="tab-assigned" data-tab="assigned"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg><span class="tl">Assigned</span> <span class="c" id="cnt-assigned">0</span></button>
       <button class="tab" role="tab" id="tab-kpi" data-tab="kpi"><svg class="ti ti-kpi" viewBox="0 0 24 24" aria-hidden="true"><path class="k1" d="M5 20V11"/><path class="k2" d="M12 20V4"/><path class="k3" d="M19 20v-6"/></svg><span class="tl">KPIs</span></button>
       <button class="tab tab-profile" role="tab" id="tab-profile" data-tab="profile"><span class="ti ti-av" id="tab-av" aria-hidden="true">PS</span><span class="tl">Profile</span></button>
@@ -928,6 +977,9 @@ textarea:hover{border-color:var(--faint)}
     </div>
   </div>
 </header>
+
+<div class="fscrim" id="fscrim" data-fdclose></div>
+<aside class="fdrawer" id="fdrawer" role="dialog" aria-modal="true" aria-label="Filters" aria-hidden="true"></aside>
 
 <main class="wrap" id="view"></main>
 <div id="layer"></div>
@@ -1144,7 +1196,6 @@ textarea:hover{border-color:var(--faint)}
       var tabTitles={info:'Leads',assigned:'Assigned',kpi:'KPIs',profile:'Profile'};
       tt.textContent=tabTitles[state.tab]||'Leads';
     }
-    document.getElementById('cnt-info').textContent=open_().length;
     document.getElementById('cnt-assigned').textContent=mine().length;
     ['info','assigned','kpi','profile'].forEach(function(t){document.getElementById('tab-'+t).setAttribute('aria-selected',state.tab===t);});
     document.querySelector('.top').classList.toggle('kpi',state.tab==='kpi'||state.tab==='profile');
@@ -1154,6 +1205,8 @@ textarea:hover{border-color:var(--faint)}
     renderWs();
     renderNt();
     placePill();
+    updateFilterBadge();
+    if(state.tab!=='info'&&fd.open) closeDrawer(true);
   }
 
   /* ---------- Leads tab ---------- */
@@ -1168,9 +1221,13 @@ textarea:hover{border-color:var(--faint)}
     var slice=rows.slice(state.page*PAGE,state.page*PAGE+PAGE);
 
     var h='<div class="head"><h1>Leads</h1><span class="sub">'+esc(svcName())+'</span></div>'+
-      '<div class="tools">'+
+      '<div class="tools"><div class="tools-d">'+
       ddHtml('area','Filter by area')+ddHtml('cat','Filter by category')+toolsWsHtml()+
-      '<span class="grow num">'+rows.length+' of '+all.length+' leads</span></div>';
+      '<span class="grow num">'+rows.length+' of '+all.length+' leads</span></div>'+
+      '<div class="tools-p"><div class="tp-row"><span class="num">'+rows.length+' of '+all.length+' leads</span>'+
+      '<button type="button" class="fbtn" id="fbtn" data-fopen aria-label="Filters'+(activeFilters().length?', '+activeFilters().length+' active':'')+'" aria-haspopup="dialog" aria-expanded="'+fd.open+'"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>Filters<i class="fb-n" id="fbn">'+(activeFilters().length||'')+'</i></button></div>'+
+      '<div class="ftags">'+activeFilters().map(function(f){
+        return '<button type="button" class="ftag" data-fclear="'+f[0]+'" aria-label="Remove filter '+esc(f[1])+'"><span>'+esc(f[1])+'</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8"/></svg></button>';}).join('')+'</div></div></div>';
 
     if(!rows.length){
       h+='<div class="tablewrap"><div class="empty"><b>'+(all.length?'No leads match':'No leads to assign')+'</b>'+(all.length?'Clear the search or filters.':'New rows appear when the admin imports another file.')+'</div></div>';
@@ -1318,7 +1375,8 @@ textarea:hover{border-color:var(--faint)}
       (open?'<div class="pop"><div class="sm pop-h">Service</div><div class="opts" role="listbox">'+SERVICES.map(function(x){
         var free=LEADS.filter(function(l){return l.open.indexOf(x.id)>-1;}).length;
         var mineN=LEADS.filter(function(l){return l.work[x.id]&&l.work[x.id].owner===state.user;}).length;
-        return optHtml('data-wsopt',x.id,x.name,free+' open \u00b7 '+mineN+' assigned',x.id===state.service,false,svcIcon(x));}).join('')+'</div></div>':'');
+        return optHtml('data-wsopt',x.id,x.name,free+' open \u00b7 '+mineN+' assigned',x.id===state.service,false,svcIcon(x));}).join('')+'</div></div>':'')+
+      '<span class="ws-lbl">'+esc(s.name)+'</span>';
   }
   function switchService(id){
     if(id===state.service){setOpen('');return;}
@@ -1326,7 +1384,84 @@ textarea:hover{border-color:var(--faint)}
     document.getElementById('gq').value='';
     closeModal();settleBar();window.scrollTo(0,0);render();animateView('tab');
     toast('Service: '+svcName());
+    if(fd.open){fd.sec='';fd.q='';renderDrawer();}
   }
+  /* ---------- Filters drawer (phone) ---------- */
+  var fd={open:false,sec:'',q:''};
+  function activeFilters(){
+    var a=[];
+    if(state.area) a.push(['area',toTitleCase(state.area)]);
+    if(state.cat) a.push(['cat',catLabel(state.cat)]);
+    return a;
+  }
+  function infoRows(){
+    return open_().filter(function(l){
+      return (!state.area||l.area===state.area)&&(state.grp===''||l.grp===state.grp)&&(!state.cat||l.cat===state.cat)&&matchQ(l);
+    });
+  }
+  function updateFilterBadge(){
+    var b=document.getElementById('fbtn'), n=document.getElementById('fbn');
+    if(!b||!n) return;
+    var c=activeFilters().length;
+    n.textContent=c?String(c):'';
+    b.setAttribute('aria-label','Filters'+(c?', '+c+' active':''));
+  }
+  function renderDrawer(){
+    var d=document.getElementById('fdrawer'); if(!d) return;
+    var n=infoRows().length, act=activeFilters().length;
+    var svc=SERVICES.map(function(x){
+      var free=LEADS.filter(function(l){return l.open.indexOf(x.id)>-1;}).length;
+      var mineN=LEADS.filter(function(l){return l.work[x.id]&&l.work[x.id].owner===state.user;}).length;
+      return optHtml('data-wsopt',x.id,x.name,free+' open \u00b7 '+mineN+' assigned',x.id===state.service,false,svcIcon(x));}).join('');
+    function acc(id,title){
+      var on=fd.sec===id;
+      return '<div class="fd-sec"><button type="button" class="fd-acc" data-fdsec="'+id+'" aria-expanded="'+on+'"><span><b>'+title+'</b><span class="v">'+esc(ddLabel(id))+'</span></span>'+CHEV+'</button>'+
+        (on?'<input class="field" id="fd-q" type="search" placeholder="'+esc(DD[id].search)+'" aria-label="'+esc(title)+'" value="'+esc(fd.q)+'"><div class="opts fd-list" id="fd-list" role="listbox">'+ddListHtml(id,fd.q)+'</div>':'')+'</div>';
+    }
+    d.innerHTML='<div class="fd-h"><h2>Filters</h2><button type="button" class="fd-x" data-fdclose aria-label="Close filters"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>'+
+      '<div class="fd-b"><div class="fd-sec"><div class="fd-t">Service</div><div class="opts" role="listbox">'+svc+'</div></div>'+acc('area','Area')+acc('cat','Category')+'</div>'+
+      '<div class="fd-f">'+(act?'<button type="button" class="btn" data-fdclear>Clear all</button>':'')+'<button type="button" class="btn primary" data-fdclose>Show '+plural(n)+'</button></div>';
+  }
+  function openDrawer(){
+    if(fd.open) return;
+    fd.open=true;fd.sec='';fd.q='';
+    renderDrawer();
+    var d=document.getElementById('fdrawer');
+    d.setAttribute('aria-hidden','false');
+    d.classList.add('open');document.getElementById('fscrim').classList.add('open');
+    document.body.style.overflow='hidden';
+    var fb=document.getElementById('fbtn'); if(fb) fb.setAttribute('aria-expanded','true');
+    setTimeout(function(){var x=d.querySelector('.fd-x');if(x)x.focus();},60);
+  }
+  function closeDrawer(quiet){
+    if(!fd.open) return;
+    fd.open=false;
+    var d=document.getElementById('fdrawer');
+    d.classList.remove('open');d.setAttribute('aria-hidden','true');
+    document.getElementById('fscrim').classList.remove('open');
+    document.body.style.overflow='';
+    var b=document.getElementById('fbtn'); if(b){b.setAttribute('aria-expanded','false');if(!quiet) b.focus();}
+  }
+  document.addEventListener('click',function(e){
+    if(e.target.closest('[data-fopen]')){openDrawer();return;}
+    if(e.target.closest('[data-fdclose]')){closeDrawer();return;}
+    var sec=e.target.closest('[data-fdsec]');
+    if(sec){fd.sec=fd.sec===sec.dataset.fdsec?'':sec.dataset.fdsec;fd.q='';renderDrawer();var q=document.getElementById('fd-q');if(q)q.focus();return;}
+    var ob=e.target.closest('#fdrawer [data-ddopt]');
+    if(ob){ddSet(ob.dataset.ddopt,ob.dataset.v);fd.sec='';fd.q='';renderInfo();updateFilterBadge();renderDrawer();return;}
+    if(e.target.closest('[data-fdclear]')){state.area='';state.cat='';state.grp='';state.page=0;renderInfo();updateFilterBadge();renderDrawer();return;}
+    var fc=e.target.closest('[data-fclear]');
+    if(fc){ddSet(fc.dataset.fclear,'');renderInfo();updateFilterBadge();}
+  });
+  document.addEventListener('input',function(e){
+    if(e.target.id!=='fd-q'||!fd.sec) return;
+    fd.q=e.target.value;
+    document.getElementById('fd-list').innerHTML=ddListHtml(fd.sec,fd.q);
+  });
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&fd.open) closeDrawer();});
+  var mqFd=window.matchMedia?window.matchMedia('(max-width:820px)'):null;
+  if(mqFd&&mqFd.addEventListener) mqFd.addEventListener('change',function(){if(!mqFd.matches) closeDrawer(true);});
+
   /* ---------- Notifications ---------- */
   var BELL='<svg class="bell" viewBox="0 0 24 24" aria-hidden="true"><path style="fill:#fff;stroke:none" d="M12 3.6a5.4 5.4 0 0 0-5.4 5.4v3c0 .5-.2 1-.5 1.4l-1.2 1.6c-.5.7 0 1.8.9 1.8h12.4c.9 0 1.4-1.1.9-1.8l-1.2-1.6a2.4 2.4 0 0 1-.5-1.4V9A5.4 5.4 0 0 0 12 3.6z"/><path style="fill:#fff;stroke:none" d="M9.7 18.3a2.3 2.3 0 0 0 4.6 0z"/></svg>';
   /* Demo-only: the admin panel will send real notices like this one. */
