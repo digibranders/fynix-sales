@@ -1,0 +1,54 @@
+name: Uptime
+
+# Checks https://sales.fynix.digital/health every 5 minutes. When it is down this opens an issue (GitHub emails the
+# repository's watchers); when it recovers the issue is commented on and closed.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      GH_TOKEN: ${{ github.token }}
+      URL: https://sales.fynix.digital/health
+    steps:
+      - name: Check the site
+        id: probe
+        run: |
+          code=$(curl -sS -o /tmp/body -w '%{http_code}' --max-time 15 --retry 2 --retry-delay 5 --retry-all-errors "$URL" || echo 000)
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" = "200" ] && grep -q '"ok":true' /tmp/body; then echo "up=true" >> "$GITHUB_OUTPUT"; else echo "up=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Find an open outage issue
+        id: issue
+        run: |
+          gh label create uptime --color B60205 --description "Site down alert" -R "$GITHUB_REPOSITORY" 2>/dev/null || true
+          number=$(gh issue list -R "$GITHUB_REPOSITORY" --label uptime --state open --json number --jq '.[0].number // empty')
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      - name: Raise the alarm
+        if: steps.probe.outputs.up == 'false'
+        run: |
+          body="sales.fynix.digital answered HTTP ${{ steps.probe.outputs.code }} to /health at $(date -u +%FT%TZ). Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ -z "${{ steps.issue.outputs.number }}" ]; then
+            gh issue create -R "$GITHUB_REPOSITORY" --label uptime --title "Site is down: sales.fynix.digital" --body "$body"
+          else
+            gh issue comment "${{ steps.issue.outputs.number }}" -R "$GITHUB_REPOSITORY" --body "Still down. $body"
+          fi
+          exit 1
+
+      - name: Close the issue once it is back
+        if: steps.probe.outputs.up == 'true' && steps.issue.outputs.number != ''
+        run: |
+          gh issue close "${{ steps.issue.outputs.number }}" -R "$GITHUB_REPOSITORY" --comment "Back up at $(date -u +%FT%TZ)."
