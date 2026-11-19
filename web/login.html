@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#e7ece5">
+<title>Sign in to Fynix Sales</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* A floating card on a soft sage page. Left: the form. Right: a flat illustration of the pipeline as a staircase,
+   with a runner who climbs one step for every sales line. Phones stack the art on top of the form. */
+:root{
+  --page:#e7ece5; --white:#ffffff; --ink:#121413; --muted:#5f655f; --line:#d9ddd6;
+  --deep:#0d1f16; --green:#2fb36d; --green-d:#178a52; --red:#e5483b; --err:#c8372d; --cream:#f2efe6;
+  --sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --serif:'Instrument Serif',Georgia,'Times New Roman',serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font:15px/1.5 var(--sans);color:var(--ink);background:var(--page);-webkit-font-smoothing:antialiased;min-height:100vh;min-height:100dvh}
+[hidden]{display:none!important}
+button{font:inherit}
+
+.page{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:28px}
+.card{width:100%;max-width:1120px;min-height:660px;display:grid;grid-template-columns:1fr 1.1fr;background:var(--white);border-radius:28px;padding:14px;box-shadow:0 1px 0 rgba(0,0,0,.04),0 24px 60px rgba(13,31,22,.14)}
+
+/* ---------- form side ---------- */
+.side{display:flex;flex-direction:column;padding:26px 46px 22px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+.mark{width:28px;height:28px;border-radius:8px;background:var(--deep);display:grid;place-items:center}
+.mark svg{width:15px;height:15px;fill:var(--green)}
+.panel{width:100%;max-width:380px;margin:auto}
+h1{margin:0;font:600 28px/1.15 var(--sans);letter-spacing:-.02em}
+.sub{margin:8px 0 22px;color:var(--muted);font-size:14.5px}
+
+label.l{display:block;margin:16px 0 7px;font-size:13px;font-weight:500}
+.inp{position:relative}
+.inp input{width:100%;height:50px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:var(--white);color:var(--ink);font:inherit;font-size:16px;transition:border-color .15s ease,box-shadow .15s ease}
+.inp input::placeholder{color:#9a9f98}
+.inp input:hover{border-color:#bfc4bb}
+.inp input:focus-visible{outline:0;border-color:var(--green-d);box-shadow:0 0 0 3px rgba(47,179,109,.22)}
+.inp.pw input{padding-right:62px}
+.eye{position:absolute;right:4px;top:4px;height:42px;min-width:54px;padding:0 10px;border:0;background:none;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer;border-radius:8px}
+.eye:hover{color:var(--ink)}
+.eye:focus-visible{outline:2px solid var(--green-d);outline-offset:-2px}
+
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px}
+.check{display:inline-flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;user-select:none;font-size:14px}
+.check input{position:absolute;opacity:0;width:0;height:0}
+.box{width:18px;height:18px;flex:none;border:1.5px solid #9a9f98;border-radius:5px;display:grid;place-items:center;background:var(--white);transition:background .15s ease,border-color .15s ease}
+.check input:checked+.box{background:var(--deep);border-color:var(--deep)}
+.check input:checked+.box::after{content:"";width:8px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+.check input:focus-visible+.box{outline:2px solid var(--green-d);outline-offset:2px}
+.link{min-height:44px;padding:0;background:none;border:0;color:var(--muted);font-size:14px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-color:#bfc4bb}
+.link:hover{color:var(--ink)}
+.link:focus-visible{outline:2px solid var(--green-d);outline-offset:2px;border-radius:3px}
+.note{margin:8px 0 0;padding:12px 14px;border-radius:10px;background:#f4f6f2;border:1px solid var(--line);font-size:13.5px;color:var(--muted)}
+.hint{margin:7px 0 0;font-size:13px;color:var(--muted)}
+.err{margin:12px 0 0;min-height:20px;color:var(--err);font-size:13.5px;font-weight:500}
+
+.btn{margin-top:10px;width:100%;height:52px;border:0;border-radius:12px;background:var(--deep);color:#fff;font-weight:600;font-size:15px;cursor:pointer;transition:background .15s ease,transform .06s ease}
+.btn:hover{background:#17342a}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--green-d);outline-offset:3px}
+.btn[disabled]{opacity:.6;cursor:default}
+.foot{margin:0;font:400 11.5px/1.4 var(--mono);color:#8c918a;letter-spacing:.04em}
+
+/* ---------- art side ---------- */
+.art{position:relative;background:var(--deep);border-radius:20px;color:var(--cream);display:flex;flex-direction:column;padding:34px 36px 26px;overflow:hidden}
+.q-text{margin:0;min-height:3.3em;font:400 clamp(30px,3.1vw,42px)/1.1 var(--serif);letter-spacing:-.005em;text-wrap:balance;max-width:470px}
+.swap{transition:opacity .38s ease,transform .38s ease}
+.out .swap{opacity:0;transform:translateY(8px)}
+.ctl{display:flex;align-items:center;gap:8px;margin-top:20px}
+.arrow{width:40px;height:40px;border-radius:50%;border:1px solid rgba(242,239,230,.28);background:none;color:var(--cream);display:grid;place-items:center;cursor:pointer;transition:background .15s ease,border-color .15s ease}
+.arrow:hover{background:rgba(242,239,230,.1);border-color:rgba(242,239,230,.5)}
+.arrow:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.arrow svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.count{margin-left:8px;font:400 12px/1 var(--mono);color:rgba(242,239,230,.5);letter-spacing:.06em}
+.scene{flex:1;min-height:0;display:flex;align-items:flex-end;margin-top:18px}
+.scene svg{width:100%;height:auto;max-height:100%;display:block;overflow:visible}
+.stair rect{transition:fill .5s ease}
+.runner{transition:transform .8s cubic-bezier(.45,.05,.2,1)}
+
+/* ---------- phone ---------- */
+@media (max-width:899px){
+  .page{padding:0;align-items:stretch;background:var(--white)}
+  .card{display:flex;flex-direction:column-reverse;max-width:none;min-height:100vh;min-height:100dvh;border-radius:0;box-shadow:none;padding:12px}
+  .side{padding:22px 12px}
+  .panel{margin:26px auto 22px}
+  .art{padding:24px 22px 18px}
+  .q-text{font-size:28px}
+  .scene{margin-top:12px}
+  .ctl{margin-top:14px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="card">
+    <main class="side">
+      <div class="brand"><span class="mark"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h3.5v12H3zM9.5 2H13v7H9.5z"/></svg></span>Fynix Sales</div>
+
+      <div class="panel">
+        <form id="signin" novalidate>
+          <h1>Welcome back</h1>
+          <p class="sub">Sign in to pick up where you left off.</p>
+
+          <label class="l" for="email">Email</label>
+          <div class="inp"><input id="email" name="email" type="email" placeholder="you@company.com" autocomplete="username" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next" required autofocus></div>
+
+          <label class="l" for="password">Password</label>
+          <div class="inp pw">
+            <input id="password" name="password" type="password" placeholder="Your password" autocomplete="current-password" enterkeyhint="go" required>
+            <button type="button" class="eye" data-eye="password" aria-label="Show password" aria-pressed="false">Show</button>
+          </div>
+
+          <div class="row">
+            <label class="check"><input type="checkbox" id="remember" checked><span class="box"></span>Keep me signed in</label>
+            <button type="button" class="link" id="forgot">Forgot password?</button>
+          </div>
+          <p class="note" id="forgot-note" hidden>Ask your superadmin to reset it. They will send you a new temporary password.</p>
+          <p class="err" id="err1" role="alert"></p>
+          <button class="btn" type="submit" id="go1">Sign in</button>
+        </form>
+
+        <form id="change" novalidate hidden>
+          <h1>Set a new password</h1>
+          <p class="sub">You are using a temporary password. Choose your own to continue.</p>
+
+          <label class="l" for="cur">Temporary password</label>
+          <div class="inp pw">
+            <input id="cur" type="password" placeholder="Temporary password" autocomplete="current-password" enterkeyhint="next" required>
+            <button type="button" class="eye" data-eye="cur" aria-label="Show password" aria-pressed="false">Show</button>
+          </div>
+
+          <label class="l" for="next">New password</label>
+          <div class="inp pw">
+            <input id="next" type="password" placeholder="At least 10 characters" autocomplete="new-password" minlength="10" enterkeyhint="next" required>
+            <button type="button" class="eye" data-eye="next" aria-label="Show password" aria-pressed="false">Show</button>
+          </div>
+
+          <label class="l" for="again">Repeat new password</label>
+          <div class="inp pw">
+            <input id="again" type="password" placeholder="Type it once more" autocomplete="new-password" enterkeyhint="go" required>
+            <button type="button" class="eye" data-eye="again" aria-label="Show password" aria-pressed="false">Show</button>
+          </div>
+
+          <p class="err" id="err2" role="alert"></p>
+          <button class="btn" type="submit" id="go2">Save and continue</button>
+        </form>
+      </div>
+
+      <p class="foot">sales.fynix.digital</p>
+    </main>
+
+    <section class="art" id="art" aria-label="Sales reminders">
+      <p class="q-text swap" id="q-text"></p>
+      <div class="ctl">
+        <button type="button" class="arrow" id="prev" aria-label="Previous reminder"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <button type="button" class="arrow" id="next-q" aria-label="Next reminder"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+        <span class="count" id="count">01 / 06</span>
+      </div>
+
+      <div class="scene" aria-hidden="true">
+        <svg viewBox="0 0 520 300" preserveAspectRatio="xMidYMax meet">
+          <circle cx="70" cy="78" r="40" fill="#e5483b"/>
+          <line x1="0" y1="290.5" x2="520" y2="290.5" stroke="rgba(242,239,230,.18)"/>
+          <g class="stair" id="stair"></g>
+          <g stroke-linecap="round">
+            <line x1="485" y1="110" x2="485" y2="54" stroke="#f2efe6" stroke-width="3"/>
+            <path d="M486 54h30l-8 11 8 11h-30z" fill="#e5483b"/>
+          </g>
+          <g class="runner" id="runner" style="transform:translate(65px,250px)">
+            <path d="M0 -24V-11M0 -11L-6 0M0 -11L6 0M-7 -19L7 -23" stroke="#f2efe6" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+            <circle cx="0" cy="-32" r="7" fill="#f2efe6"/>
+          </g>
+        </svg>
+      </div>
+    </section>
+  </div>
+</div>
+<script>
+(function(){
+  'use strict';
+
+  /* Short, encouraging lines for the start of a sales day. The runner climbs a step with each one. */
+  var LINES=[
+    {text:'Every lead starts as a stranger. Make the first call worth remembering.'},
+    {text:'Follow up. The deal is usually hiding in the third conversation.'},
+    {text:'Listen twice as long as you talk. They will tell you how to sell to them.'},
+    {text:'Be useful before you are persuasive.'},
+    {text:'A no today is just a yes that has not found its moment yet.'},
+    {text:'Small calls, made daily, become the big month.'}
+  ];
+  var art=document.getElementById('art'), qText=document.getElementById('q-text');
+  var count=document.getElementById('count'), runner=document.getElementById('runner'), stair=document.getElementById('stair');
+  var NS='http://www.w3.org/2000/svg', steps=[], index=0, timer=null, swapTimer=null;
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var W=70, GAP=6, X0=30, BASE=290;
+
+  LINES.forEach(function(line,i){
+    var h=40+i*30, r=document.createElementNS(NS,'rect');
+    r.setAttribute('x',X0+i*(W+GAP)); r.setAttribute('y',BASE-h); r.setAttribute('width',W); r.setAttribute('height',h); r.setAttribute('rx',4);
+    stair.appendChild(r); steps.push({el:r,cx:X0+i*(W+GAP)+W/2,top:BASE-h});
+  });
+
+  function two(n){return ('0'+n).slice(-2);}
+  function paintStage(){
+    var s=steps[index];
+    count.textContent=two(index+1)+' / '+two(LINES.length);
+    steps.forEach(function(st,i){st.el.setAttribute('fill',i===index?'#2fb36d':(i<index?'#25774d':'#1c5a3c'));});
+    runner.style.transform='translate('+s.cx+'px,'+s.top+'px)';
+  }
+  function paintText(){
+    qText.textContent=LINES[index].text;
+  }
+  function show(i){
+    i=(i+LINES.length)%LINES.length;
+    if(i===index) return;
+    index=i;
+    paintStage();
+    if(reduce){paintText();return;}
+    art.classList.add('out');
+    window.clearTimeout(swapTimer);
+    swapTimer=window.setTimeout(function(){paintText();art.classList.remove('out');},380);
+  }
+  function restart(){
+    window.clearInterval(timer);
+    if(reduce) return;
+    timer=window.setInterval(function(){show(index+1);},7500);
+  }
+  document.getElementById('prev').addEventListener('click',function(){show(index-1);restart();});
+  document.getElementById('next-q').addEventListener('click',function(){show(index+1);restart();});
+  paintStage(); paintText(); restart();
+  document.addEventListener('visibilitychange',function(){if(document.hidden)window.clearInterval(timer);else restart();});
+
+  /* ---------- form ---------- */
+  var signin=document.getElementById('signin'), change=document.getElementById('change');
+
+  function post(url, body){
+    return fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(res){
+      return res.json().catch(function(){return {};}).then(function(data){
+        if(!res.ok) throw new Error(data.message||'Something went wrong. Please try again.');
+        return data;
+      });
+    });
+  }
+  function busy(btn,on,label){btn.disabled=on;btn.textContent=on?'One moment':label;}
+  function showChange(){signin.hidden=true;change.hidden=false;document.getElementById('next').focus();}
+
+  document.querySelectorAll('.eye').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var input=document.getElementById(btn.getAttribute('data-eye')), show=input.type==='password';
+      input.type=show?'text':'password';
+      btn.textContent=show?'Hide':'Show';
+      btn.setAttribute('aria-pressed',show?'true':'false');
+      btn.setAttribute('aria-label',show?'Hide password':'Show password');
+    });
+  });
+
+  document.getElementById('forgot').addEventListener('click',function(){
+    var n=document.getElementById('forgot-note'); n.hidden=!n.hidden;
+  });
+
+  fetch('/api/auth/me',{credentials:'same-origin'}).then(function(res){return res.ok?res.json():null;}).then(function(me){
+    if(!me) return;
+    if(me.mustChangePassword) showChange(); else window.location.replace(me.home);
+  }).catch(function(){});
+
+  signin.addEventListener('submit',function(e){
+    e.preventDefault();
+    var err=document.getElementById('err1'), btn=document.getElementById('go1');
+    var email=document.getElementById('email').value.trim(), password=document.getElementById('password').value;
+    err.textContent='';
+    if(!email||!password){err.textContent='Enter your email and password.';return;}
+    busy(btn,true,'Sign in');
+    post('/api/auth/login',{email:email,password:password,remember:document.getElementById('remember').checked}).then(function(res){
+      if(res.mustChangePassword){busy(btn,false,'Sign in');document.getElementById('cur').value=password;showChange();return;}
+      window.location.replace(res.redirect);
+    }).catch(function(error){busy(btn,false,'Sign in');err.textContent=error.message;});
+  });
+
+  change.addEventListener('submit',function(e){
+    e.preventDefault();
+    var err=document.getElementById('err2'), btn=document.getElementById('go2');
+    var cur=document.getElementById('cur').value, next=document.getElementById('next').value, again=document.getElementById('again').value;
+    err.textContent='';
+    if(next.length<10){err.textContent='Use at least 10 characters.';return;}
+    if(next!==again){err.textContent='The two new passwords do not match.';return;}
+    busy(btn,true,'Save and continue');
+    post('/api/auth/change-password',{current:cur,next:next}).then(function(res){
+      window.location.replace(res.redirect);
+    }).catch(function(error){busy(btn,false,'Save and continue');err.textContent=error.message;});
+  });
+})();
+</script>
+</body>
+</html>
