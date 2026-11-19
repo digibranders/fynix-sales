@@ -134,72 +134,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .av{width:26px;height:26px;border-radius:50%;background:var(--ink);color:var(--ink-fg);display:grid;place-items:center;font-size:10.5px;font-weight:600;flex:none}
 .who .av{background:var(--accent);color:#fff}
 
-/* border beam on the search box: the "line" variant of the Border Beam library (libraries.dev/beam), same layers and timings, in blue and white */
-@property --bx{syntax:'<number>';inherits:true;initial-value:0}
-@property --bw{syntax:'<number>';inherits:true;initial-value:1}
-@property --bh{syntax:'<number>';inherits:true;initial-value:1}
-@property --bs{syntax:'<number>';inherits:true;initial-value:1}
-@property --bs2{syntax:'<number>';inherits:true;initial-value:1}
-@property --be{syntax:'<number>';inherits:true;initial-value:1}
-@property --bo{syntax:'<number>';inherits:true;initial-value:0}
 @property --pad{syntax:'<length>';inherits:true;initial-value:5px}
-@property --ba{syntax:'<angle>';inherits:true;initial-value:0deg}
-@keyframes beam-spin-icon{to{--ba:360deg}}
-.gsearch{--beam-strength:1;border-radius:17px;overflow:hidden;
-  animation:beam-travel 3.1s linear infinite,beam-edge 3.1s linear infinite,beam-breathe 4s ease-in-out infinite,beam-spike 4.1s ease-in-out infinite,beam-spike2 5.3s ease-in-out infinite,beam-in .6s ease forwards}
-.gsearch::before,.gsearch::after,.gsearch .bloom{content:"";position:absolute;inset:0;pointer-events:none}
-.gsearch::after{border-radius:16px;padding:1px;clip-path:inset(0 round 17px);z-index:2;
-  background:
-    radial-gradient(ellipse calc(24px*var(--bw)) calc(28px*var(--bh)) at calc(var(--bx)*100%) calc(100% + 2px),rgba(255,255,255,.38) 0%,rgba(255,255,255,.12) 30%,transparent 65%),
-    radial-gradient(ellipse calc(36px*var(--bw)) calc(36px*var(--bh)) at calc(var(--bx)*100%) calc(100% + 2px),rgb(255,255,255),transparent),
-    radial-gradient(ellipse calc(30px*var(--bw)) calc(32px*var(--bh)) at calc(var(--bx)*100% + 39px) 100%,rgb(130,195,255),transparent),
-    radial-gradient(ellipse calc(33px*var(--bw)) calc(28px*var(--bh)) at calc(var(--bx)*100% - 36px) calc(100% + 2px),rgb(70,135,255),transparent),
-    radial-gradient(ellipse calc(29px*var(--bw)) calc(34px*var(--bh)) at calc(var(--bx)*100% - 54px) 100%,rgb(30,90,235),transparent),
-    radial-gradient(ellipse calc(27px*var(--bw)) calc(30px*var(--bh)) at calc(var(--bx)*100% + 51px) calc(100% - 1px),rgb(170,215,255),transparent),
-    radial-gradient(ellipse calc(36px*var(--bw)) calc(24px*var(--bh)) at calc(var(--bx)*100% + 21px) calc(100% + 1px),rgb(70,110,255),transparent),
-    radial-gradient(ellipse calc(30px*var(--bw)) calc(22px*var(--bh)) at calc(var(--bx)*100% - 21px) 100%,rgb(40,110,255),transparent),
-    radial-gradient(ellipse calc(25px*var(--bw)) calc(28px*var(--bh)) at calc(var(--bx)*100% + 66px) calc(100% + 1px),rgb(205,228,255),transparent),
-    radial-gradient(ellipse calc(23px*var(--bw)) calc(30px*var(--bh)) at calc(var(--bx)*100% - 66px) calc(100% - 1px),rgb(95,165,255),transparent);
-  mask-image:radial-gradient(ellipse calc(78px*var(--bw)) calc(60px*var(--bh)) at calc(var(--bx)*100%) 100%,#fff 0%,rgba(255,255,255,.5) 45%,transparent 100%),linear-gradient(#fff 0 0),linear-gradient(#fff 0 0);
-  mask-clip:border-box,content-box,border-box;mask-origin:border-box,content-box,border-box;mask-composite:intersect,exclude,intersect;
-  opacity:calc(var(--bo)*var(--be)*1.14*var(--beam-strength));animation:beam-hue 12s ease-in-out infinite}
-.gsearch::before{border-radius:17px;clip-path:inset(0 round 17px);z-index:1;
-  background:
-    radial-gradient(ellipse calc(33px*var(--bw)) calc(30px*var(--bh)) at calc(var(--bx)*100%) 100%,rgba(255,255,255,.48),transparent),
-    radial-gradient(ellipse calc(24px*var(--bw)) calc(26px*var(--bh)) at calc(var(--bx)*100% + 39px) calc(100% - 3px),rgba(130,195,255,.42),transparent),
-    radial-gradient(ellipse calc(27px*var(--bw)) calc(24px*var(--bh)) at calc(var(--bx)*100% - 36px) 100%,rgba(70,135,255,.48),transparent),
-    radial-gradient(ellipse calc(23px*var(--bw)) calc(28px*var(--bh)) at calc(var(--bx)*100% - 54px) calc(100% - 2px),rgba(30,90,235,.42),transparent),
-    radial-gradient(ellipse calc(24px*var(--bw)) calc(24px*var(--bh)) at calc(var(--bx)*100% + 51px) calc(100% - 1px),rgba(170,215,255,.5),transparent),
-    radial-gradient(ellipse calc(30px*var(--bw)) calc(20px*var(--bh)) at calc(var(--bx)*100% + 21px) 100%,rgba(70,110,255,.45),transparent),
-    radial-gradient(ellipse calc(25px*var(--bw)) calc(18px*var(--bh)) at calc(var(--bx)*100% - 21px) calc(100% - 2px),rgba(40,110,255,.4),transparent),
-    radial-gradient(ellipse calc(21px*var(--bw)) calc(24px*var(--bh)) at calc(var(--bx)*100% + 66px) 100%,rgba(205,228,255,.45),transparent),
-    radial-gradient(ellipse calc(18px*var(--bw)) calc(26px*var(--bh)) at calc(var(--bx)*100% - 66px) calc(100% - 1px),rgba(95,165,255,.52),transparent);
-  box-shadow:inset 0 0 9px 1px rgba(255,255,255,.1);
-  mask-image:radial-gradient(ellipse calc(78px*var(--bw)) calc(60px*var(--bh)) at calc(var(--bx)*100%) 100%,#fff 0%,rgba(255,255,255,.5) 45%,transparent 100%),linear-gradient(#fff,transparent 28px,transparent calc(100% - 28px),#fff),linear-gradient(to right,#fff,transparent 28px,transparent calc(100% - 28px),#fff);
-  mask-composite:intersect,add;
-  opacity:calc(var(--bo)*var(--be)*.7*var(--beam-strength));animation:beam-hue 12s ease-in-out infinite}
-.gsearch .bloom{border-radius:16px;clip-path:inset(0 round 17px);z-index:3;
-  background:
-    radial-gradient(ellipse calc(.8px*var(--bs)) calc(92px*var(--bh)) at 8% calc(100% - 2px),rgb(255,255,255),rgb(255,255,255) 30%,transparent 88%),
-    radial-gradient(ellipse calc(10px*var(--bs2)) calc(35px*var(--bh)) at 22% calc(100% - 4px),rgba(85,160,255,.98),rgba(85,160,255,.49) 50%,transparent 95%),
-    radial-gradient(ellipse calc(2px*(2 - var(--bs))) calc(72px*var(--bh)) at 36% calc(100% - 3px),rgb(70,110,255),rgb(70,110,255) 40%,transparent 90%),
-    radial-gradient(ellipse calc(14px*var(--bs2)) calc(28px*var(--bh)) at 50% calc(100% - 2px),rgba(195,222,255,.59),rgba(195,222,255,.29) 55%,transparent 96%),
-    radial-gradient(ellipse calc(1.2px*(2 - var(--bs2))) calc(85px*var(--bh)) at 64% calc(100% - 4px),rgb(125,182,255),rgb(125,182,255) 35%,transparent 89%),
-    radial-gradient(ellipse calc(7px*var(--bs)) calc(45px*var(--bh)) at 78% calc(100% - 2px),rgba(40,95,230,.91),rgba(40,95,230,.45) 48%,transparent 94%),
-    radial-gradient(ellipse calc(.6px*(2 - var(--bs))) calc(60px*var(--bh)) at 92% calc(100% - 3px),rgb(40,110,255),rgb(40,110,255) 42%,transparent 91%),
-    radial-gradient(ellipse calc(21px*var(--bs)) calc(15px*var(--bs2)) at calc(var(--bx)*100%) calc(100% + 1px),#fff 0%,rgba(255,255,255,.9) 20%,rgba(255,255,255,.5) 50%,transparent 100%),
-    radial-gradient(ellipse calc(42px*var(--bw)) calc(40px*var(--bh)) at calc(var(--bx)*100%) 100%,rgba(255,255,255,.3) 0%,rgba(255,255,255,.12) 25%,rgba(255,255,255,.03) 55%,transparent 80%);
-  mask-image:radial-gradient(ellipse calc(84px*var(--bw)) calc(110px*var(--bh)) at calc(var(--bx)*100%) 100%,#fff 0%,rgba(255,255,255,.5) 35%,transparent 100%);
-  opacity:calc(var(--bo)*var(--be)*.8*var(--beam-strength));animation:beam-hue-bloom 8s ease-in-out infinite}
-@keyframes beam-travel{0%{--bx:.06;--bw:.5}10%{--bx:.15;--bw:.8}20%{--bx:.25;--bw:1.1}30%{--bx:.35;--bw:1.3}40%{--bx:.44;--bw:1.45}50%{--bx:.5;--bw:1.5}60%{--bx:.56;--bw:1.45}70%{--bx:.65;--bw:1.3}80%{--bx:.75;--bw:1.1}90%{--bx:.85;--bw:.8}100%{--bx:.94;--bw:.5}}
-@keyframes beam-edge{0%{--be:0}12.5%{--be:0}32.5%{--be:1}67.5%{--be:1}87.5%{--be:0}100%{--be:0}}
-@keyframes beam-breathe{0%,100%{--bh:.8}25%{--bh:1.25}55%{--bh:.85}80%{--bh:1.3}}
-@keyframes beam-spike{0%{--bs:.8}25%{--bs:1.3}50%{--bs:.9}75%{--bs:1.4}100%{--bs:.8}}
-@keyframes beam-spike2{0%{--bs2:1.2}25%{--bs2:.7}50%{--bs2:1.4}75%{--bs2:.8}100%{--bs2:1.2}}
-@keyframes beam-in{100%{--bo:1}}
-@keyframes beam-hue{0%,100%{filter:brightness(1.3) saturate(1.2)}50%{filter:brightness(1.3) saturate(1.2)}}
-@keyframes beam-hue-bloom{0%,100%{filter:blur(8px) brightness(1.3) saturate(1.2)}50%{filter:blur(8px) brightness(1.3) saturate(1.2)}}
-@media (prefers-reduced-motion:reduce){.gsearch,.gsearch::after,.gsearch::before,.gsearch .bloom{animation:none}.gsearch{--bo:1;--bx:.5;--bw:1.2}}
+.gsearch{border-radius:17px;overflow:hidden}
 .gclose{display:none;position:absolute;right:5px;top:50%;transform:translateY(-50%);width:26px;height:26px;border:0;border-radius:50%;background:none;cursor:pointer;z-index:5;place-items:center;padding:0}
 .gclose svg{fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;pointer-events:none}
 .gclose:hover svg{stroke:var(--nav-muted)}
@@ -555,6 +491,8 @@ tr.lead-row:hover{background:var(--hover)}
 .qsec{font-size:12px;color:var(--faint);padding:12px 14px 4px 4px}
 button.qsec{display:block;width:100%;background:none;border:0;text-align:left;font:inherit;font-size:12px;cursor:default;pointer-events:none}
 button.qsec .chev{display:none}
+.qsec.closed-t{color:var(--d-won)}
+.qsec.closed-t .chev{stroke:var(--d-won)}
 .qsec.od{color:var(--d-lost)}
 .msum{display:grid;grid-template-columns:repeat(3,128px);gap:20px;margin:0 0 8px}
 .msc{text-align:left;background:none;border:0;border-top:2px solid var(--k,var(--line2));padding:10px 0 8px;cursor:pointer;border-radius:0}
@@ -617,12 +555,12 @@ button.qsec .chev{display:none}
 .d-head h1{display:flex;align-items:center;gap:8px}
 .srn{color:var(--faint);font-weight:400}
 .acts{display:flex;gap:8px;flex-wrap:wrap;padding-bottom:14px}
-.actb{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px 0 5px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--fg);font-weight:500;font-size:13px;cursor:pointer}
+.actb{display:inline-flex;align-items:center;gap:10px;height:46px;padding:0 16px 0 8px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--fg);font-weight:500;font-size:13px;cursor:pointer}
 .actb:hover{background:var(--hover);text-decoration:none}
 .actb.off{opacity:.5;cursor:default;pointer-events:none}
 .actb.off .tile-ic{filter:grayscale(1)}
-.actb .tile-ic{width:24px;height:24px;border-radius:7px}
-.actb .tile-ic svg{width:15px;height:15px}
+.actb .tile-ic{width:30px;height:30px;border-radius:8px}
+.actb .tile-ic svg{width:18px;height:18px}
 .ico{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .sf{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:14px 0;border-top:1px solid var(--line)}
 .sf .k{font-size:12px;color:var(--muted);margin-bottom:6px}
@@ -636,7 +574,7 @@ button.qsec .chev{display:none}
 .prog.won i.f{background:var(--d-won)}
 .prog.lost i{background:var(--d-lost)}
 .fuw{display:flex;flex-direction:column;gap:8px}
-.fu-btn{width:100%;max-width:none}
+.fu-btn{width:100%;max-width:none;height:46px!important;font-size:15px}
 .fu-btn .ph{color:var(--muted)}
 .fu-btn .ico{color:var(--muted);width:16px;height:16px}
 .pop.cal{width:min(288px,calc(100vw - 32px));padding:10px}
@@ -651,7 +589,7 @@ button.qsec .chev{display:none}
 .cal-d.today{box-shadow:inset 0 0 0 1px var(--line2)}
 .cal-d.sel{background:var(--ink);color:var(--ink-fg)}
 .fq{display:flex;gap:5px;flex-wrap:nowrap}
-.fq button{height:26px;padding:0 8px;white-space:nowrap;flex:0 1 auto;min-width:0;border-radius:99px;border:1px solid var(--line2);background:var(--bg);cursor:pointer;font-size:12px;color:var(--muted)}
+.fq button{height:32px;padding:0 10px;white-space:nowrap;flex:0 1 auto;min-width:0;border-radius:99px;border:1px solid var(--line2);background:var(--bg);cursor:pointer;font-size:12.5px;color:var(--muted)}
 .fq button:hover{background:var(--hover);color:var(--fg)}
 .logbox{border:1px solid var(--line2);border-radius:10px;padding:10px}
 .logbox textarea{border:0;padding:6px 2px;min-height:60px;background:transparent}
@@ -745,24 +683,6 @@ textarea:hover{border-color:var(--faint)}
   .top.search-open .gsearch svg{left:12px;transform:translateY(-50%);width:15px;height:15px;stroke:var(--nav-muted)}
   .top.search-open .gsearch .gclose{display:grid}
   .top.search-open .gsearch .gclose svg{position:static;transform:none;width:13px;height:13px;stroke:#fff}
-  /* the icon's beam: the library's icon variant (a white beam circling the edge, blue glow), blue and white */
-  .top:not(.search-open) .gsearch{animation:beam-spin-icon 3s linear infinite,beam-in .6s ease forwards}
-  .top:not(.search-open) .gsearch::after{border-radius:17px;padding:1px;clip-path:inset(0 round 18px);
-    background:conic-gradient(from var(--ba),transparent 0 54%,rgba(255,255,255,.1) 57%,rgba(255,255,255,.3) 60%,rgba(255,255,255,.6) 63%,rgba(255,255,255,.8) 66%,rgba(255,255,255,.6) 69%,rgba(255,255,255,.3) 72%,rgba(255,255,255,.1) 75%,transparent 78% 100%),
-      radial-gradient(ellipse 10px 18px at 2% 68%,rgb(70,135,255),transparent),radial-gradient(ellipse 4px 8px at 2% 68%,rgb(130,195,255),transparent),
-      radial-gradient(ellipse 22px 8px at 72% -3%,rgb(205,228,255),transparent),radial-gradient(ellipse 20px 7px at 74% 100%,rgb(40,110,255),transparent),
-      radial-gradient(ellipse 9px 16px at 100% 27%,rgb(255,255,255),transparent),radial-gradient(ellipse 9px 16px at 100% 27%,rgb(60,100,240),transparent);
-    mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);mask-composite:exclude;
-    opacity:calc(var(--bo)*.9)}
-  .top:not(.search-open) .gsearch::before{border-radius:18px;clip-path:inset(0 round 18px);
-    background:radial-gradient(9px 16px at 2% 68%,rgba(70,135,255,.5),transparent),radial-gradient(20px 7px at 74% 100%,rgba(40,110,255,.4),transparent),radial-gradient(9px 16px at 100% 27%,rgba(205,228,255,.4),transparent);
-    box-shadow:inset 0 0 5px 1px rgba(255,255,255,.3);
-    mask-image:conic-gradient(from var(--ba),transparent 0 22%,rgba(255,255,255,.12) 28%,rgba(255,255,255,.4) 36%,#fff 46% 82%,rgba(255,255,255,.4) 88%,rgba(255,255,255,.12) 94%,transparent 97% 100%);
-    mask-composite:add;opacity:calc(var(--bo)*.45)}
-  .top:not(.search-open) .gsearch .bloom{border-radius:17px;padding:1px;clip-path:inset(0 round 18px);
-    background:conic-gradient(from var(--ba),transparent 0 58%,rgba(255,255,255,.03) 62%,rgba(255,255,255,.08) 65%,rgba(255,255,255,.2) 67%,rgba(255,255,255,.45) 69%,rgba(255,255,255,.85) 70% 70.5%,rgba(255,255,255,.45) 71.5%,rgba(255,255,255,.2) 73%,rgba(255,255,255,.08) 75%,rgba(255,255,255,.03) 78%,transparent 82%);
-    mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);mask-composite:exclude;
-    filter:blur(7px) brightness(1.3);opacity:calc(var(--bo)*.4);animation:none}
   /* floating glass tab bar, modelled on the iOS 26 one: frosted glass, inner highlights, glass capsule on the selected tab, shrinks while scrolling down */
   .tabs{position:fixed;left:0;right:0;bottom:0;z-index:25;gap:2px;justify-content:center;
     background:linear-gradient(180deg,rgba(255,255,255,.86),rgba(246,247,250,.8));
@@ -845,9 +765,9 @@ textarea:hover{border-color:var(--faint)}
   .seg button{flex:none}
   .facts{grid-template-columns:1fr}
   .acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
-  .actb{justify-content:flex-start;height:34px;padding:0 10px 0 6px;gap:8px;font-size:13px;white-space:nowrap;min-width:0}
-  .actb .tile-ic{width:22px;height:22px;border-radius:6px}
-  .actb .tile-ic svg{width:13px;height:13px}
+  .actb{justify-content:flex-start;height:48px;padding:0 10px 0 8px;gap:9px;font-size:13px;white-space:nowrap;min-width:0}
+  .actb .tile-ic{width:30px;height:30px;border-radius:8px}
+  .actb .tile-ic svg{width:18px;height:18px}
   .sf{grid-template-columns:1fr}
   .split,.split.show-detail{grid-template-columns:1fr;border-top:0;min-height:0}
   .split.show-detail .list{display:none}
@@ -1396,7 +1316,6 @@ textarea:hover{border-color:var(--faint)}
     state.service=id;state.selected=null;state.showDetail=false;state.q=state.area=state.cat=state.grp='';state.page=0;state.open='';
     document.getElementById('gq').value='';
     closeModal();settleBar();window.scrollTo(0,0);render();animateView('tab');
-    toast('Service: '+svcName());
     if(fd.open){fd.sec='';fd.q='';renderDrawer();}
   }
   /* ---------- Filters drawer (phone) ---------- */
@@ -1642,7 +1561,7 @@ textarea:hover{border-color:var(--faint)}
       assigning = false;
       dropOpen(l, wsId); l.work[wsId]=claim;
       closeModal(); state.selected=id; state.showDetail=true; state.tab='assigned'; state.q=''; document.getElementById('gq').value='';
-      toast(l.name+' added to Assigned \u00b7 '+svcName()); render();
+      render();
     }).catch(function(e){
       assigning = false;
       closeModal();
@@ -1952,7 +1871,7 @@ textarea:hover{border-color:var(--faint)}
     if(text===found.note.text){refreshActivity();return;}
     btn.disabled=true;
     api('PATCH','/api/sales/notes/'+id,{text:text}).then(function(dto){
-      found.lead.work[found.svc]=dto; refreshActivity(); toast('Note updated');
+      found.lead.work[found.svc]=dto; refreshActivity();
     }).catch(function(e){btn.disabled=false;failToast(e);});
   }
 
@@ -2156,7 +2075,7 @@ textarea:hover{border-color:var(--faint)}
       if(nw.length<10){err.textContent='Use at least 10 characters.';return;}
       if(nw!==again){err.textContent='The two new passwords do not match.';return;}
       go.disabled=true; go.textContent='One moment';
-      api('POST','/api/auth/change-password',{current:cur,next:nw}).then(function(){closeModal();toast('Password changed');}).catch(function(e){go.disabled=false;go.textContent='Save password';err.textContent=(e&&e.message)||'Something went wrong. Please try again.';});
+      api('POST','/api/auth/change-password',{current:cur,next:nw}).then(function(){closeModal();}).catch(function(e){go.disabled=false;go.textContent='Save password';err.textContent=(e&&e.message)||'Something went wrong. Please try again.';});
     };
   }
   function openSignAll(){
@@ -2286,7 +2205,7 @@ textarea:hover{border-color:var(--faint)}
     if(state.open&&!e.target.closest('.combo')) setOpen('');
     var c=e.target.closest('[data-copy]');
     if(c){
-      var done=function(){toast('Copied');};
+      var done=function(){};
       try{navigator.clipboard.writeText(c.dataset.copy).then(done,function(){toast('Copy not available here');});}
       catch(err){toast('Copy not available here');}
     }
@@ -2352,13 +2271,13 @@ textarea:hover{border-color:var(--faint)}
     if(cd){
       var lc=byId(state.selected), wc=lc&&W(lc); state.open='';
       if(!wc||wc.owner!==state.user){renderAssigned();return;}
-      saveClaim(lc, {next:cd.dataset.day}, function(){ toast('Follow-up set for '+fuText(cd.dataset.day)); }); return;
+      saveClaim(lc, {next:cd.dataset.day}, function(){}); return;
     }
     var fq=e.target.closest('[data-fu]');
     if(fq){
       var lf=byId(state.selected), wf=lf&&W(lf); if(!wf||wf.owner!==state.user) return;
       var nextDay=fq.dataset.fu==='clear'?null:dayOffset(parseInt(fq.dataset.fu,10));
-      saveClaim(lf, {next:nextDay}, function(){ toast(nextDay?'Follow-up set for '+fuText(nextDay):'Follow-up cleared'); }); return;
+      saveClaim(lf, {next:nextDay}, function(){}); return;
     }
     var tg=e.target.closest('[data-stgtoggle]');
     if(tg){
@@ -2374,7 +2293,7 @@ textarea:hover{border-color:var(--faint)}
       var cur=byId(state.selected), cw=W(cur);
       if(!cw||cw.owner!==state.user) return;
       api('POST','/api/sales/claims/'+cw.id+'/notes',{text:txt,stage:state.logStage||cw.status}).then(function(dto){
-        cur.work[state.service]=dto; ta.value=''; renderAssigned(); toast('Note added');
+        cur.work[state.service]=dto; ta.value=''; renderAssigned();
       }).catch(failToast);
       return;
     }
