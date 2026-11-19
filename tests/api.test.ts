@@ -355,6 +355,21 @@ describe('superadmin', () => {
     assert.equal((await call(priya, 'DELETE', `/api/admin/lists/${listId}`)).status, 403);
   });
 
+  it('keeps every social link from the CSV together and drops anything that is not a web link', async () => {
+    const aarav = await login('aarav@fynix.test');
+    const priya = await login('priya@fynix.test');
+    const csv = [
+      'title,place_id,Social Links',
+      '"Social Store",soc-1,"https://instagram.com/a, facebook.com/b; javascript:alert(1)  https://x.com/c | https://instagram.com/a"',
+      'No Links Store,soc-2,',
+    ].join('\n');
+    const made = await call(aarav, 'POST', '/api/admin/lists', { name: 'Social links', category: 'scale', csv, workspaceIds: ['scale-website'] });
+    assert.equal(made.status, 201);
+    const leads = (await bootstrap(priya)).leads as unknown as { name: string; social: string[] }[];
+    assert.deepEqual(leads.find((l) => l.name === 'Social Store')?.social, ['https://instagram.com/a', 'https://facebook.com/b', 'https://x.com/c']);
+    assert.deepEqual(leads.find((l) => l.name === 'No Links Store')?.social, []);
+  });
+
   it('reassigns and releases leads without touching other workspaces', async () => {
     const aarav = await login('aarav@fynix.test');
     const rohan = await login('rohan@fynix.test');

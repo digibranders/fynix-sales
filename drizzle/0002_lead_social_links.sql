@@ -1,0 +1,1 @@
+ALTER TABLE "leads" ADD COLUMN "social_links" text DEFAULT '[]' NOT NULL;

@@ -491,6 +491,9 @@ tr.lead-row:hover{background:var(--hover)}
 .qsec{font-size:12px;color:var(--faint);padding:12px 14px 4px 4px}
 button.qsec{display:block;width:100%;background:none;border:0;text-align:left;font:inherit;font-size:12px;cursor:default;pointer-events:none}
 button.qsec .chev{display:none}
+.soc{display:flex;flex-wrap:wrap;align-items:center;gap:2px 12px;margin-top:3px}
+.soc a{font-size:12px;color:var(--accent);text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.soc a:hover{text-decoration:underline}
 .qsec.closed-t{color:var(--d-won)}
 .qsec.closed-t .chev{stroke:var(--d-won)}
 .qsec.od{color:var(--d-lost)}
@@ -1175,7 +1178,7 @@ textarea:hover{border-color:var(--faint)}
           var w = safeUrl(l.web);
           return '<tr class="lead-row" data-assign="'+l.id+'" style="cursor:pointer">'+
             '<td class="sr num c-sr">'+(state.page*PAGE+n+1)+'</td>'+
-            '<td class="c-name"><div class="name">'+esc(toTitleCase(l.name))+'</div>'+(l.email.length?'<div class="sm muted">'+esc(l.email[0])+'</div>':'')+alsoHtml(l)+'</td>'+
+            '<td class="c-name"><div class="name">'+esc(toTitleCase(l.name))+'</div>'+(l.email.length?'<div class="sm muted">'+esc(l.email[0])+'</div>':'')+socialRow(l)+alsoHtml(l)+'</td>'+
             '<td class="c-comp"><b>'+(l.company?esc(toTitleCase(l.company)):'<span class="dash">—</span>')+'</b>'+(w?'<div class="sm"><a class="ext" href="'+esc(w)+'" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()"><span>'+esc(domain(w))+'</span><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1h6v6M9 1L1 9"/></svg></a></div>':'')+'</td>'+
             '<td class="c-title">'+(l.title?esc(toTitleCase(l.title)):'<span class="dash">—</span>')+'</td>'+
             '<td class="num c-phone">'+(pNum?'<span class="num">'+esc(pNum)+'</span>':'<span class="dash">—</span>')+'</td>'+
@@ -1184,7 +1187,7 @@ textarea:hover{border-color:var(--faint)}
         }
         return '<tr class="lead-row" data-assign="'+l.id+'" style="cursor:pointer">'+
           '<td class="sr num c-sr">'+(state.page*PAGE+n+1)+'</td>'+
-          '<td class="c-name"><div class="name">'+esc(toTitleCase(l.name))+'</div>'+alsoHtml(l)+'</td>'+
+          '<td class="c-name"><div class="name">'+esc(toTitleCase(l.name))+'</div>'+socialRow(l)+alsoHtml(l)+'</td>'+
           '<td class="c-area">'+(l.area?esc(toTitleCase(l.area)):'<span class="dash">—</span>')+(l.city?'<div class="sm">'+esc(toTitleCase(l.city))+'</div>':'')+'</td>'+
           '<td class="r c-act"><button class="btn xs assign" data-assign="'+l.id+'" aria-label="Review and assign '+esc(toTitleCase(l.name))+'">Assign</button></td>'+
         '</tr>';
@@ -1449,6 +1452,20 @@ textarea:hover{border-color:var(--faint)}
   function copyBtn(t){return t?'<button type="button" class="copy" data-copy="'+esc(t)+'" aria-label="Copy" title="Copy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15"/></svg></button>':'';}
   function emailsHtml(l){return l.email.length?l.email.map(function(e){return esc(e);}).join('<br>'):'<span class="dash">Not found</span>';}
   function webHtml(l){var w=safeUrl(l.web);return w?'<a href="'+esc(w)+'" target="_blank" rel="noopener noreferrer">'+esc(domain(w))+'</a>':'<span class="dash">No website</span>';}
+  /* Social profile links, all together in one list (no per-site columns). Rows show the first few; details show every one. */
+  function socialLabel(u){var t=u.replace(/^https?:\/\/(www\.)?/i,'').replace(/\/+$/,'');return t.length>30?t.slice(0,29)+'\u2026':t;}
+  function socialLinks(l,max){
+    var all=(l.social||[]).filter(function(u){return safeUrl(u);}), shown=max?all.slice(0,max):all;
+    return {all:all,shown:shown,more:all.length-shown.length};
+  }
+  function socialHtml(l){
+    var s=socialLinks(l,0);
+    return s.all.length?'<div class="soc">'+s.all.map(function(u){return '<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">'+esc(socialLabel(u))+'</a>';}).join('')+'</div>':'<span class="dash">None listed</span>';
+  }
+  function socialRow(l){
+    var s=socialLinks(l,3);
+    return s.all.length?'<div class="soc">'+s.shown.map(function(u){return '<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">'+esc(socialLabel(u))+'</a>';}).join('')+(s.more?'<span class="sm muted">+'+s.more+' more</span>':'')+'</div>':'';
+  }
   function waHtml(l){return l.wa?'<span class="num">+'+esc(l.wa.replace(/^(\d{2})(\d{5})(\d+)$/,'$1 $2 $3'))+'</span>':'<span class="dash">Not listed</span>';}
 
   function keywordsHtml(l){
@@ -1485,7 +1502,7 @@ textarea:hover{border-color:var(--faint)}
       layer.innerHTML='<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">'+
         '<div class="m-head"><div><h2 id="m-title">'+esc(toTitleCase(l.name))+'</h2><div class="sm">'+esc(catLabel(l.cat))+' · '+esc(toTitleCase(l.area||l.city))+'</div></div><button class="x" id="m-x" aria-label="Close">×</button></div>'+
         '<dl>'+kv('Phone',l.phone?'<span class="num">'+esc(l.phone)+'</span>'+copyBtn(l.phone):'<span class="dash">Not listed</span>')+
-        kv('Email',emailsHtml(l))+kv('Website',webHtml(l))+kv('WhatsApp',waHtml(l))+
+        kv('Email',emailsHtml(l))+kv('Website',webHtml(l))+kv('Social links',socialHtml(l))+kv('WhatsApp',waHtml(l))+
         kv('Address',esc(l.addr)+'<br><a href="'+esc(mapsUrl(l))+'" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>')+
         kv('Open today',esc(todayHours(l)))+'</dl>'+
         '<div class="m-foot"><button class="btn" id="m-cancel">Cancel</button><button class="btn assign" id="m-go">Assign to me</button></div></div></div>';
@@ -1534,7 +1551,7 @@ textarea:hover{border-color:var(--faint)}
       layer.innerHTML='<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">'+
         '<div class="m-head"><div><h2 id="m-title">'+esc(toTitleCase(l.name))+'</h2><div class="sm">'+esc(catLabel(l.cat))+' \u00b7 '+esc(toTitleCase(l.area||l.city))+'</div></div><button class="x" id="m-x" aria-label="Close">\u00d7</button></div>'+
         '<dl>'+kv('Phone',l.phone?'<span class="num">'+esc(l.phone)+'</span>'+copyBtn(l.phone):'<span class="dash">Not listed</span>')+
-        kv('WhatsApp',waHtml(l))+kv('Email',emailsHtml(l))+kv('Website',webHtml(l))+
+        kv('WhatsApp',waHtml(l))+kv('Email',emailsHtml(l))+kv('Website',webHtml(l))+kv('Social links',socialHtml(l))+
         kv('Address',esc(l.addr)+'<br><a href="'+esc(mapsUrl(l))+'" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>')+
         kv('Open today',esc(todayHours(l)))+'</dl></div></div>';
     }
