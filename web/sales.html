@@ -627,8 +627,8 @@ button.qsec .chev{display:none}
 .fq{display:flex;gap:5px;flex-wrap:nowrap}
 .fq button{height:32px;padding:0 10px;white-space:nowrap;flex:0 1 auto;min-width:0;border-radius:99px;border:1px solid var(--line2);background:var(--bg);cursor:pointer;font-size:12.5px;color:var(--muted)}
 .fq button:hover{background:var(--hover);color:var(--fg)}
-.logbox{border:1px solid var(--line2);border-radius:10px;padding:10px}
-.logbox textarea{border:0;padding:6px 2px;min-height:60px;background:transparent}
+.logbox{border:1px solid var(--line2);border-radius:10px;padding:4px 8px 8px}
+.logbox textarea{border:0;padding:6px 0 4px;min-height:56px;background:transparent}
 .logbox textarea:focus{outline:none}
 .tline{list-style:none;margin:14px 0 0;padding:0}
 .tle{padding:12px 0;border-top:1px solid var(--line)}
@@ -2291,7 +2291,7 @@ textarea:hover{border-color:var(--faint)}
   function monthElapsed(){var d=new Date(), dim=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return d.getDate()/dim;}
 
   function assignedIn(l,start){var h=W(l).history||[];return h.length>0&&h[0].t>=start;}
-  /* Three boxes: Assigned (just the number), Contacted and Closed (the number big, "of target" small under it). */
+  /* Three boxes: Assigned (just the number), then Contacted and Closed, each the number big with "of <monthly target>" small under it. */
   function statStrip(assigned,contacted,closed,showTarget,aria){
     function box(n,label,target){
       return '<div><b class="num">'+n+'</b><small class="pf-of">'+(showTarget&&target?'of '+target:'&nbsp;')+'</small><span>'+label+'</span></div>';
