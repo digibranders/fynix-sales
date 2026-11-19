@@ -1,20 +1,56 @@
+# Installed as /etc/systemd/system/fynix-sales.service. One node process on 127.0.0.1:3600 behind nginx.
+# `current` is a symlink to the live release; a deploy switches it and restarts the service (fynix-sales-release).
+# Secrets live in /srv/fynix-sales/shared/.env (never in git).
 [Unit]
-Description=Fynix Sales (sales.fynix.digital)
-After=network.target postgresql.service
+Description=Fynix Sales (sales.fynix.digital), port 3600
+After=network-online.target postgresql.service
+Wants=network-online.target
 
 [Service]
 Type=simple
 User=fynixsales
 Group=fynixsales
-WorkingDirectory=/srv/fynix-sales
-EnvironmentFile=/etc/fynix-sales.env
+WorkingDirectory=/srv/fynix-sales/current
+EnvironmentFile=/srv/fynix-sales/shared/.env
+Environment=NODE_ENV=production
 ExecStart=/usr/bin/node dist/server.js
 Restart=always
 RestartSec=3
+TimeoutStopSec=30
+LimitNOFILE=65535
+
+MemoryHigh=700M
+MemoryMax=1G
+TasksMax=256
+OOMScoreAdjust=300
+
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectSystem=full
+PrivateDevices=true
+ProtectSystem=strict
 ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+UMask=0077
+# Other projects on this box are invisible to this service.
+InaccessiblePaths=-/srv/fynix -/srv/fynix-api -/srv/fynix-cms
+InaccessiblePaths=-/srv/firstfold -/srv/firstfold-website -/srv/firstfold-media -/srv/firstfold-ci
+InaccessiblePaths=-/srv/brandbasket -/srv/brandbasket-ci -/srv/brandbasket-cms -/srv/alsonotify -/srv/currycook
+InaccessiblePaths=-/etc/firstfold -/etc/brandbasket -/etc/fynix-tls -/etc/alsonotify-tls -/etc/currycook-tls
+InaccessiblePaths=-/home/deploy -/home/brandbasket -/home/fynixcms
+InaccessiblePaths=-/var/backups -/var/lib/firstfold -/var/lib/firstfold-ci -/var/lib/brandbasket -/var/lib/brandbasket-ci
 
 [Install]
 WantedBy=multi-user.target
