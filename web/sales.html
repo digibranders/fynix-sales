@@ -501,6 +501,11 @@ button.qsec .chev{display:none}
 .fd-acc[data-fdneed][aria-expanded="true"] .chev{transform:rotate(180deg)}
 .fd-sec .opts{margin-top:6px}
 .nopt{justify-content:flex-start;gap:12px}
+@keyframes rows-in{from{opacity:.25;transform:translateY(5px)}to{opacity:1;transform:none}}
+.rows-in{animation:rows-in .28s cubic-bezier(.22,1,.36,1)}
+@keyframes tick-in{from{opacity:0;transform:rotate(-45deg) translate(1px,-1px) scale(.4)}to{opacity:1;transform:rotate(-45deg) translate(1px,-1px) scale(1)}}
+.nopt[aria-checked="true"] .cbx::after{animation:tick-in .2s ease-out}
+@media (prefers-reduced-motion:reduce){.rows-in,.nopt[aria-checked="true"] .cbx::after{animation:none}}
 .nopt .cbx{margin-left:auto}
 .nopt[aria-checked="true"],.nopt[aria-checked="mixed"]{background:none}
 .cbx{width:20px;height:20px;flex:none;border:1.5px solid var(--faint);border-radius:5px;background:var(--bg);display:grid;place-items:center;transition:background .15s ease,border-color .15s ease}
@@ -1433,6 +1438,13 @@ textarea:hover{border-color:var(--faint)}
   }
   function needOk(l){return state.need.every(function(k){return hasField(l,k);});}
   function needLabel(k){return NEEDS.filter(function(n){return n[0]===k;})[0][1];}
+  /* Re-draw the list, then fade the new rows in so a filter change never snaps. */
+  function refineInfo(){
+    renderInfo();
+    var tw=view.querySelector('.tablewrap');
+    if(!tw||(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+    tw.classList.remove('rows-in'); void tw.offsetWidth; tw.classList.add('rows-in');
+  }
   function toggleNeed(k){var i=state.need.indexOf(k);if(i>-1)state.need.splice(i,1);else state.need.push(k);state.page=0;}
   function clearFilter(id){
     if(id.indexOf('need:')===0){var k=id.slice(5),i=state.need.indexOf(k);if(i>-1)state.need.splice(i,1);state.page=0;}
@@ -1463,6 +1475,20 @@ textarea:hover{border-color:var(--faint)}
     }).join('')+'</div>';
   }
   /* Phone drawer: "Must have" is an open list with a tick box and a count per detail. */
+  /* Update the open drawer in place (tick boxes, summary, button) so nothing in it flashes or jumps. */
+  function syncDrawerNeeds(){
+    var d=document.getElementById('fdrawer'); if(!d) return;
+    NEEDS.forEach(function(n){
+      var b=d.querySelector('[data-needopt="'+n[0]+'"]');
+      if(b) b.setAttribute('aria-checked',state.need.indexOf(n[0])>-1?'true':'false');
+    });
+    var v=d.querySelector('[data-fdneed] .v');
+    if(v){var picked=NEEDS.filter(function(n){return state.need.indexOf(n[0])>-1;});v.textContent=picked.length?picked.map(function(n){return n[1];}).join(', '):'Any';}
+    var cta=d.querySelector('.fd-f .primary'); if(cta) cta.textContent='Show '+plural(infoRows().length);
+    var f=d.querySelector('.fd-f'), clear=f&&f.querySelector('[data-fdclear]'), any=activeFilters().length>0;
+    if(f&&any&&!clear) f.insertAdjacentHTML('afterbegin','<button type="button" class="btn" data-fdclear>Clear all</button>');
+    if(clear&&!any) clear.remove();
+  }
   function needsDrawerHtml(){
     var pool=open_(), on=fd.needOpen;
     var picked=NEEDS.filter(function(n){return state.need.indexOf(n[0])>-1;});
@@ -1519,12 +1545,12 @@ textarea:hover{border-color:var(--faint)}
     if(sec){fd.sec=fd.sec===sec.dataset.fdsec?'':sec.dataset.fdsec;fd.q='';renderDrawer();var q=document.getElementById('fd-q');if(q)q.focus();return;}
     if(e.target.closest('[data-fdneed]')){fd.needOpen=!fd.needOpen;renderDrawer();return;}
     var no=e.target.closest('[data-needopt]');
-    if(no){toggleNeed(no.dataset.needopt);renderInfo();updateFilterBadge();renderDrawer();return;}
+    if(no){toggleNeed(no.dataset.needopt);refineInfo();updateFilterBadge();syncDrawerNeeds();return;}
     var ob=e.target.closest('#fdrawer [data-ddopt]');
-    if(ob){ddSet(ob.dataset.ddopt,ob.dataset.v);fd.sec='';fd.q='';renderInfo();updateFilterBadge();renderDrawer();return;}
-    if(e.target.closest('[data-fdclear]')){state.area='';state.cat='';state.grp='';state.need=[];state.page=0;renderInfo();updateFilterBadge();renderDrawer();return;}
+    if(ob){ddSet(ob.dataset.ddopt,ob.dataset.v);fd.sec='';fd.q='';refineInfo();updateFilterBadge();renderDrawer();return;}
+    if(e.target.closest('[data-fdclear]')){state.area='';state.cat='';state.grp='';state.need=[];state.page=0;refineInfo();updateFilterBadge();renderDrawer();return;}
     var fc=e.target.closest('[data-fclear]');
-    if(fc){clearFilter(fc.dataset.fclear);renderInfo();updateFilterBadge();}
+    if(fc){clearFilter(fc.dataset.fclear);refineInfo();updateFilterBadge();}
   });
   document.addEventListener('input',function(e){
     if(e.target.id!=='fd-q'||!fd.sec) return;
@@ -2365,7 +2391,7 @@ textarea:hover{border-color:var(--faint)}
 
   view.addEventListener('click',function(e){
     var nd=e.target.closest('[data-need]');
-    if(nd){toggleNeed(nd.dataset.need);renderInfo();return;}
+    if(nd){toggleNeed(nd.dataset.need);refineInfo();return;}
     var ob=e.target.closest('[data-ddopt]');
     if(ob){ddSet(ob.dataset.ddopt,ob.dataset.v);state.open='';renderInfo();return;}
     var db=e.target.closest('[data-ddbtn]');
