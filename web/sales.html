@@ -155,6 +155,9 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .pf-stats div:first-child{border-left:0}
 .pf-stats b{font-size:20px;font-weight:600}
 .pf-stats span{font-size:12px;color:var(--muted)}
+.pf-stats b{line-height:1.15}
+.pf-stats .pf-of{font-size:12px;color:var(--faint);font-weight:400;line-height:1.3}
+.kp-sh{font-size:12px;font-weight:500;color:var(--muted);margin:14px 2px 0}
 .pf-cap{margin:8px 2px 14px;font-size:12px;color:var(--faint);text-align:center}
 .pf-h{font-size:12px;font-weight:500;color:var(--muted);margin:22px 4px 8px}
 .pf-list{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--bg)}
@@ -241,6 +244,11 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .katt-l .num{min-width:18px;color:var(--fg);font-weight:500}
 .katt-l .num.r{color:var(--d-lost)}
 .katt.calm{color:var(--muted)}
+.katt.hot{--kc:#dc2626;border-color:rgba(220,38,38,.38);background:rgba(220,38,38,.07)}
+.katt.warn{--kc:#d98a00;border-color:rgba(217,138,0,.42);background:rgba(217,138,0,.09)}
+.katt.hot .katt-t,.katt.warn .katt-t{display:flex;align-items:center;color:var(--kc)}
+.katt-i{width:17px;height:17px;stroke:var(--kc);fill:none;stroke-width:2;stroke-linecap:round;flex:none;margin-right:7px}
+.katt.hot .katt-l .num,.katt.warn .katt-l .num{color:var(--kc);font-weight:600}
 .katt .btn{flex:none}
 .klink{background:none;border:0;color:var(--accent);cursor:pointer;font-size:13px;padding:0}
 .klink:hover{text-decoration:underline}
@@ -897,10 +905,11 @@ textarea:hover{border-color:var(--faint)}
 .ti-leads{stroke-width:1.75}
 @media (min-width:821px){.fscrim,.fdrawer{display:none}}
 @media (max-width:820px){
-  .ws-btn{display:none!important}
-  .ws-lbl{display:inline-flex;align-items:center;color:rgba(255,255,255,.72);font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:36vw;transition:max-width .42s cubic-bezier(.32,.72,0,1),opacity .22s ease}
-  .ws-lbl::before{content:"";width:1px;height:16px;background:rgba(255,255,255,.32);margin-right:10px;flex:none}
-  .top.search-open .ws-lbl{max-width:0;opacity:0}
+  .ws-lbl{display:none}
+  #ws-dd .ws-btn{position:relative;padding-left:12px!important}
+  #ws-dd .ws-btn::before{content:"";position:absolute;left:0;top:50%;width:1px;height:16px;margin-top:-8px;background:rgba(255,255,255,.32)}
+  #ws-dd .ws-btn b{font-size:13px;color:rgba(255,255,255,.72)}
+  #ws-dd .ws-btn .chev{stroke:rgba(255,255,255,.72)}
   .tools-d{display:none}
   .tools-p{display:flex;flex-direction:column;align-items:stretch;gap:8px;width:100%}
   .tp-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%}
@@ -1063,6 +1072,9 @@ textarea:hover{border-color:var(--faint)}
 
   var STAGES=['New','Contacted','Interested','Meeting','Negotiation','Won'];
   function sclass(s){return 'st-'+s.split(' ')[0].toLowerCase();}
+  /* The last stage is called Won in the data and Closed on screen. */
+  function SL(s){return s==='Won'?'Closed':s;}
+  function sysText(t){return String(t).replace(/\bWon\b/g,'Closed');}
 
   var PAGE=20;
   var state={user:DATA.me.id,service:SERVICES[0].id,tab:'info',q:'',area:'',grp:'',cat:'',need:[],open:'',minr:'',sort:'rev',page:0,selected:null,showDetail:false,stageFilter:'',logStage:'',stgOpen:{},stgLead:'',calMonth:'',qf:'',closedOpen:false,kpiPeriod:'month',read:{},modal:null};
@@ -1096,12 +1108,12 @@ textarea:hover{border-color:var(--faint)}
     ((w&&w.history)||[]).forEach(function(h){ if(seq[seq.length-1]!==h.s) seq.push(h.s); });
     if(w&&w.status&&seq[seq.length-1]!==w.status) seq.push(w.status);
     if(!w||!w.status||seq.length<2){
-      return '<span class="st-preview st-new"><span class="st-lbl">Stage:</span> <span class="st-val">'+esc((w&&w.status)||'New')+'</span></span>';
+      return '<span class="st-preview st-new"><span class="st-lbl">Stage:</span> <span class="st-val">'+esc(SL((w&&w.status)||'New'))+'</span></span>';
     }
     var trail=seq.slice(-3), cur=trail.pop();
     return '<span class="st-preview st-moved">'+trail.map(function(x){
-      return '<span class="st-from">'+esc(x)+'</span> <span class="st-arr" aria-hidden="true">&rarr;</span> ';
-    }).join('')+'<span class="st-val '+sclass(cur)+'">'+esc(cur)+'</span></span>';
+      return '<span class="st-from">'+esc(SL(x))+'</span> <span class="st-arr" aria-hidden="true">&rarr;</span> ';
+    }).join('')+'<span class="st-val '+sclass(cur)+'">'+esc(SL(cur))+'</span></span>';
   }
 
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -1505,17 +1517,13 @@ textarea:hover{border-color:var(--faint)}
   function renderDrawer(){
     var d=document.getElementById('fdrawer'); if(!d) return;
     var n=infoRows().length, act=activeFilters().length;
-    var svc=SERVICES.map(function(x){
-      var free=LEADS.filter(function(l){return l.open.indexOf(x.id)>-1;}).length;
-      var mineN=LEADS.filter(function(l){return l.work[x.id]&&l.work[x.id].owner===state.user;}).length;
-      return optHtml('data-wsopt',x.id,x.name,free+' open \u00b7 '+mineN+' assigned',x.id===state.service,false,svcIcon(x));}).join('');
     function acc(id,title){
       var on=fd.sec===id;
       return '<div class="fd-sec"><button type="button" class="fd-acc" data-fdsec="'+id+'" aria-expanded="'+on+'"><span><b>'+title+'</b><span class="v">'+esc(ddLabel(id))+'</span></span>'+CHEV+'</button>'+
         (on?'<input class="field" id="fd-q" type="search" placeholder="'+esc(DD[id].search)+'" aria-label="'+esc(title)+'" value="'+esc(fd.q)+'"><div class="opts fd-list" id="fd-list" role="listbox">'+ddListHtml(id,fd.q)+'</div>':'')+'</div>';
     }
     d.innerHTML='<div class="fd-h"><h2>Filters</h2><button type="button" class="fd-x" data-fdclose aria-label="Close filters"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>'+
-      '<div class="fd-b"><div class="fd-sec"><div class="fd-t">Service</div><div class="opts" role="listbox">'+svc+'</div></div>'+needsDrawerHtml()+acc('area','Area')+acc('cat','Category')+'</div>'+
+      '<div class="fd-b">'+needsDrawerHtml()+acc('area','Area')+acc('cat','Category')+'</div>'+
       '<div class="fd-f">'+(act?'<button type="button" class="btn" data-fdclear>Clear all</button>':'')+'<button type="button" class="btn primary" data-fdclose>Show '+plural(n)+'</button></div>';
   }
   function openDrawer(){
@@ -1847,7 +1855,7 @@ textarea:hover{border-color:var(--faint)}
         var subTxt = isScale() ? (esc([jobTitleOf(l), l.company].filter(Boolean).join(' · ') || l.city)) : esc(l.area||l.city);
         var acts=hasAct?'<span class="act2">'+(dg?'<a class="a2" href="tel:+'+dg+'" aria-label="Call '+esc(toTitleCase(l.name))+'">'+tileOf('call')+'</a>':'')+(wl?'<a class="a2" href="'+esc(wl)+'" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp '+esc(toTitleCase(l.name))+'">'+tileOf('whatsapp')+'</a>':'')+'</span>':'';
         return '<div class="item-wrap'+(hasAct?' has-act':'')+(closed?' closed-item':'')+'"><button class="item" role="listitem" data-pick="'+l.id+'" aria-current="'+(l.id===state.selected)+'"><span class="no num">'+n+'</span>'+
-          '<span class="name">'+esc(toTitleCase(l.name))+'</span><span class="m-sub">'+subTxt+'</span><span class="st">'+assignedStagePreview(w)+'</span><span class="stgt" aria-label="Current stage is '+esc(w.status)+'">'+assignedStagePreview(w)+'</span>'+fu+'<span class="last">'+esc(ucfirst(agoText(w.last)))+'</span></button>'+acts+'</div>';
+          '<span class="name">'+esc(toTitleCase(l.name))+'</span><span class="m-sub">'+subTxt+'</span><span class="st">'+assignedStagePreview(w)+'</span><span class="stgt" aria-label="Current stage is '+esc(SL(w.status))+'">'+assignedStagePreview(w)+'</span>'+fu+'<span class="last">'+esc(ucfirst(agoText(w.last)))+'</span></button>'+acts+'</div>';
       }).join('');
     }).join('');
     h+='<div class="split'+(state.showDetail?' show-detail':'')+'"><div class="list'+(state.closedOpen?' closed-open':'')+'" role="list"><div class="qhead" aria-hidden="true"><span>Sr.</span><span>'+(isScale()?'Lead':'Store')+'</span><span>Stage</span><span>Follow-up</span><span class="c-last">Last touched</span><span></span></div>'+body+'</div>'+detail(cur,flat.indexOf(cur)+1)+'</div>';
@@ -1896,7 +1904,7 @@ textarea:hover{border-color:var(--faint)}
   /* The last three stages a lead has been through, oldest first, with the current one highlighted. */
   function stageTags(w){
     return stageBlocks(w).slice().reverse().slice(-3).map(function(s){
-      return '<i class="stt'+(s===w.status?' cur '+sclass(s):'')+'">'+esc(s)+'</i>';
+      return '<i class="stt'+(s===w.status?' cur '+sclass(s):'')+'">'+esc(SL(s))+'</i>';
     }).join('<i class="stc" aria-hidden="true"></i>');
   }
   function stageBlocks(w){
@@ -1912,19 +1920,19 @@ textarea:hover{border-color:var(--faint)}
     var open=state.stgOpen.hasOwnProperty(s)?state.stgOpen[s]:s===w.status;
     var items=w.comments.filter(function(c){return c.stage===s&&c.by!=='sys';});
     var notes=items.filter(function(c){return c.by!=='sys';}).length;
-    var h='<section class="sb'+(s===w.status?' cur':'')+'"><button type="button" class="sb-h" data-stgtoggle="'+s+'" aria-expanded="'+open+'"><span class="st '+sclass(s)+'">'+esc(s)+'</span>'+
+    var h='<section class="sb'+(s===w.status?' cur':'')+'"><button type="button" class="sb-h" data-stgtoggle="'+s+'" aria-expanded="'+open+'"><span class="st '+sclass(s)+'">'+esc(SL(s))+'</span>'+
       '<span class="sb-n">'+(notes?notes+(notes===1?' note':' notes'):'No notes')+(reachedAt(w,s)?' \u00b7 '+esc(fmtAt(reachedAt(w,s))):'')+'</span>'+CHEV+'</button>';
     if(open){
       h+='<div class="sb-b">';
       if(state.logStage===s){
-        h+='<div class="logbox"><textarea id="note" aria-label="Note for '+esc(s)+'" placeholder="Add a note for '+esc(s)+' (optional)"></textarea><div class="compose-act"><span class="sm">Optional. Visible to you and admins</span><button class="btn assign" id="post">Add note</button></div></div>';
+        h+='<div class="logbox"><textarea id="note" aria-label="Note for '+esc(SL(s))+'" placeholder="Add a note for '+esc(SL(s))+' (optional)"></textarea><div class="compose-act"><span class="sm">Optional. Visible to you and admins</span><button class="btn assign" id="post">Add note</button></div></div>';
       } else {
         h+='<button type="button" class="addnote" data-addnote="'+s+'">Add a note</button>';
       }
       if(items.length){
         h+='<ul class="tline">'+items.slice().reverse().map(function(c){
           var sys=c.by==='sys', u=sys?null:user(c.by);
-          return '<li class="tle'+(sys?' sys':'')+'"><div class="c-meta"><b>'+(sys?'System':esc(u?u.name:'Teammate'))+'</b><span>'+esc(fmtAt(c.at))+'</span></div><p class="c-body">'+esc(c.text)+'</p></li>';
+          return '<li class="tle'+(sys?' sys':'')+'"><div class="c-meta"><b>'+(sys?'System':esc(u?u.name:'Teammate'))+'</b><span>'+esc(fmtAt(c.at))+'</span></div><p class="c-body">'+esc(sys?sysText(c.text):c.text)+'</p></li>';
         }).join('')+'</ul>';
       }
       h+='</div>';
@@ -1970,7 +1978,7 @@ textarea:hover{border-color:var(--faint)}
     var pop=document.querySelector('.mst-chg .pop'); if(pop) pop.remove();
     var ta=document.getElementById('note'); if(ta){ ta.placeholder='Add a note for '+ns+' (optional)'; ta.setAttribute('aria-label','Note for '+ns); }
     var btn=document.querySelector('.mnext'), nxt=(ns!=='Won'&&idx<STAGES.length-1)?STAGES[idx+1]:'';
-    if(btn){ if(nxt){ btn.dataset.stageopt=nxt; btn.textContent='Move to '+nxt+' \u2192'; } else btn.remove(); }
+    if(btn){ if(nxt){ btn.dataset.stageopt=nxt; btn.textContent='Move to '+SL(nxt)+' \u2192'; } else btn.remove(); }
     state.open='';
   }
   /* classes for the six steps of the stage line: d = done, c = current */
@@ -1992,8 +2000,8 @@ textarea:hover{border-color:var(--faint)}
     var chg='<div class="combo mst-chg"><button type="button" class="chg" data-stagebtn aria-haspopup="listbox" aria-expanded="'+(state.open==='stage')+'">Change'+CHEV+'</button>'+
       (state.open==='stage'?'<div class="pop pop-r"><div class="opts" role="listbox">'+stageOpts+'</div></div>':'')+'</div>';
     return '<div class="mstage"><div class="k">Stage</div><div class="stp" aria-hidden="true">'+steps+'</div>'+
-      '<div class="mst-row"><span class="st mst-cur '+sclass(w.status)+'">'+esc(w.status)+'</span><span class="sm">'+(lost?'Closed':(idx+1)+' of '+STAGES.length)+'</span>'+chg+'</div>'+
-      (next?'<button type="button" class="btn assign mnext" data-stageopt="'+next+'">Move to '+next+' \u2192</button>':'')+'</div>';
+      '<div class="mst-row"><span class="st mst-cur '+sclass(w.status)+'">'+esc(SL(w.status))+'</span><span class="sm">'+(lost?'Closed':(idx+1)+' of '+STAGES.length)+'</span>'+chg+'</div>'+
+      (next?'<button type="button" class="btn assign mnext" data-stageopt="'+next+'">Move to '+SL(next)+' \u2192</button>':'')+'</div>';
   }
   /* One entry per stage move, newest first. Notes hang off the stage move they were written in. */
   function activityItems(w){
@@ -2010,11 +2018,11 @@ textarea:hover{border-color:var(--faint)}
     return items;
   }
   function noteHtml(x){
-    return '<div class="tl2-note" data-nid="'+x.id+'"><p class="c-body">'+esc(x.text)+(x.edited?' <span class="sm">(edited)</span>':'')+'</p><button type="button" class="note-edit" data-noteedit="'+x.id+'">Edit</button></div>';
+    return '<div class="tl2-note" data-nid="'+x.id+'"><p class="c-body">'+esc(x.by==='sys'?sysText(x.text):x.text)+(x.edited?' <span class="sm">(edited)</span>':'')+'</p><button type="button" class="note-edit" data-noteedit="'+x.id+'">Edit</button></div>';
   }
   function activityList(items){
     return '<ul class="tl2">'+items.map(function(it){
-      return '<li><span class="sd '+sclass(it.stage)+'"></span><div class="tl2-h"><span class="tl2-t"><b>'+esc(it.stage)+'</b><span class="sm">'+esc(fmtAt(it.t))+'</span></span></div>'+
+      return '<li><span class="sd '+sclass(it.stage)+'"></span><div class="tl2-h"><span class="tl2-t"><b>'+esc(SL(it.stage))+'</b><span class="sm">'+esc(fmtAt(it.t))+'</span></span></div>'+
         (it.notes.length?'<div class="tl2-notes">'+it.notes.map(noteHtml).join('')+'</div>':'')+'</li>';
     }).join('')+'</ul>';
   }
@@ -2055,7 +2063,7 @@ textarea:hover{border-color:var(--faint)}
 
   function phoneActivity(w){
     var items=activityItems(w);
-    var box='<div class="logbox pn"><textarea id="note" aria-label="Note for '+esc(w.status)+'" placeholder="Add a note for '+esc(w.status)+' (optional)"></textarea><div class="compose-act end"><button class="btn assign" id="post">Add note</button></div></div>';
+    var box='<div class="logbox pn"><textarea id="note" aria-label="Note for '+esc(SL(w.status))+'" placeholder="Add a note for '+esc(SL(w.status))+' (optional)"></textarea><div class="compose-act end"><button class="btn assign" id="post">Add note</button></div></div>';
     return '<div class="d-sec">'+box+'<div class="act-row"><h3 class="act-h">Activity</h3><button type="button" class="act-all" data-flow>Show all</button></div>'+
       activityList(items.slice(0,5))+'</div>';
   }
@@ -2084,8 +2092,8 @@ textarea:hover{border-color:var(--faint)}
     var mailHref = (isScale() && l.email.length) ? 'mailto:' + encodeURIComponent(l.email[0]) : '';
     var acts='<div class="acts">'+actBtn(digits?'tel:+'+digits:'','call','Call')+actBtn(waLink(l),'whatsapp','WhatsApp',true)+(mailHref?actBtn(mailHref,'mail','Email'):'')+'</div>';
     var prog='<div class="prog'+(won?' won':'')+(lost?' lost':'')+'" aria-hidden="true">'+STAGES.map(function(s,i){return '<i'+((won||lost||i<=idx)?' class="f"':'')+'></i>';}).join('')+'</div>';
-    var stageOpts=ALLSTAGES.map(function(s){return optHtml('data-stageopt',s,s,'',s===w.status,false,'<span class="sd '+sclass(s)+'"></span>');}).join('');
-    var stageBox='<div class="combo"><button type="button" class="field combo-btn" data-stagebtn aria-haspopup="listbox" aria-expanded="'+(state.open==='stage')+'"><span><span class="sd '+sclass(w.status)+'"></span>'+esc(w.status)+'</span>'+CHEV+'</button>'+
+    var stageOpts=ALLSTAGES.map(function(s){return optHtml('data-stageopt',s,SL(s),'',s===w.status,false,'<span class="sd '+sclass(s)+'"></span>');}).join('');
+    var stageBox='<div class="combo"><button type="button" class="field combo-btn" data-stagebtn aria-haspopup="listbox" aria-expanded="'+(state.open==='stage')+'"><span><span class="sd '+sclass(w.status)+'"></span>'+esc(SL(w.status))+'</span>'+CHEV+'</button>'+
       (state.open==='stage'?'<div class="pop"><div class="opts" role="listbox">'+stageOpts+'</div></div>':'')+'</div>';
     var fuBox=(won||lost)?'<span class="sm">Closed</span>':
       '<div class="fuw"><div class="combo"><button type="button" class="field combo-btn fu-btn" data-fubtn aria-haspopup="dialog" aria-expanded="'+(state.open==='fu')+'"><span class="'+(w.next?'':'ph')+'">'+(w.next?esc(fuFull(w.next)):'Pick a date')+'</span>'+ico('cal')+'</button>'+(state.open==='fu'?'<div class="pop cal">'+calHtml(w.next)+'</div>':'')+'</div><div class="fq"><button type="button" data-fu="1">Tomorrow</button><button type="button" data-fu="3">In 3 days</button><button type="button" data-fu="7">Next week</button>'+(w.next?'<button type="button" data-fu="clear">Clear</button>':'')+'</div></div>';
@@ -2129,11 +2137,7 @@ textarea:hover{border-color:var(--faint)}
     var u=user(state.user), s=svcById(state.service);
     var start=periodStart('month'), m=mine();
     var contacted=m.filter(function(l){return leftNewIn(l,start);}).length;
-    var meetings=m.filter(function(l){return enteredIn(l,'Meeting',start);}).length;
     var won=m.filter(function(l){return enteredIn(l,'Won',start);}).length;
-    var overdue=0, today=0;
-    m.forEach(function(l){var w=W(l); if(!w.next||w.status==='Won'||w.status==='Lost') return; var d=diffDays(w.next); if(d<0) overdue++; else if(d===0) today++;});
-    var todayTxt=(overdue||today)?[overdue?overdue+' overdue':'',today?today+' due today':''].filter(Boolean).join(' · '):'Nothing due today';
     var unread=notifications().filter(function(n){return n.unread;}).length;
     var services=SERVICES.map(function(x){
       var free=LEADS.filter(function(l){return l.open.indexOf(x.id)>-1;}).length;
@@ -2142,9 +2146,8 @@ textarea:hover{border-color:var(--faint)}
     }).join('');
     view.innerHTML='<div class="pf">'+
       '<div class="pf-card"><span class="pav" aria-hidden="true">'+esc(u.ini)+'</span><div class="pf-who"><b>'+esc(u.name)+'</b><span class="sm">'+esc(DATA.me.email)+'</span><span class="sm">Salesperson</span></div></div>'+
-      '<div class="pf-stats" role="group" aria-label="This month in '+esc(s.name)+'"><div><b class="num">'+m.length+'</b><span>Assigned</span></div><div><b class="num">'+meetings+'</b><span>Meetings</span></div><div><b class="num">'+won+'</b><span>Won</span></div></div>'+
-      '<p class="pf-cap">This month · '+esc(s.name)+' · '+contacted+(contacted===1?' lead':' leads')+' contacted</p>'+
-      '<div class="pf-list pf-today">'+pfRow(ptile('today'),'<span>Today</span><span class="sm'+(overdue?' pf-red':'')+'">'+esc(todayTxt)+'</span>','','data-pf="today"')+'</div>'+
+      statStrip(m.filter(function(l){return assignedIn(l,start);}).length,contacted,won,true,'This month in '+s.name)+
+      '<p class="pf-cap">This month \u00b7 '+esc(s.name)+'</p>'+
       '<h3 class="pf-h">Services</h3><div class="pf-list">'+services+'</div>'+
       '<h3 class="pf-h">Work</h3><div class="pf-list">'+
         pfRow(ptile('note'),'<span>My notes</span><span class="sm">'+allNotes().length+(allNotes().length===1?' note':' notes')+'</span>','','data-pf="notes"')+
@@ -2287,6 +2290,14 @@ textarea:hover{border-color:var(--faint)}
   }
   function monthElapsed(){var d=new Date(), dim=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return d.getDate()/dim;}
 
+  function assignedIn(l,start){var h=W(l).history||[];return h.length>0&&h[0].t>=start;}
+  /* Three boxes: Assigned (just the number), Contacted and Closed (the number big, "of target" small under it). */
+  function statStrip(assigned,contacted,closed,showTarget,aria){
+    function box(n,label,target){
+      return '<div><b class="num">'+n+'</b><small class="pf-of">'+(showTarget&&target?'of '+target:'&nbsp;')+'</small><span>'+label+'</span></div>';
+    }
+    return '<div class="pf-stats" role="group" aria-label="'+esc(aria)+'">'+box(assigned,'Assigned',0)+box(contacted,'Contacted',TARGETS.contacted)+box(closed,'Closed',TARGETS.won)+'</div>';
+  }
   function kpiCard(label,sub,n,target,kind,showTarget){
     var bar='';
     if(showTarget&&target){
@@ -2302,7 +2313,6 @@ textarea:hover{border-color:var(--faint)}
     m.forEach(function(l){by[W(l).status]++;});
     var p=state.kpiPeriod, start=periodStart(p), month=(p==='month');
     var contacted=m.filter(function(l){return leftNewIn(l,start);}).length;
-    var meetings=m.filter(function(l){return enteredIn(l,'Meeting',start);}).length;
     var won=m.filter(function(l){return enteredIn(l,'Won',start);}).length;
     var openL=m.filter(function(l){var s=W(l).status;return s!=='Won'&&s!=='Lost';});
     var overdue=openL.filter(function(l){return groupOf(l)==='od';}).length;
@@ -2325,20 +2335,18 @@ textarea:hover{border-color:var(--faint)}
       var bits=[];
       if(overdue) bits.push('<li><span class="num r">'+overdue+'</span>'+(overdue===1?'follow-up overdue':'follow-ups overdue')+'</li>');
       if(nodate) bits.push('<li><span class="num">'+nodate+'</span>'+(nodate===1?'lead has no follow-up date':'leads have no follow-up date')+'</li>');
-      att='<div class="katt"><div><div class="katt-t">Needs attention</div><ul class="katt-l">'+bits.join('')+'</ul></div><button type="button" class="btn assign" data-kgo="'+(overdue?'od':'later')+'">View in Assigned</button></div>';
+      att='<div class="katt '+(overdue?'hot':'warn')+'"><div><div class="katt-t"><svg class="katt-i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.2M12 16.3v.2"/></svg>Needs attention</div><ul class="katt-l">'+bits.join('')+'</ul></div><button type="button" class="btn assign" data-kgo="'+(overdue?'od':'later')+'">View in Assigned</button></div>';
     } else att='<div class="katt calm"><span class="sm">Nothing overdue, and every open lead has a follow-up date.</span></div>';
-    h+='<div class="kcards">'+
-      kpiCard('Leads contacted','Moved out of New',contacted,TARGETS.contacted,'black',month)+
-      kpiCard('Meetings fixed','Reached the Meeting stage',meetings,TARGETS.meetings,'black',month)+
-      kpiCard('Deals won','Marked Won',won,TARGETS.won,'green',month)+'</div>'+
-      (month?'<p class="sm kpnote">Monthly targets \u00b7 the tick marks today ('+Math.round(monthElapsed()*100)+'% of the month)</p>':'<p class="sm kpnote">Counts for '+(p==='today'?'today':'the last 7 days')+' \u00b7 targets show on This month</p>')+
+    h+='<h3 class="kp-sh">'+(month?'Monthly target':(p==='today'?'Today':'Last 7 days'))+'</h3>'+
+      statStrip(m.filter(function(l){return assignedIn(l,start);}).length,contacted,won,month,month?'Monthly target':'Counts for the period')+
+      (month?'<p class="sm kpnote">This month \u00b7 '+Math.round(monthElapsed()*100)+'% of the month gone</p>':'<p class="sm kpnote">Counts for '+(p==='today'?'today':'the last 7 days')+' \u00b7 targets show on This month</p>')+
       att+
       '<div class="kcols"><section class="ksec"><h3>Pipeline now</h3>'+
         STAGES.concat(['Lost']).map(function(s){
-          return '<div class="frow kc-'+kindOf(s)+'"><span class="st">'+s+'</span><span class="ftrack"><i style="width:'+Math.round(by[s]/max*100)+'%"></i></span><span class="num">'+by[s]+'</span></div>';
+          return '<div class="frow kc-'+kindOf(s)+'"><span class="st">'+SL(s)+'</span><span class="ftrack"><i style="width:'+Math.round(by[s]/max*100)+'%"></i></span><span class="num">'+by[s]+'</span></div>';
         }).join('')+'</section>'+
       '<section class="ksec"><h3>Latest updates</h3>'+(acts.length?acts.map(function(a){
-        return '<div class="act"><div class="c-meta"><b>'+esc(a.lead.name)+'</b><span>'+esc(fmtAt(a.c.at))+'</span><span class="st kc-'+kindOf(a.c.stage)+'">'+esc(a.c.stage)+'</span></div><p class="c-body">'+esc(a.c.text)+'</p></div>';
+        return '<div class="act"><div class="c-meta"><b>'+esc(a.lead.name)+'</b><span>'+esc(fmtAt(a.c.at))+'</span><span class="st kc-'+kindOf(a.c.stage)+'">'+esc(SL(a.c.stage))+'</span></div><p class="c-body">'+esc(a.c.text)+'</p></div>';
       }).join(''):'<p class="muted">No notes yet. Notes you add on assigned stores show up here.</p>')+'</section></div>';
     view.innerHTML=h;
   }

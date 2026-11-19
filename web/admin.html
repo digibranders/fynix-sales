@@ -302,13 +302,13 @@ function vOverview(){
     return '<div class="wsrow"><span class="wsn"><span class="muted num" style="margin-right:8px">'+(i+1)+'</span>'+esc(w.name)+(S.cat==='all'?' '+ct(w.category):'')+'</span><span class="bar" aria-hidden="true"><i style="width:'+pct+'%"></i></span><span class="muted num">'+w.claimedCount+' / '+w.leadCount+'</span><span class="num" style="text-align:right">'+pct+'%</span></div>';}).join(''):'<div class="muted">No workspaces yet.</div>')+'</div>'+
     '<div class="blk"><h2>Recent activity</h2>'+(function(){var a=D.activity.filter(function(x){return S.cat==='all'||!x.category||x.category===S.cat;}).slice(0,8);
       return a.length?'<ul class="act">'+a.map(function(x){return '<li><span>'+esc(x.text)+'</span><small>'+(x.sub?esc(x.sub)+' · ':'')+when(x.at)+'</small></li>';}).join('')+'</ul>':'<div class="muted">Nothing yet.</div>';})()+'</div></div>';
-  h+='<div class="blk"><h2>Salespeople this month</h2>'+(P.length?'<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>'+(S.cat==='all'?'<th>Category</th>':'')+'<th>Services</th><th>Assigned</th><th>Contacted</th><th>Meetings</th><th>Won</th></tr></thead><tbody>'+
-    P.map(function(p,i){return '<tr><td class="muted num">'+(i+1)+'</td><td><span class="own static">'+av(p)+esc(p.name)+'</span></td>'+(S.cat==='all'?'<td>'+ct(p.category)+'</td>':'')+'<td>'+wsOf(p)+'</td><td>'+num(p.stats.assigned)+'</td><td>'+num(p.stats.contacted)+'</td><td>'+num(p.stats.meetings)+'</td><td>'+num(p.stats.won)+'</td></tr>';}).join('')+'</tbody></table></div>':'<div class="muted">No salespeople yet.</div>')+'</div>';
+  h+='<div class="blk"><h2>Salespeople this month</h2>'+(P.length?'<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>'+(S.cat==='all'?'<th>Category</th>':'')+'<th>Services</th><th>Assigned</th><th>Contacted</th><th>Closed</th></tr></thead><tbody>'+
+    P.map(function(p,i){return '<tr><td class="muted num">'+(i+1)+'</td><td><span class="own static">'+av(p)+esc(p.name)+'</span></td>'+(S.cat==='all'?'<td>'+ct(p.category)+'</td>':'')+'<td>'+wsOf(p)+'</td><td>'+num(p.stats.assigned)+'</td><td>'+num(p.stats.contacted)+'</td><td>'+num(p.stats.won)+'</td></tr>';}).join('')+'</tbody></table></div>':'<div class="muted">No salespeople yet.</div>')+'</div>';
   var cats=S.cat==='all'?CATS:[S.cat];
   h+='<div class="blk"><h2>Monthly targets</h2>'+cats.map(function(c){var t=D.targets[c]||{contacted:0,meetings:0,won:0};
     return '<div class="tgt" data-targets="'+c+'"><h3>'+esc(catName(c))+'</h3>'+
-      ['contacted','meetings','won'].map(function(m){return '<div><label for="t-'+c+'-'+m+'">'+({contacted:'Leads contacted',meetings:'Meetings',won:'Won'})[m]+'</label><input class="inp sm num" id="t-'+c+'-'+m+'" type="number" min="0" max="10000" value="'+t[m]+'"></div>';}).join('')+
-      '<button class="btn" data-save-targets="'+c+'">Save</button></div>';}).join('')+'<p class="hint">Targets apply to the monthly view in each salesperson\'s KPIs.</p></div>';
+      ['contacted','won'].map(function(m){return '<div><label for="t-'+c+'-'+m+'">'+({contacted:'Contacted target',won:'Closed target'})[m]+'</label><input class="inp sm num" id="t-'+c+'-'+m+'" type="number" min="0" max="10000" value="'+t[m]+'"></div>';}).join('')+
+      '<button class="btn" data-save-targets="'+c+'">Save</button></div>';}).join('')+'<p class="hint">Shown to each salesperson as "of N" under Contacted and Closed in KPIs and Profile. Assigned has no target.</p></div>';
   return h;
 }
 
@@ -599,9 +599,9 @@ document.addEventListener('click',function(e){
   }
   if((c=t.closest('[data-save-targets]'))){
     var cat=c.dataset.saveTargets,g=function(m){return parseInt(document.getElementById('t-'+cat+'-'+m).value,10);};
-    var body={category:cat,contacted:g('contacted'),meetings:g('meetings'),won:g('won')};
-    if([body.contacted,body.meetings,body.won].some(function(n){return !(n>=0);})){toast('Targets must be whole numbers, zero or more.');return;}
-    api('PUT','/api/admin/targets',body).then(function(){D.targets[cat]={contacted:body.contacted,meetings:body.meetings,won:body.won};toast(catName(cat)+' targets saved');}).catch(fail);return;
+    var body={category:cat,contacted:g('contacted'),won:g('won')};
+    if([body.contacted,body.won].some(function(n){return !(n>=0);})){toast('Targets must be whole numbers, zero or more.');return;}
+    api('PUT','/api/admin/targets',body).then(function(){D.targets[cat]={contacted:body.contacted,meetings:(D.targets[cat]||{}).meetings||0,won:body.won};toast(catName(cat)+' targets saved');}).catch(fail);return;
   }
   if((c=t.closest('[data-rmonth]'))){var d=parseInt(c.dataset.rmonth,10),m=S.report.m+d,y=S.report.y;if(m<0){m=11;y--;}else if(m>11){m=0;y++;}if(y>NOW.getFullYear()||(y===NOW.getFullYear()&&m>NOW.getMonth()))return;S.report.m=m;S.report.y=y;render();return;}
   if((c=t.closest('[data-lpage]'))){S.leads.page+=parseInt(c.dataset.lpage,10);loadLeads();return;}
