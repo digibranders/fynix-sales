@@ -20,6 +20,7 @@ export interface ParsedLead {
   linkedinUrl: string;
   country: string;
   state: string;
+  socialLinks: string[];
 }
 
 export interface ParseResult {
@@ -50,6 +51,28 @@ function field(row: Row, ...names: string[]): string {
     }
   }
   return '';
+}
+
+const MAX_SOCIAL_LINKS = 8;
+
+/** One cell can hold several profile links, split by commas, spaces, semicolons, bars or line breaks. Only web links are kept. */
+export function cleanLinks(raw: string): string[] {
+  const out: string[] = [];
+  for (const part of raw.split(/[\s,;|]+/)) {
+    const text = part.trim().replace(/[)\].>]+$/, '');
+    if (!text) continue;
+    const candidate = /^https?:\/\//i.test(text) ? text : /^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(text) ? `https://${text}` : '';
+    if (!candidate) continue;
+    try {
+      const url = new URL(candidate);
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') continue;
+      const href = url.toString();
+      if (!out.includes(href)) out.push(href);
+    } catch {
+      continue;
+    }
+  }
+  return out.slice(0, MAX_SOCIAL_LINKS);
 }
 
 function json(text: string): unknown {
@@ -201,6 +224,7 @@ export function parseLeadsCsv(text: string): ParseResult {
       linkedinUrl,
       country,
       state: stateVal,
+      socialLinks: cleanLinks(field(row, 'Social Links', 'social_links', 'Socials', 'Social Media', 'Social')),
     });
   }
   return { leads, skipped };

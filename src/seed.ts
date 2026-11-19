@@ -40,12 +40,13 @@ const REACH_AREAS = ['Kothrud', 'Baner', 'Aundh', 'Viman Nagar', 'Hadapsar', 'Wa
 
 /** Clearly labelled sample rows so the Reach category has something to work with in development. */
 export function sampleReachCsv(count = 60): string {
-  const lines = ['title,category,address,phone,website,place_id'];
+  const lines = ['title,category,address,phone,website,place_id,social_links'];
   for (let i = 1; i <= count; i += 1) {
     const kind = REACH_KINDS[i % REACH_KINDS.length] ?? 'Shop';
     const area = REACH_AREAS[i % REACH_AREAS.length] ?? 'Pune';
     const phone = `98${String(10_000_000 + i * 7919).slice(0, 8)}`;
-    lines.push(`Sample ${kind} ${String(i).padStart(2, '0')},${kind},"${area}, Pune",${phone},,sample-reach-${i}`);
+    const social = i % 3 === 0 ? `"https://instagram.com/sample_${i} https://facebook.com/sample.${i}"` : '';
+    lines.push(`Sample ${kind} ${String(i).padStart(2, '0')},${kind},"${area}, Pune",${phone},,sample-reach-${i},${social}`);
   }
   return lines.join('\n');
 }

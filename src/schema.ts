@@ -121,6 +121,8 @@ export const leads = pgTable(
     linkedinUrl: text('linkedin_url').notNull().default(''),
     country: text('country').notNull().default(''),
     state: text('state').notNull().default(''),
+    /** Every social profile link from the CSV, kept together as a JSON array and shown as one list. */
+    socialLinks: text('social_links').notNull().default('[]'),
   },
   (t) => [unique('leads_list_external').on(t.listId, t.externalId), index('idx_leads_list').on(t.listId)],
 );

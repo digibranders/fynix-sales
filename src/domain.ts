@@ -146,7 +146,7 @@ export async function categoryOfWorkspace(db: Db, workspaceId: string): Promise<
 
 export const LEAD_COLUMNS = [
   'id', 'list_id', 'external_id', 'name', 'google_category', 'area', 'city', 'address', 'phone', 'website',
-  'emails', 'whatsapp', 'hours', 'company', 'job_title', 'personal_number', 'keywords', 'linkedin_url', 'country', 'state',
+  'emails', 'whatsapp', 'hours', 'company', 'job_title', 'personal_number', 'keywords', 'linkedin_url', 'country', 'state', 'social_links',
 ] as const;
 
 /** One parsed CSV row, in the same order as LEAD_COLUMNS. */
@@ -154,6 +154,6 @@ export function leadValues(id: string, listId: string, lead: ParsedLead): Params
   return [
     id, listId, lead.externalId, lead.name, lead.googleCategory, lead.area, lead.city, lead.address, lead.phone, lead.website,
     JSON.stringify(lead.emails), lead.whatsapp, JSON.stringify(lead.hours), lead.company, lead.jobTitle, lead.personalNumber,
-    lead.keywords, lead.linkedinUrl, lead.country, lead.state,
+    lead.keywords, lead.linkedinUrl, lead.country, lead.state, JSON.stringify(lead.socialLinks),
   ];
 }

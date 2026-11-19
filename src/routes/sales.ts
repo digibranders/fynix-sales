@@ -43,6 +43,7 @@ interface LeadRow {
   linkedin_url: string;
   country: string;
   state: string;
+  social_links: string;
   workspace_id: string;
   archived: boolean;
 }
@@ -116,7 +117,7 @@ export function registerSalesRoutes(app: FastifyInstance, ctx: AppContext): void
         db,
         `SELECT l.id, l.external_id, l.name, l.google_category, l.area, l.city, l.address, l.phone, l.website,
                 l.emails, l.whatsapp, l.hours, l.company, l.job_title, l.personal_number, l.keywords,
-                l.linkedin_url, l.country, l.state, wl.workspace_id, (s.archived_at IS NOT NULL) AS archived
+                l.linkedin_url, l.country, l.state, l.social_links, wl.workspace_id, (s.archived_at IS NOT NULL) AS archived
            FROM leads l JOIN workspace_lists wl ON wl.list_id = l.list_id JOIN lists s ON s.id = l.list_id
           WHERE wl.workspace_id IN (${marks})
           ORDER BY lower(l.name), l.id`,
@@ -172,6 +173,7 @@ export function registerSalesRoutes(app: FastifyInstance, ctx: AppContext): void
           linkedin: row.linkedin_url || '',
           country: row.country || '',
           state: row.state || '',
+          social: parseJsonArray(row.social_links),
           open,
           work,
         });
