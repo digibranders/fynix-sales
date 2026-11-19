@@ -320,6 +320,41 @@ describe('superadmin', () => {
     assert.equal(rohan.leads.some((l) => l.name === 'Chai Corner' || l.name === 'Mobile Mart'), false);
   });
 
+  it('deactivates a list without losing work, and only deletes it once nothing is assigned', async () => {
+    const aarav = await login('aarav@fynix.test');
+    const priya = await login('priya@fynix.test');
+    const rohan = await login('rohan@fynix.test');
+    const csv = ['title,place_id', 'Arch One,arch-1', 'Arch Two,arch-2'].join('\n');
+    const made = await call(aarav, 'POST', '/api/admin/lists', { name: 'Archive me', category: 'scale', csv, workspaceIds: ['scale-website'] });
+    assert.equal(made.status, 201);
+    const listId = String(made.body['id']);
+
+    const find = async (cookie: string, name: string) => (await bootstrap(cookie)).leads.find((l) => l.name === name) as { id: string; open: string[]; work: Record<string, unknown> } | undefined;
+    const one = await find(priya, 'Arch One');
+    const two = await find(priya, 'Arch Two');
+    assert.ok(one && two);
+    assert.equal((await call(priya, 'POST', '/api/sales/claims', { leadId: one.id, workspaceId: 'scale-website' })).status, 201);
+
+    assert.equal((await call(aarav, 'PATCH', `/api/admin/lists/${listId}`, { active: false })).status, 200);
+    assert.ok(await find(priya, 'Arch One'), 'work already claimed carries on');
+    assert.equal(await find(priya, 'Arch Two'), undefined, 'nothing new to claim from a deactivated list');
+    assert.equal(await find(rohan, 'Arch Two'), undefined);
+    assert.equal((await call(rohan, 'POST', '/api/sales/claims', { leadId: two.id, workspaceId: 'scale-website' })).status, 404);
+    assert.equal((await call(aarav, 'PUT', `/api/admin/leads/${two.id}/owners/scale-website`, { ownerId: null })).status, 200, 'releasing is still allowed');
+
+    const delBlocked = await call(aarav, 'DELETE', `/api/admin/lists/${listId}`);
+    assert.equal(delBlocked.status, 409, 'one lead is still assigned');
+
+    assert.equal((await call(aarav, 'PATCH', `/api/admin/lists/${listId}`, { active: true })).status, 200);
+    assert.ok(await find(rohan, 'Arch Two'), 'active again');
+    assert.equal((await call(aarav, 'PATCH', `/api/admin/lists/${listId}`, { active: false })).status, 200);
+
+    assert.equal((await call(aarav, 'PUT', `/api/admin/leads/${one.id}/owners/scale-website`, { ownerId: null })).status, 200);
+    assert.equal((await call(aarav, 'DELETE', `/api/admin/lists/${listId}`)).status, 200);
+    assert.equal(await find(rohan, 'Arch Two'), undefined);
+    assert.equal((await call(priya, 'DELETE', `/api/admin/lists/${listId}`)).status, 403);
+  });
+
   it('reassigns and releases leads without touching other workspaces', async () => {
     const aarav = await login('aarav@fynix.test');
     const rohan = await login('rohan@fynix.test');

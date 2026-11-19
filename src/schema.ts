@@ -77,6 +77,8 @@ export const lists = pgTable(
     fileName: text('file_name').notNull(),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: ms('created_at').notNull(),
+    /** Set when a superadmin deactivates the list: no new claims, work already claimed carries on. */
+    archivedAt: ms('archived_at'),
   },
   (t) => [check('lists_category_check', sql`${t.category} IN ('scale', 'reach')`)],
 );
