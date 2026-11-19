@@ -59,7 +59,7 @@ const ownerBody = z.object({ ownerId: z.union([z.string().max(64), z.null()]) })
 const targetsBody = z.object({
   category,
   contacted: z.number().int().min(0).max(10_000),
-  meetings: z.number().int().min(0).max(10_000),
+  meetings: z.number().int().min(0).max(10_000).optional(),
   won: z.number().int().min(0).max(10_000),
 });
 const leadsQuery = z.object({
@@ -636,7 +636,8 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const body = targetsBody.parse(request.body);
     await tx(db, async (db) => {
       for (const metric of METRICS) {
-        await run(db, 'UPDATE kpi_targets SET value = ? WHERE category = ? AND metric = ?', [body[metric], body.category, metric]);
+        const value = body[metric];
+        if (value !== undefined) await run(db, 'UPDATE kpi_targets SET value = ? WHERE category = ? AND metric = ?', [value, body.category, metric]);
       }
     });
     return { ok: true };

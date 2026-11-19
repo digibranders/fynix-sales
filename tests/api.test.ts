@@ -429,11 +429,11 @@ describe('superadmin', () => {
 
   it('saves monthly targets per category', async () => {
     const aarav = await login('aarav@fynix.test');
-    assert.equal((await call(aarav, 'PUT', '/api/admin/targets', { category: 'reach', contacted: 40, meetings: 10, won: 5 })).status, 200);
+    assert.equal((await call(aarav, 'PUT', '/api/admin/targets', { category: 'reach', contacted: 40, won: 5 })).status, 200);
     const aisha = await call(await login('aisha@fynix.test'), 'GET', '/api/sales/bootstrap');
-    assert.deepEqual(aisha.body['targets'], { contacted: 40, meetings: 10, won: 5 });
+    assert.deepEqual(aisha.body['targets'], { contacted: 40, meetings: 6, won: 5 });
     const priya = await call(await login('priya@fynix.test'), 'GET', '/api/sales/bootstrap');
     assert.deepEqual(priya.body['targets'], { contacted: 20, meetings: 6, won: 3 });
-    assert.equal((await call(aarav, 'PUT', '/api/admin/targets', { category: 'reach', contacted: -1, meetings: 1, won: 1 })).status, 400);
+    assert.equal((await call(aarav, 'PUT', '/api/admin/targets', { category: 'reach', contacted: -1, won: 1 })).status, 400);
   });
 });
