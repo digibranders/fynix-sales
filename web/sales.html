@@ -759,8 +759,14 @@ textarea:hover{border-color:var(--faint)}
     gap:3px 8px;padding:14px 0;border-bottom:1px solid var(--line);align-items:center}
   td{display:block;height:auto;border:0;padding:0!important}
   .c-sr{grid-area:sr;align-self:start;padding-top:2px!important}
-  .c-name{grid-area:name}.c-act{grid-area:act;align-self:center}.c-area{grid-area:area}.c-phone{grid-area:phone}.c-web{grid-area:web}.c-comp{grid-area:area}.c-title{grid-area:web}
+  .c-name{grid-area:name}.c-act{grid-area:act;align-self:center}.c-area{grid-area:area}.c-phone{grid-area:phone}.c-web{grid-area:web}.c-comp{grid-area:comp}.c-title{grid-area:title}
   .c-area .sm{display:inline;margin-left:6px}
+  /* Scale rows stack the person, company, job title and phone in one column with Assign on the right */
+  tbody tr.scale-row{grid-template-areas:"sr name act" ". comp act" ". title act" ". phone act";align-items:start}
+  tr.scale-row .c-act{align-self:center}
+  tr.scale-row .c-name .name{overflow-wrap:anywhere}
+  tr.scale-row .c-comp,tr.scale-row .c-title,tr.scale-row .c-phone{overflow-wrap:anywhere}
+  tr.scale-row .c-phone{font-size:12.5px;color:var(--muted)}
   .pager{flex-direction:column;align-items:flex-start}
 
   /* assigned: list first, tap a store to open it, back arrow returns */
@@ -1176,7 +1182,7 @@ textarea:hover{border-color:var(--faint)}
         if (isScale()) {
           var pNum = l.personalNumber || l.phone;
           var w = safeUrl(l.web);
-          return '<tr class="lead-row" data-assign="'+l.id+'" style="cursor:pointer">'+
+          return '<tr class="lead-row scale-row" data-assign="'+l.id+'" style="cursor:pointer">'+
             '<td class="sr num c-sr">'+(state.page*PAGE+n+1)+'</td>'+
             '<td class="c-name"><div class="name">'+esc(toTitleCase(l.name))+'</div>'+(l.email.length?'<div class="sm muted">'+esc(l.email[0])+'</div>':'')+socialRow(l)+alsoHtml(l)+'</td>'+
             '<td class="c-comp"><b>'+(l.company?esc(toTitleCase(l.company)):'<span class="dash">—</span>')+'</b>'+(w?'<div class="sm"><a class="ext" href="'+esc(w)+'" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()"><span>'+esc(domain(w))+'</span><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1h6v6M9 1L1 9"/></svg></a></div>':'')+'</td>'+
