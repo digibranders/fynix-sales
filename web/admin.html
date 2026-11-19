@@ -324,10 +324,14 @@ function vWorkspaces(){
 function vLists(){
   var L=D.lists.filter(inCat);
   var h=head('Lists','Imported lead files','<button class="btn dark" data-new="list">'+PLUS+'Import list</button>');
-  h+=L.length?'<div class="tw"><table><thead><tr><th>List</th>'+(S.cat==='all'?'<th>Category</th>':'')+'<th>File</th><th>Leads</th><th>Used in</th><th>Imported</th></tr></thead><tbody>'+L.map(function(l){
+  h+=L.length?'<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>List</th>'+(S.cat==='all'?'<th>Category</th>':'')+'<th>File</th><th>Leads</th><th>Used in</th><th>Imported</th><th></th></tr></thead><tbody>'+L.map(function(l,i){
     var used=D.workspaces.filter(function(w){return w.listIds.indexOf(l.id)>-1;});
-    return '<tr><td style="font-weight:500">'+esc(l.name)+'</td>'+(S.cat==='all'?'<td>'+ct(l.category)+'</td>':'')+'<td class="muted num">'+esc(l.fileName)+'</td><td>'+num(l.leadCount)+'</td><td><div class="chips">'+(used.length?used.map(chip).join(''):'<span class="muted">Not in any workspace</span>')+'</div></td><td class="muted">'+when(l.createdAt)+'</td></tr>';}).join('')+'</tbody></table></div>':'<div class="tw"><div class="empty"><b>No lists yet</b>Import a CSV to add leads.</div></div>';
-  return h+'<p class="hint">A list belongs to one category. It can only be added to that category\'s services.</p>';
+    var ask=S.listConfirm===l.id;
+    var acts=ask
+      ?'<span class="muted">Remove this list?</span><button class="btn sm" data-lcancel>Keep</button> <button class="btn sm danger" data-ldel="'+esc(l.id)+'">Remove</button>'
+      :'<button class="btn sm" data-ltoggle="'+esc(l.id)+'">'+(l.archived?'Activate':'Deactivate')+'</button><button class="btn sm danger" data-lask="'+esc(l.id)+'">Remove</button>';
+    return '<tr'+(l.archived?' style="opacity:.62"':'')+'><td class="muted num">'+(i+1)+'</td><td style="font-weight:500">'+esc(l.name)+(l.archived?' <span class="muted" style="font-weight:400;font-size:12px;border:1px solid var(--line2);border-radius:6px;padding:1px 6px;margin-left:6px">Inactive</span>':'')+'</td>'+(S.cat==='all'?'<td>'+ct(l.category)+'</td>':'')+'<td class="muted num">'+esc(l.fileName)+'</td><td>'+num(l.leadCount)+'</td><td><div class="chips">'+(used.length?used.map(chip).join(''):'<span class="muted">Not in any workspace</span>')+'</div></td><td class="muted">'+when(l.createdAt)+'</td><td><div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;align-items:center;min-width:92px">'+acts+'</div></td></tr>';}).join('')+'</tbody></table></div>':'<div class="tw"><div class="empty"><b>No lists yet</b>Import a CSV to add leads.</div></div>';
+  return h+'<p class="hint">A list belongs to one category. It can only be added to that category\'s services. Deactivate stops new claims and keeps all work done; Remove deletes the list for good.</p>';
 }
 
 function serviceColumns(){
@@ -413,7 +417,9 @@ function goto(view){
 }
 
 /* ---------- drawer: one service ---------- */
-function pickRows(items,sel,key){return items.length?'<div class="pick">'+items.map(function(it){
+function pickRows(items,sel,key){var allOn=items.length>0&&items.every(function(it){return sel.indexOf(it.id)>-1;});
+  var all=items.length>1&&/^(wss|lists|members)$/.test(key)?'<button type="button" class="pk" data-pk="'+key+'|*" aria-pressed="'+allOn+'"><span class="cb"></span><span><b>Select all</b></span></button>':'';
+  return items.length?'<div class="pick">'+all+items.map(function(it){
   return '<button type="button" class="pk" data-pk="'+key+'|'+esc(it.id)+'" aria-pressed="'+(sel.indexOf(it.id)>-1)+'"><span class="cb"></span><span>'+esc(it.name)+'</span></button>';}).join('')+'</div>':'<p class="hint">Nothing in this category yet.</p>';}
 function openDrawer(id){
   var w=ws(id);if(!w){closeAll();return;}
@@ -546,6 +552,15 @@ document.addEventListener('click',function(e){
   }
   if(!t.closest('.menu')) closeMenu();
   if((c=t.closest('[data-ws]'))){S.form.drawer=null;openDrawer(c.dataset.ws);return;}
+  if((c=t.closest('[data-ltoggle]'))){
+    var lid=c.dataset.ltoggle,lst=D.lists.filter(function(x){return x.id===lid;})[0];
+    api('PATCH','/api/admin/lists/'+encodeURIComponent(lid),{active:!!(lst&&lst.archived)}).then(function(){toast(lst&&lst.archived?'List activated':'List deactivated');return reload();}).catch(function(err){toast(err.message);});return;
+  }
+  if((c=t.closest('[data-lask]'))){S.listConfirm=c.dataset.lask;render();return;}
+  if(t.closest('[data-lcancel]')){S.listConfirm=null;render();return;}
+  if((c=t.closest('[data-ldel]'))){
+    api('DELETE','/api/admin/lists/'+encodeURIComponent(c.dataset.ldel)).then(function(){S.listConfirm=null;toast('List removed');return reload();}).catch(function(err){S.listConfirm=null;toast(err.message);render();});return;
+  }
   if((c=t.closest('[data-new]'))){openModal(c.dataset.new);return;}
   if((c=t.closest('[data-editpeople]'))){openModal('editpeople',c.dataset.editpeople);return;}
   if(t.closest('[data-close]')||t.id==='scrim'){closeAll();S.modal=null;return;}
@@ -554,7 +569,12 @@ document.addEventListener('click',function(e){
   if((c=t.closest('[data-pk]'))){
     var k=c.dataset.pk.split('|');
     if(k[0]==='dlists'||k[0]==='dmembers'){var d=S.form.drawer;toggle(k[0]==='dlists'?d.lists:d.members,k[1]);d.error='';openDrawer(d.id);return;}
-    syncFields();toggle(S.form.m[k[0]==='pwss'?'wss':k[0]],k[1]);paintModal();return;
+    syncFields();
+    if(k[1]==='*'){
+      var Fm=S.form.m,ids=(k[0]==='wss'?wsPick(Fm.cat):k[0]==='members'?salesPick(Fm.cat):D.lists.filter(function(l){return l.category===Fm.cat;})).map(function(it){return it.id;});
+      var cur=Fm[k[0]];Fm[k[0]]=ids.every(function(id){return cur.indexOf(id)>-1;})?[]:ids.slice();paintModal();return;
+    }
+    toggle(S.form.m[k[0]==='pwss'?'wss':k[0]],k[1]);paintModal();return;
   }
   if((c=t.closest('[data-save]'))){save(c.dataset.save);return;}
   if(t.closest('[data-save-ws]')){

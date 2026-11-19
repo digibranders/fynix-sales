@@ -44,6 +44,7 @@ interface LeadRow {
   country: string;
   state: string;
   workspace_id: string;
+  archived: boolean;
 }
 interface ClaimLite {
   id: string;
@@ -115,8 +116,8 @@ export function registerSalesRoutes(app: FastifyInstance, ctx: AppContext): void
         db,
         `SELECT l.id, l.external_id, l.name, l.google_category, l.area, l.city, l.address, l.phone, l.website,
                 l.emails, l.whatsapp, l.hours, l.company, l.job_title, l.personal_number, l.keywords,
-                l.linkedin_url, l.country, l.state, wl.workspace_id
-           FROM leads l JOIN workspace_lists wl ON wl.list_id = l.list_id
+                l.linkedin_url, l.country, l.state, wl.workspace_id, (s.archived_at IS NOT NULL) AS archived
+           FROM leads l JOIN workspace_lists wl ON wl.list_id = l.list_id JOIN lists s ON s.id = l.list_id
           WHERE wl.workspace_id IN (${marks})
           ORDER BY lower(l.name), l.id`,
         workspaceIds,
@@ -136,6 +137,7 @@ export function registerSalesRoutes(app: FastifyInstance, ctx: AppContext): void
       for (const row of rows) {
         const claim = claimByPair.get(`${row.id}|${row.workspace_id}`);
         if (claim && claim.owner_id !== user.id) continue; // taken by someone else: no trace of it
+        if (!claim && row.archived) continue; // deactivated list: nothing new to claim, work already claimed carries on
         let entry = byLead.get(row.id);
         if (!entry) {
           entry = { row, open: [], work: {} };
@@ -232,7 +234,8 @@ export function registerSalesRoutes(app: FastifyInstance, ctx: AppContext): void
            JOIN workspaces w ON w.id = m.workspace_id
            JOIN workspace_lists wl ON wl.workspace_id = w.id
            JOIN leads l ON l.list_id = wl.list_id
-          WHERE m.user_id = ? AND w.id = ? AND l.id = ?`,
+           JOIN lists s ON s.id = l.list_id
+          WHERE m.user_id = ? AND w.id = ? AND l.id = ? AND s.archived_at IS NULL`,
         [user.id, body.workspaceId, body.leadId],
       );
       if (!allowed) throw new HttpError(404, 'not_found', 'That store is not available in this service.');

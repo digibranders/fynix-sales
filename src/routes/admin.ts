@@ -144,7 +144,7 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       ...w,
       leadCount: await claimCount(
         db,
-        'SELECT COUNT(DISTINCT l.id) AS n FROM leads l JOIN workspace_lists wl ON wl.list_id = l.list_id WHERE wl.workspace_id = ?',
+        'SELECT COUNT(DISTINCT l.id) AS n FROM leads l JOIN workspace_lists wl ON wl.list_id = l.list_id JOIN lists s ON s.id = l.list_id AND s.archived_at IS NULL WHERE wl.workspace_id = ?',
         [w.id],
       ),
       claimedCount: await claimCount(db, 'SELECT COUNT(*) AS n FROM claims WHERE workspace_id = ?', [w.id]),
@@ -152,15 +152,16 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       memberIds: (await all<{ user_id: string }>(db, 'SELECT user_id FROM workspace_members WHERE workspace_id = ?', [w.id])).map((r) => r.user_id),
     })));
 
-    const lists = await Promise.all((await all<{ id: string; name: string; category: Category; file_name: string; created_at: number }>(
+    const lists = await Promise.all((await all<{ id: string; name: string; category: Category; file_name: string; created_at: number; archived_at: number | null }>(
       db,
-      'SELECT id, name, category, file_name, created_at FROM lists ORDER BY created_at DESC',
+      'SELECT id, name, category, file_name, created_at, archived_at FROM lists ORDER BY created_at DESC',
     )).map(async (l) => ({
       id: l.id,
       name: l.name,
       category: l.category,
       fileName: l.file_name,
       createdAt: l.created_at,
+      archived: l.archived_at !== null,
       leadCount: await claimCount(db, 'SELECT COUNT(*) AS n FROM leads WHERE list_id = ?', [l.id]),
       workspaceIds: (await all<{ workspace_id: string }>(db, 'SELECT workspace_id FROM workspace_lists WHERE list_id = ?', [l.id])).map((r) => r.workspace_id),
     })));
@@ -380,6 +381,36 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     return result;
   });
 
+  /** Deactivating stops new claims on a list but keeps every lead and all work already done. */
+  app.patch<{ Params: { id: string } }>('/api/admin/lists/:id', async (request) => {
+    const me = superadmin(request);
+    const body = z.object({ active: z.boolean() }).parse(request.body);
+    await tx(db, async (db) => {
+      const list = await one<{ name: string; category: Category; archived_at: number | null }>(db, 'SELECT name, category, archived_at FROM lists WHERE id = ?', [request.params.id]);
+      if (!list) throw new HttpError(404, 'not_found', 'That list does not exist.');
+      if (body.active === (list.archived_at === null)) return;
+      await run(db, 'UPDATE lists SET archived_at = ? WHERE id = ?', [body.active ? null : Date.now(), request.params.id]);
+      await logActivity(db, list.category, `${me.name} ${body.active ? 'activated' : 'deactivated'} the ${list.name} list`, CATEGORY_INFO[list.category].name);
+    });
+    return { ok: true };
+  });
+
+  /** Removing a list deletes its leads for good, so it is refused while any of them are assigned. */
+  app.delete<{ Params: { id: string } }>('/api/admin/lists/:id', async (request) => {
+    const me = superadmin(request);
+    await tx(db, async (db) => {
+      const list = await one<{ name: string; category: Category }>(db, 'SELECT name, category FROM lists WHERE id = ?', [request.params.id]);
+      if (!list) throw new HttpError(404, 'not_found', 'That list does not exist.');
+      const n = await claimCount(db, 'SELECT COUNT(*) AS n FROM claims c JOIN leads l ON l.id = c.lead_id WHERE l.list_id = ?', [request.params.id]);
+      if (n > 0) {
+        throw new HttpError(409, 'in_use', `${n} leads from ${list.name} are assigned to salespeople. Deactivate the list instead, or release them first.`);
+      }
+      await run(db, 'DELETE FROM lists WHERE id = ?', [request.params.id]);
+      await logActivity(db, list.category, `${me.name} removed the ${list.name} list`, CATEGORY_INFO[list.category].name);
+    });
+    return { ok: true };
+  });
+
   app.get('/api/admin/leads', async (request) => {
     superadmin(request);
     const query = leadsQuery.parse(request.query);
@@ -462,11 +493,12 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const body = ownerBody.parse(request.body);
     const { leadId, workspaceId } = request.params;
     await tx(db, async (db) => {
-      const info = await one<{ lead_name: string; ws_name: string; category: Category }>(
+      const info = await one<{ lead_name: string; ws_name: string; category: Category; archived_at: number | null }>(
         db,
-        `SELECT l.name AS lead_name, w.name AS ws_name, w.category FROM leads l
+        `SELECT l.name AS lead_name, w.name AS ws_name, w.category, s.archived_at FROM leads l
            JOIN workspace_lists wl ON wl.list_id = l.list_id
            JOIN workspaces w ON w.id = wl.workspace_id
+           JOIN lists s ON s.id = l.list_id
           WHERE l.id = ? AND w.id = ?`,
         [leadId, workspaceId],
       );
@@ -477,6 +509,7 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
         await logActivity(db, info.category, `${me.name} released ${info.lead_name}`, info.ws_name);
         return;
       }
+      if (info.archived_at !== null) throw new HttpError(409, 'list_inactive', 'That store is in a deactivated list. Activate the list to assign it.');
       const owner = await one<{ id: string; name: string }>(
         db,
         `SELECT u.id, u.name FROM users u JOIN workspace_members m ON m.user_id = u.id
