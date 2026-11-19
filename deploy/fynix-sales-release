@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Installed on the server as /usr/local/bin/fynix-sales-release (root:root 0755). The CI user may run only this, via sudo.
+# Unpacks /srv/fynix-sales/incoming/<sha>.tgz into releases/<sha>, points `current` at it, restarts the service and waits
+# for /health. If the new release does not come up, `current` goes back to the previous one and the script fails.
+set -euo pipefail
+
+SHA="${1:-}"
+[[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "usage: fynix-sales-release <40-hex commit sha>" >&2; exit 64; }
+
+ROOT=/srv/fynix-sales
+SERVICE=fynix-sales
+KEEP=5
+exec 9>"$ROOT/.release.lock"
+flock -n 9 || { echo "another release is running" >&2; exit 75; }
+
+ARCHIVE="$ROOT/incoming/$SHA.tgz"
+TARGET="$ROOT/releases/$SHA"
+[[ -f "$ARCHIVE" ]] || { echo "missing $ARCHIVE" >&2; exit 66; }
+
+rm -rf "$TARGET"
+mkdir -p "$TARGET"
+tar -xzf "$ARCHIVE" -C "$TARGET"
+chown -R fsdeploy:fynixsales "$TARGET"
+chmod -R g+rX,o-rwx "$TARGET"
+
+PREVIOUS="$(readlink "$ROOT/current" || true)"
+ln -sfn "releases/$SHA" "$ROOT/current.new"
+mv -T "$ROOT/current.new" "$ROOT/current"
+systemctl restart "$SERVICE"
+
+healthy=0
+for _ in $(seq 1 30); do
+  if curl -fsS --max-time 2 http://127.0.0.1:3600/health >/dev/null 2>&1; then healthy=1; break; fi
+  sleep 1
+done
+
+if [[ "$healthy" -ne 1 ]]; then
+  echo "release $SHA did not become healthy; last log lines:" >&2
+  journalctl -u "$SERVICE" -n 25 --no-pager >&2 || true
+  if [[ -n "$PREVIOUS" ]]; then
+    ln -sfn "$PREVIOUS" "$ROOT/current.new"
+    mv -T "$ROOT/current.new" "$ROOT/current"
+    systemctl restart "$SERVICE" || true
+    echo "rolled back to $PREVIOUS" >&2
+  fi
+  rm -f "$ARCHIVE"
+  exit 1
+fi
+
+echo "$SHA" > "$ROOT/REVISION"
+rm -f "$ARCHIVE"
+# Keep the newest releases, never the live one.
+LIVE="$(basename "$(readlink "$ROOT/current")")"
+ls -1t "$ROOT/releases" | tail -n +$((KEEP + 1)) | while read -r old; do
+  [[ "$old" == "$LIVE" ]] || rm -rf "$ROOT/releases/$old"
+done
+echo "released $SHA"
