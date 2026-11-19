@@ -271,6 +271,19 @@ describe('superadmin', () => {
     assert.equal((await call(aarav, 'DELETE', '/api/admin/workspaces/scale-google-ads')).status, 200);
   });
 
+  it('creates one service in both categories at once, all or nothing', async () => {
+    const aarav = await login('aarav@fynix.test');
+    const res = await call(aarav, 'POST', '/api/admin/workspaces', { name: 'Webinars', category: 'both' });
+    assert.equal(res.status, 201);
+    assert.deepEqual(res.body['ids'], ['scale-webinars', 'reach-webinars']);
+    assert.equal((await call(aarav, 'POST', '/api/admin/workspaces', { name: 'Webinars', category: 'both' })).status, 409, 'already there in both');
+    assert.equal((await call(aarav, 'POST', '/api/admin/workspaces', { name: 'Podcasts', category: 'both', memberIds: ['x'] })).status, 400, 'people belong to one category');
+    const boot = (await call(aarav, 'GET', '/api/admin/bootstrap')).body as { workspaces: { id: string }[] };
+    assert.equal(boot.workspaces.some((w) => w.id === 'scale-podcasts' || w.id === 'reach-podcasts'), false);
+    await call(aarav, 'DELETE', '/api/admin/workspaces/scale-webinars');
+    await call(aarav, 'DELETE', '/api/admin/workspaces/reach-webinars');
+  });
+
   it('imports a list, deduplicates it, and tells the salespeople', async () => {
     const aarav = await login('aarav@fynix.test');
     const csv = ['title,category,address,phone,place_id', 'Omega Gems,Jewelry store,"Dadar, Mumbai",9820055555,p1', 'Zeta Gold,Jewelry store,"Worli, Mumbai",9820066666,p9'].join('\n');

@@ -432,7 +432,7 @@ function openDrawer(id){
 function closeAll(){$('#drawer').hidden=true;$('#modal').hidden=true;$('#scrim').hidden=true;S.drawerId=null;S.form.drawer=null;closeMenu();}
 
 /* ---------- modals ---------- */
-function catSeg(cur){return '<div class="seg">'+CATS.map(function(c){return '<button type="button" data-fc="'+c+'" aria-pressed="'+(cur===c)+'">'+esc(catName(c))+'</button>';}).join('')+'</div>';}
+function catSeg(cur,withBoth){return '<div class="seg">'+CATS.concat(withBoth?['both']:[]).map(function(c){return '<button type="button" data-fc="'+c+'" aria-pressed="'+(cur===c)+'">'+(c==='both'?'Both':esc(catName(c)))+'</button>';}).join('')+'</div>';}
 function mh(x){return '<div class="dh" style="border:0;padding-bottom:6px"><h3>'+x+'</h3><button class="x" data-close aria-label="Close">&times;</button></div>';}
 function dc(){return S.cat==='all'?'scale':S.cat;}
 function wsPick(cat){return D.workspaces.filter(function(w){return w.category===cat;}).map(function(w){return {id:w.id,name:w.name};});}
@@ -455,9 +455,11 @@ function paintModal(){
   var foot=function(label,save){return '<p class="err" role="alert">'+esc(F.error)+'</p></div><div class="df"><button class="btn" data-close>Cancel</button><button class="btn dark" data-save="'+save+'"'+(F.busy?' disabled':'')+'>'+(F.busy?'One moment':label)+'</button></div>';};
   if(k==='ws'){
     h=mh('Add service')+'<div class="mb"><label class="fl" for="f-name" style="margin-top:6px">Name</label><input class="inp" id="f-name" type="text" maxlength="40" placeholder="e.g. Google Ads" value="'+esc(F.name)+'">'+
-      '<span class="fl">Category</span>'+catSeg(F.cat)+
-      '<span class="fl">'+esc(catName(F.cat))+' lists</span>'+pickRows(D.lists.filter(function(l){return l.category===F.cat;}).map(function(l){return {id:l.id,name:l.name+' ('+l.leadCount+')'};}),F.lists,'lists')+
-      '<span class="fl">'+esc(catName(F.cat))+' salespeople</span>'+pickRows(salesPick(F.cat),F.members,'members')+foot('Create service','ws');
+      '<span class="fl">Category</span>'+catSeg(F.cat,true)+
+      (F.cat==='both'
+        ?'<p class="hint">Creates '+esc(F.name.trim()||'this service')+' in both Scale and Reach. Add lists and salespeople to each one afterwards.</p>'
+        :'<span class="fl">'+esc(catName(F.cat))+' lists</span>'+pickRows(D.lists.filter(function(l){return l.category===F.cat;}).map(function(l){return {id:l.id,name:l.name+' ('+l.leadCount+')'};}),F.lists,'lists')+
+         '<span class="fl">'+esc(catName(F.cat))+' salespeople</span>'+pickRows(salesPick(F.cat),F.members,'members'))+foot('Create service','ws');
   } else if(k==='list'){
     h=mh('Import list')+'<div class="mb"><label class="drop" style="margin-top:6px"><input id="f-file" type="file" accept=".csv,text/csv"><b>'+(F.fileName?esc(F.fileName):'Choose a CSV file')+'</b>'+(F.fileName?'Choose a different file':'Phones, emails and areas are cleaned on import.')+'</label>'+
       '<label class="fl" for="f-name">List name</label><input class="inp" id="f-name" type="text" maxlength="80" placeholder="e.g. Salons, Bengaluru" value="'+esc(F.name)+'">'+
@@ -502,7 +504,7 @@ function save(kind){
   var req;
   if(kind==='ws'){
     if(F.name.trim().length<2){F.error='Give the service a name.';return paintModal();}
-    req=api('POST','/api/admin/workspaces',{name:F.name.trim(),category:F.cat,listIds:F.lists,memberIds:F.members}).then(function(){return {msg:F.name.trim()+' service created in '+catName(F.cat),view:'workspaces'};});
+    req=api('POST','/api/admin/workspaces',{name:F.name.trim(),category:F.cat,listIds:F.lists,memberIds:F.members}).then(function(){return {msg:F.name.trim()+' service created in '+(F.cat==='both'?'Scale and Reach':catName(F.cat)),view:'workspaces'};});
   } else if(kind==='list'){
     if(!F.csv){F.error='Choose a CSV file.';return paintModal();}
     if(F.name.trim().length<2){F.error='Give the list a name.';return paintModal();}

@@ -25,7 +25,7 @@ const category = z.enum(CATEGORIES);
 
 const workspaceCreate = z.object({
   name: z.string().trim().min(2, 'Give the service a name.').max(40),
-  category,
+  category: z.enum([...CATEGORIES, 'both']),
   icon: z.enum(WORKSPACE_ICONS).default('globe'),
   color: z.enum(WORKSPACE_COLORS).optional(),
   listIds: z.array(z.string().max(64)).max(200).default([]),
@@ -225,32 +225,41 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const body = workspaceCreate.parse(request.body);
     const key = slugify(body.name);
     if (!key) throw new HttpError(400, 'invalid_request', 'Use letters or numbers in the name.');
-    const id = `${body.category}-${key}`;
+    const categories: readonly Category[] = body.category === 'both' ? CATEGORIES : [body.category];
     const listIds = unique(body.listIds);
     const memberIds = unique(body.memberIds);
-    await tx(db, async (db) => {
-      if (await one(db, 'SELECT 1 AS x FROM workspaces WHERE id = ?', [id])) {
-        throw new HttpError(409, 'duplicate', `${CATEGORY_INFO[body.category].name} already has a service called ${body.name}.`);
+    if (categories.length > 1 && (listIds.length > 0 || memberIds.length > 0)) {
+      throw new HttpError(400, 'invalid_request', 'Lists and salespeople belong to one category. Create the service first, then add them to each.');
+    }
+    const ids = await tx(db, async (db) => {
+      const created: string[] = [];
+      for (const cat of categories) {
+        const id = `${cat}-${key}`;
+        if (await one(db, 'SELECT 1 AS x FROM workspaces WHERE id = ?', [id])) {
+          throw new HttpError(409, 'duplicate', `${CATEGORY_INFO[cat].name} already has a service called ${body.name}.`);
+        }
+        await checkWorkspaceLists(db, cat, listIds);
+        await checkWorkspaceMembers(db, cat, memberIds);
+        const position = await claimCount(db, 'SELECT COUNT(*) AS n FROM workspaces WHERE category = ?', [cat]);
+        await run(db, 'INSERT INTO workspaces (id, category, key, name, icon, color, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [
+          id,
+          cat,
+          key,
+          body.name,
+          body.icon,
+          body.color ?? ICON_COLOR[body.icon],
+          position,
+          Date.now(),
+        ]);
+        for (const listId of listIds) await run(db, 'INSERT INTO workspace_lists (workspace_id, list_id) VALUES (?, ?)', [id, listId]);
+        for (const memberId of memberIds) await run(db, 'INSERT INTO workspace_members (workspace_id, user_id) VALUES (?, ?)', [id, memberId]);
+        await logActivity(db, cat, `${me.name} created the ${body.name} service`, CATEGORY_INFO[cat].name);
+        created.push(id);
       }
-      await checkWorkspaceLists(db, body.category, listIds);
-      await checkWorkspaceMembers(db, body.category, memberIds);
-      const position = await claimCount(db, 'SELECT COUNT(*) AS n FROM workspaces WHERE category = ?', [body.category]);
-      await run(db, 'INSERT INTO workspaces (id, category, key, name, icon, color, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [
-        id,
-        body.category,
-        key,
-        body.name,
-        body.icon,
-        body.color ?? ICON_COLOR[body.icon],
-        position,
-        Date.now(),
-      ]);
-      for (const listId of listIds) await run(db, 'INSERT INTO workspace_lists (workspace_id, list_id) VALUES (?, ?)', [id, listId]);
-      for (const memberId of memberIds) await run(db, 'INSERT INTO workspace_members (workspace_id, user_id) VALUES (?, ?)', [id, memberId]);
-      await logActivity(db, body.category, `${me.name} created the ${body.name} service`, CATEGORY_INFO[body.category].name);
+      return created;
     });
     reply.status(201);
-    return { id };
+    return { id: ids[0], ids };
   });
 
   app.put<{ Params: { id: string } }>('/api/admin/workspaces/:id', async (request) => {
