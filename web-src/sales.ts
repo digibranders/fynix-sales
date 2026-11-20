@@ -1541,6 +1541,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       '<h3 class="pf-h">Appearance</h3><div class="pf-list"><div class="pf-row pf-theme">' + ptile('theme') + '<span class="pf-l"><span>Theme</span></span><span class="pf-seg" role="group" aria-label="Theme">' + THEMES.map((x) => '<button type="button" data-setheme="' + x[0] + '" aria-pressed="' + (themePref() === x[0]) + '">' + x[1] + '</button>').join('') + '</span></div></div>' +
       '<h3 class="pf-h">Account</h3><div class="pf-list">' +
         '<div class="combo">' + pfRow(ptile('bell'), '<span>Notifications</span>', unread ? '<span class="pf-n">' + unread + '</span>' : '', 'data-pf="notifications"') + '</div>' +
+        pfRow(ptile('user'), '<span>Edit name</span><span class="sm">' + esc(u.name) + '</span>', '', 'data-pf="name"') +
         pfRow(ptile('key'), '<span>Change password</span>', '', 'data-pf="password"') +
         pfRow(ptile('devices'), '<span>Sign out of all devices</span>', '', 'data-pf="signall"') +
         pfRow(ptile('logout'), '<span>Sign out</span>', '', 'data-signout', 'pf-out') +
@@ -1685,6 +1686,45 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
         go.textContent = 'Save password';
         err.textContent = messageOf(e, 'Something went wrong. Please try again.');
       });
+    };
+  }
+  function openName(): void {
+    state.modal = 'name';
+    lockScroll();
+    layer.innerHTML = '<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">' +
+      '<div class="m-head"><div><h2 id="m-title">Edit name</h2><div class="sm">This is how you appear to your team.</div></div><button class="x" id="m-x" aria-label="Close">×</button></div>' +
+      '<div class="pw-body"><label class="k" for="nm-in">Full name</label><input class="pwf" id="nm-in" type="text" maxlength="80" autocomplete="name" value="' + esc(self().name) + '"><p class="pw-err" id="nm-err" role="alert"></p></div>' +
+      '<div class="m-foot"><button class="btn" id="m-cancel">Cancel</button><button class="btn assign" id="nm-go">Save name</button></div></div></div>';
+    const input = el<HTMLInputElement>('nm-in');
+    input.focus();
+    input.select();
+    el('m-x').onclick = el('m-cancel').onclick = closeModal;
+    wireScrim();
+    const go = el<HTMLButtonElement>('nm-go');
+    const submit = (): void => {
+      const name = input.value.trim();
+      const err = el('nm-err');
+      err.textContent = '';
+      if (name.length < 2) {
+        err.textContent = 'Enter your full name.';
+        return;
+      }
+      go.disabled = true;
+      go.textContent = 'One moment';
+      api<{ name: string; ini: string }>('PATCH', '/api/auth/me', { name }).then((r) => {
+        DATA.me.name = r.name;
+        DATA.me.ini = r.ini;
+        closeModal();
+        render();
+      }).catch((e: unknown) => {
+        go.disabled = false;
+        go.textContent = 'Save name';
+        err.textContent = messageOf(e, 'Something went wrong. Please try again.');
+      });
+    };
+    go.onclick = submit;
+    input.onkeydown = (ev) => {
+      if (ev.key === 'Enter') submit();
     };
   }
   function openSignAll(): void {
@@ -1992,6 +2032,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     if (pf) {
       const k = ds(pf, 'pf');
       if (k === 'password') openPassword();
+      else if (k === 'name') openName();
       else if (k === 'signall') openSignAll();
       else if (k === 'notes') openNotes();
       else if (k === 'report') openReport(null);

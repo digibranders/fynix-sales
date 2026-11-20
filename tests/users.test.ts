@@ -91,3 +91,34 @@ describe('deleting people', () => {
     assert.equal((await call(aarav, 'POST', '/api/admin/users', { name: 'Temp Again', email: 'temp@fynix.test', role: 'manager' })).status, 201, 'the email can be used again');
   });
 });
+
+describe('editing names', () => {
+  it('lets anyone change their own name, and rejects empty or oversized names', async () => {
+    const priya = await login('rohan@fynix.test');
+    const ok = await call(priya, 'PATCH', '/api/auth/me', { name: '  Rohan K. Mehta ' });
+    assert.equal(ok.status, 200);
+    assert.deepEqual(ok.body, { name: 'Rohan K. Mehta', ini: 'RM' });
+    assert.equal(((await call(priya, 'GET', '/api/auth/me')).body as { name: string }).name, 'Rohan K. Mehta');
+    assert.equal((await call(priya, 'PATCH', '/api/auth/me', { name: ' ' })).status, 400);
+    assert.equal((await call(priya, 'PATCH', '/api/auth/me', { name: 'x'.repeat(81) })).status, 400);
+    assert.equal((await call('', 'PATCH', '/api/auth/me', { name: 'Nobody Here' })).status, 401);
+    // managers and superadmins can do it too
+    assert.equal((await call(await login('nisha@fynix.test'), 'PATCH', '/api/auth/me', { name: 'Nisha V' })).status, 200);
+    assert.equal((await call(await login('aarav@fynix.test'), 'PATCH', '/api/auth/me', { name: 'Aarav K' })).status, 200);
+  });
+
+  it('lets a superadmin rename anyone, and nobody else', async () => {
+    const aarav = await login('aarav@fynix.test');
+    const karan = (await people(aarav)).find((p) => p.email === 'karan@fynix.test');
+    assert.ok(karan);
+    assert.equal((await call(aarav, 'PATCH', `/api/admin/users/${karan.id}`, { name: 'Karan J. Joshi' })).status, 200);
+    const boot = (await call(aarav, 'GET', '/api/admin/bootstrap')).body as unknown as { people: { id: string; name: string; ini: string }[] };
+    const renamed = boot.people.find((p) => p.id === karan.id);
+    assert.equal(renamed?.name, 'Karan J. Joshi');
+    assert.equal(renamed?.ini, 'KJ');
+    assert.equal((await call(aarav, 'PATCH', `/api/admin/users/${karan.id}`, { name: 'K' })).status, 400);
+    assert.equal((await call(aarav, 'PATCH', `/api/admin/users/${karan.id}`, {})).status, 400);
+    assert.equal((await call(await login('aisha@fynix.test'), 'PATCH', `/api/admin/users/${karan.id}`, { name: 'Hacked Name' })).status, 403);
+    assert.equal((await call(await login('nisha@fynix.test'), 'PATCH', `/api/admin/users/${karan.id}`, { name: 'Hacked Name' })).status, 403);
+  });
+});

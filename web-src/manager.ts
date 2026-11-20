@@ -17,9 +17,10 @@ interface State {
   q: string;
   page: number;
   leads: LeadsPage | null;
+  editName: boolean;
 }
 
-const S: State = { view: 'team', cat: 'all', q: '', page: 1, leads: null };
+const S: State = { view: 'team', cat: 'all', q: '', page: 1, leads: null, editName: false };
 let D: ManagerBootstrap | null = null;
 
 function data(): ManagerBootstrap {
@@ -191,9 +192,12 @@ function vLeads(): string {
 function vAccount(): string {
   const d = data();
   const seeing = scope().map(catName).join(' and ');
+  const who = S.editName
+    ? '<form class="acct acct-edit" id="nameform"><span class="av">' + esc(d.me.ini) + '</span><div><label class="fl" for="nm">Full name</label><input class="inp" id="nm" type="text" maxlength="80" autocomplete="name" value="' + esc(d.me.name) + '"><p class="err" id="nm-err" role="alert"></p><div class="acct-btns"><button type="button" class="btn" data-cancelname>Cancel</button><button type="submit" class="btn dark" id="nm-go">Save name</button></div></div></form>'
+    : '<div class="acct"><span class="av">' + esc(d.me.ini) + '</span><div><b>' + esc(d.me.name) + '</b><small>' + esc(d.me.email) + '</small></div><button type="button" class="ib" data-editname title="Edit name" aria-label="Edit name"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14.5 7.5l3 3"/></svg></button></div>';
   return (
     head('Account', 'Manager') +
-    '<div class="acct"><span class="av">' + esc(d.me.ini) + '</span><div><b>' + esc(d.me.name) + '</b><small>' + esc(d.me.email) + '</small></div></div>' +
+    who +
     '<p class="hint">You can look at the team and every lead in ' + esc(seeing) + '. This page is view only, so nothing you do here changes anything.</p>' +
     '<button type="button" class="btn dark acct-out" data-signout>Sign out</button>'
   );
@@ -228,6 +232,37 @@ function loadLeads(keepFocus?: boolean): void {
 }
 
 let searchTimer: number | undefined;
+
+document.addEventListener('submit', (e) => {
+  const form = e.target;
+  if (!(form instanceof HTMLFormElement) || form.id !== 'nameform') return;
+  e.preventDefault();
+  const input = el<HTMLInputElement>('nm');
+  const err = el('nm-err');
+  const go = el<HTMLButtonElement>('nm-go');
+  const name = input.value.trim();
+  err.textContent = '';
+  if (name.length < 2) {
+    err.textContent = 'Enter your full name.';
+    return;
+  }
+  go.disabled = true;
+  go.textContent = 'One moment';
+  api<{ name: string; ini: string }>('PATCH', '/api/auth/me', { name })
+    .then((r) => {
+      const d = data();
+      d.me.name = r.name;
+      d.me.ini = r.ini;
+      S.editName = false;
+      render();
+      toast('Name updated');
+    })
+    .catch((error: unknown) => {
+      go.disabled = false;
+      go.textContent = 'Save name';
+      err.textContent = messageOf(error);
+    });
+});
 
 document.addEventListener('input', (e) => {
   const t = e.target;
@@ -266,6 +301,21 @@ document.addEventListener('click', (e) => {
     S.leads = null;
     render();
     if (S.view === 'leads') loadLeads();
+    return;
+  }
+  if (hit('[data-editname]')) {
+    S.editName = true;
+    render();
+    const input = document.getElementById('nm');
+    if (input instanceof HTMLInputElement) {
+      input.focus();
+      input.select();
+    }
+    return;
+  }
+  if (hit('[data-cancelname]')) {
+    S.editName = false;
+    render();
     return;
   }
   if ((c = hit('[data-lpage]'))) {

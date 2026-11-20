@@ -52,10 +52,11 @@ const userCreate = z.object({
 });
 const userUpdate = z
   .object({
+    name: z.string().trim().min(2, 'Enter the full name.').max(80, 'That name is too long.').optional(),
     active: z.boolean().optional(),
     workspaceIds: z.array(z.string().max(80)).max(50).optional(),
   })
-  .refine((v) => v.active !== undefined || v.workspaceIds !== undefined, 'Nothing to change.');
+  .refine((v) => v.name !== undefined || v.active !== undefined || v.workspaceIds !== undefined, 'Nothing to change.');
 const ownerBody = z.object({ ownerId: z.union([z.string().max(64), z.null()]) });
 const targetsBody = z.object({
   category,
@@ -613,6 +614,10 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     await tx(db, async (db) => {
       const user = await one<UserRow>(db, 'SELECT id, name, email, role, category, active, last_login_at FROM users WHERE id = ?', [request.params.id]);
       if (!user) throw new HttpError(404, 'not_found', 'That person does not exist.');
+      if (body.name !== undefined && body.name !== user.name) {
+        await run(db, 'UPDATE users SET name = ? WHERE id = ?', [body.name, user.id]);
+        await logActivity(db, user.category, `${me.name} renamed ${user.name} to ${body.name}`, '');
+      }
       if (body.active !== undefined && body.active !== (user.active === 1)) {
         if (!body.active) {
           if (user.id === me.id) throw new HttpError(400, 'invalid_request', 'You cannot deactivate your own account.');

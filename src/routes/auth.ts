@@ -23,6 +23,8 @@ const loginBody = z.object({
   remember: z.boolean().default(true),
 });
 
+const nameBody = z.object({ name: z.string().trim().min(2, 'Enter your full name.').max(80, 'That name is too long.') });
+
 const changeBody = z.object({
   current: z.string().min(1).max(200),
   next: z.string().min(10, 'Use at least 10 characters.').max(200),
@@ -152,6 +154,15 @@ export function registerAuthRoutes(app: FastifyInstance, ctx: AppContext): void 
       mustChangePassword: user.mustChangePassword,
       home: homeFor(user),
     };
+  });
+
+  /** Lets anyone change how their own name is shown. */
+  app.patch('/api/auth/me', async (request) => {
+    const user = request.user;
+    if (!user) throw new HttpError(401, 'unauthenticated', 'Please sign in.');
+    const { name } = nameBody.parse(request.body);
+    await run(db, 'UPDATE users SET name = ? WHERE id = ?', [name, user.id]);
+    return { name, ini: initials(name) };
   });
 
   app.post('/api/auth/change-password', async (request, reply) => {
