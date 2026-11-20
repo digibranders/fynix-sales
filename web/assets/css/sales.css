@@ -413,7 +413,16 @@ html.theme-fade *,html.theme-fade *::before,html.theme-fade *::after{transition:
 .tl2-note.editing{flex-direction:column;align-items:stretch;gap:0}
 .note-ta{width:100%;min-height:76px;border:1px solid var(--line2);border-radius:9px;padding:8px 10px;font:inherit;font-size:14px;background:var(--bg);color:var(--fg);resize:vertical}
 .note-ta:focus{outline:none;border-color:var(--fg)}
-.note-act{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+.note-act{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.note-act-l{display:inline-flex;align-items:center}
+.note-act-r{display:inline-flex;align-items:center;gap:8px}
+.btn-del-note{background:none;border:0;padding:5px 8px;border-radius:6px;color:#dc2626;font-size:12.5px;font-weight:500;cursor:pointer;transition:all .15s ease}
+.btn-del-note:hover{background:rgba(220,38,38,.08);color:#b91c1c}
+.note-del-prompt{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);font-weight:500}
+.btn-del-yes{background:#dc2626;border:0;color:#fff;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:5px;cursor:pointer;transition:background .15s}
+.btn-del-yes:hover{background:#b91c1c}
+.btn-del-no{background:var(--sel);border:1px solid var(--line2);color:var(--fg);font-size:11.5px;font-weight:500;padding:2px 8px;border-radius:5px;cursor:pointer;transition:background .15s}
+.btn-del-no:hover{background:var(--hover)}
 .tl2-h b{font-weight:500}
 .tl2 .c-body{margin:2px 0 0;color:var(--muted)}
 .d-back{display:none}

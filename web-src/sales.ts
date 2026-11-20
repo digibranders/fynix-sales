@@ -1437,7 +1437,16 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       b.classList.remove('editing');
     });
     box.classList.add('editing');
-    box.innerHTML = '<textarea class="note-ta" aria-label="Edit note" maxlength="2000"></textarea><div class="note-act"><button type="button" class="btn" data-notecancel>Cancel</button><button type="button" class="btn assign" data-notesave>Save</button></div>';
+    box.innerHTML =
+      '<textarea class="note-ta" aria-label="Edit note" maxlength="2000"></textarea>' +
+      '<div class="note-act">' +
+      '<div class="note-act-l">' +
+      '<button type="button" class="btn-del-note" data-notedel="' + id + '">Delete note</button>' +
+      '</div>' +
+      '<div class="note-act-r">' +
+      '<button type="button" class="btn" data-notecancel>Cancel</button>' +
+      '<button type="button" class="btn assign" data-notesave>Save</button>' +
+      '</div></div>';
     const ta = box.querySelector('textarea');
     if (!ta) return;
     ta.value = found.note.text;
@@ -1466,6 +1475,36 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       refreshActivity();
     }).catch((e: unknown) => {
       btn.disabled = false;
+      failToast(e);
+    });
+  }
+
+  function promptDelete(id: number): void {
+    const box = document.querySelector<HTMLElement>('.tl2-note[data-nid="' + id + '"]');
+    if (!box) return;
+    const lArea = box.querySelector<HTMLElement>('.note-act-l');
+    if (!lArea) return;
+    lArea.innerHTML =
+      '<span class="note-del-prompt">Delete? <button type="button" class="btn-del-yes" data-delyes="' + id + '">Yes</button> <button type="button" class="btn-del-no" data-delno="' + id + '">No</button></span>';
+  }
+
+  function cancelDelete(id: number): void {
+    const box = document.querySelector<HTMLElement>('.tl2-note[data-nid="' + id + '"]');
+    if (!box) return;
+    const lArea = box.querySelector<HTMLElement>('.note-act-l');
+    if (!lArea) return;
+    lArea.innerHTML = '<button type="button" class="btn-del-note" data-notedel="' + id + '">Delete note</button>';
+  }
+
+  function deleteNote(id: number, btn?: HTMLButtonElement): void {
+    const found = findNote(id);
+    if (!found) return;
+    if (btn) btn.disabled = true;
+    api<Claim>('DELETE', '/api/sales/notes/' + id).then((dto) => {
+      found.lead.work[found.svc] = dto;
+      refreshActivity();
+    }).catch((e: unknown) => {
+      if (btn) btn.disabled = false;
       failToast(e);
     });
   }
@@ -1971,6 +2010,21 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     if (ns_) {
       const box = ns_.closest<HTMLElement>('.tl2-note');
       if (box) saveEdit(box);
+      return;
+    }
+    const nd_ = closestOf(e, '[data-notedel]');
+    if (nd_) {
+      promptDelete(parseInt(ds(nd_, 'notedel'), 10));
+      return;
+    }
+    const dy_ = closestOf(e, '[data-delyes]');
+    if (dy_) {
+      deleteNote(parseInt(ds(dy_, 'delyes'), 10), dy_ as HTMLButtonElement);
+      return;
+    }
+    const dn_ = closestOf(e, '[data-delno]');
+    if (dn_) {
+      cancelDelete(parseInt(ds(dn_, 'delno'), 10));
       return;
     }
     if (closestOf(e, '[data-notecancel]')) {

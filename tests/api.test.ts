@@ -212,6 +212,14 @@ describe('sales rules', () => {
     assert.equal((await call(priya, 'PATCH', `/api/sales/notes/${system.id}`, { text: 'rewrite history' })).status, 404, 'system lines cannot be edited');
     assert.equal((await call(rohan, 'PATCH', `/api/sales/notes/${mine.id}`, { text: 'not yours' })).status, 404);
     assert.equal((await call(priya, 'PATCH', '/api/sales/notes/abc', { text: 'x' })).status, 404);
+
+    // Deleting notes
+    assert.equal((await call(rohan, 'DELETE', `/api/sales/notes/${mine.id}`)).status, 404, 'cannot delete other notes');
+    assert.equal((await call(priya, 'DELETE', `/api/sales/notes/${system.id}`)).status, 404, 'system lines cannot be deleted');
+    const deleted = await call(priya, 'DELETE', `/api/sales/notes/${mine.id}`);
+    assert.equal(deleted.status, 200);
+    const remaining = (deleted.body['comments'] as { id: number }[]).find((c) => c.id === mine.id);
+    assert.equal(remaining, undefined, 'note should be deleted');
   });
 
   it('keeps notification reads per person', async () => {
