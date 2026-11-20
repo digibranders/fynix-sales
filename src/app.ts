@@ -30,6 +30,9 @@ export interface AppContext {
   limiter: LoginLimiter;
   /** Looser than the sign-in limiter: link secrets are too long to guess, and a whole office may share one address. */
   inviteLimiter: LoginLimiter;
+  /** Reset-link requests: a few per address and more per connection, whether or not the account exists. */
+  forgotIpLimiter: LoginLimiter;
+  forgotEmailLimiter: LoginLimiter;
   mailer: Mailer;
 }
 
@@ -59,7 +62,7 @@ export function homeFor(user: SessionUser): string {
 
 export async function buildApp(db: Db, config: Config, mailer: Mailer = createMailer(config)): Promise<FastifyInstance> {
   const app = Fastify({ logger: false, bodyLimit: 25 * 1024 * 1024, trustProxy: config.production });
-  const ctx: AppContext = { db, config, limiter: new LoginLimiter(), inviteLimiter: new LoginLimiter(40), mailer };
+  const ctx: AppContext = { db, config, limiter: new LoginLimiter(), inviteLimiter: new LoginLimiter(40), forgotIpLimiter: new LoginLimiter(10), forgotEmailLimiter: new LoginLimiter(3, 60 * 60_000), mailer };
 
   await app.register(cookie);
   await app.register(fastifyStatic, {
