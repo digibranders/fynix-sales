@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1e40af">
+<title>Offline · Fynix Sales</title>
+<link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32x32.png">
+<style>
+  :root {
+    --bg-page: #0f172a;
+    --card-bg: #1e293b;
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --border: #334155;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg-page);
+    color: var(--text-primary);
+    padding: 24px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px 32px;
+    max-width: 440px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  }
+  .logo-box {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .wifi-icon {
+    width: 48px;
+    height: 48px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: #fff;
+  }
+  p {
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    margin-bottom: 28px;
+  }
+  .btn-retry {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+    width: 100%;
+  }
+  .btn-retry:hover {
+    background: var(--accent-hover);
+  }
+  .btn-retry:active {
+    transform: scale(0.98);
+  }
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 20px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+  }
+  .status-dot.online {
+    background: #22c55e;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo-box">
+      <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
+        <defs>
+          <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#1e40af" />
+            <stop offset="100%" stop-color="#3b82f6" />
+          </linearGradient>
+        </defs>
+        <rect width="64" height="64" rx="14" fill="url(#g)" />
+        <rect x="14" y="12" width="16" height="40" rx="4" fill="#fff" />
+        <rect x="34" y="12" width="16" height="24" rx="4" fill="#fff" />
+      </svg>
+    </div>
+    
+    <svg class="wifi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="1" y1="1" x2="23" y2="23"></line>
+      <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+      <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+      <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+      <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+      <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+      <line x1="12" y1="20" x2="12.01" y2="20"></line>
+    </svg>
+
+    <h1>You are offline</h1>
+    <p>Please check your internet connection. Fynix Sales will automatically reconnect as soon as you are back online.</p>
+
+    <button class="btn-retry" id="retry-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+      </svg>
+      Retry Connection
+    </button>
+
+    <div class="status-badge">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">Disconnected</span>
+    </div>
+  </div>
+
+<script>
+  const btn = document.getElementById('retry-btn');
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-text');
+
+  function checkStatus() {
+    if (navigator.onLine) {
+      dot.classList.add('online');
+      txt.textContent = 'Back online! Reconnecting...';
+      window.location.reload();
+    } else {
+      dot.classList.remove('online');
+      txt.textContent = 'Disconnected';
+    }
+  }
+
+  btn.addEventListener('click', () => {
+    btn.textContent = 'Checking...';
+    setTimeout(() => {
+      checkStatus();
+      if (!navigator.onLine) {
+        btn.innerHTML = `
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg> Retry Connection`;
+      }
+    }, 400);
+  });
+
+  window.addEventListener('online', checkStatus);
+  window.addEventListener('offline', checkStatus);
+</script>
+</body>
+</html>

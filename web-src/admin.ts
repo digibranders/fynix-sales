@@ -26,6 +26,9 @@ import type {
   WorkspaceCreateBody,
 } from './admin/types.js';
 import { el } from './shared/dom.js';
+import { initPwa } from './shared/pwa.js';
+
+initPwa();
 
 const NAVICON: Record<string, string> = {
 
@@ -52,6 +55,7 @@ const S: PageState = {
   leads: { q: '', page: 1, res: null, loading: false },
   drawerId: null,
   listConfirm: null,
+  userConfirm: null,
 };
 
 /** The bootstrap data. Nothing is drawn before it has loaded, so a missing value is a bug. */
@@ -376,12 +380,16 @@ function vTeam(): string {
         '<tr><td class="muted num">' + (i + 1) + '</td><td><span class="own static">' + av(p) + '<span>' + esc(p.name) + '<br><small class="muted">' + esc(p.email) + '</small></span></span></td><td class="role">' + ROLE_NAME[p.role] + '</td><td>' + (p.role === 'superadmin' ? ct(null) : ct(p.category)) + '</td><td>' + wsOf(p) + '</td>' +
         '<td><span class="dotl' + (p.active && !p.invited ? '' : ' off') + '"><i></i>' + (!p.active ? 'Deactivated' : p.invited ? 'Invited' : 'Active') + '</span></td>' +
         '<td style="text-align:right;white-space:nowrap">' + (p.role === 'sales' ? '<button class="btn sm" data-editpeople="' + esc(p.id) + '">Services</button> ' : '') +
-        (self ? '' : '<button class="btn sm" data-reset="' + esc(p.id) + '">' + (p.invited ? 'Invite link' : 'Reset password') + '</button> <button class="btn sm" data-toggle="' + esc(p.id) + '">' + (p.active ? 'Deactivate' : 'Reactivate') + '</button>') +
+        (self
+          ? ''
+          : S.userConfirm === p.id
+            ? '<span class="muted">Delete ' + esc(p.name) + ' for good?</span> <button class="btn sm" data-ucancel>Keep</button> <button class="btn sm danger" data-udel="' + esc(p.id) + '">Delete</button>'
+            : '<button class="btn sm" data-reset="' + esc(p.id) + '">' + (p.invited ? 'Invite link' : 'Reset password') + '</button> <button class="btn sm" data-toggle="' + esc(p.id) + '">' + (p.active ? 'Deactivate' : 'Reactivate') + '</button> <button class="btn sm danger" data-uask="' + esc(p.id) + '">Delete</button>') +
         '</td></tr>'
       );
     }).join('') +
     '</tbody></table></div>';
-  return h + '<p class="hint">A salesperson belongs to one category and can only see that category\'s data. Managers can look at the team and leads in their category (or both) but cannot change anything. Superadmins see both.</p>';
+  return h + '<p class="hint">A salesperson belongs to one category and can only see that category\'s data. Managers can look at the team and leads in their category (or both) but cannot change anything. Superadmins see both. Delete removes a person for good, and is blocked while they still own leads.</p>';
 }
 
 function reportMonth(): string {
@@ -432,6 +440,7 @@ function reload(then?: () => void): Promise<void> {
 }
 function goto(view: View): void {
   S.view = view;
+  S.userConfirm = null;
   closeAll();
   if (view === 'leads') {
     S.leads.res = null;
@@ -926,6 +935,32 @@ document.addEventListener('click', (e) => {
         rd.confirm = false;
         rd.error = messageOf(err, '');
         openDrawer(rd.id);
+      });
+    return;
+  }
+  if ((c = hit('[data-uask]'))) {
+    S.userConfirm = c.dataset['uask'] ?? null;
+    render();
+    return;
+  }
+  if (hit('[data-ucancel]')) {
+    S.userConfirm = null;
+    render();
+    return;
+  }
+  if ((c = hit('[data-udel]'))) {
+    const gone = person(c.dataset['udel'] ?? '');
+    if (!gone) return;
+    api<unknown>('DELETE', '/api/admin/users/' + encodeURIComponent(gone.id))
+      .then(() => {
+        S.userConfirm = null;
+        toast(gone.name + ' deleted');
+        return reload();
+      })
+      .catch((err: unknown) => {
+        S.userConfirm = null;
+        toast(messageOf(err, ''));
+        render();
       });
     return;
   }

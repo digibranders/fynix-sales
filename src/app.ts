@@ -40,6 +40,8 @@ const CSP = [
   'font-src https://fonts.gstatic.com',
   "img-src 'self' data:",
   "connect-src 'self'",
+  "manifest-src 'self'",
+  "worker-src 'self'",
   "frame-ancestors 'none'",
   "base-uri 'none'",
   "form-action 'self'",
@@ -153,6 +155,25 @@ export async function buildApp(db: Db, config: Config, mailer: Mailer = createMa
     return reply.type('text/html; charset=utf-8').send(await pageHtml('invite.html'));
   });
   app.get('/health', async () => ({ ok: true }));
+
+  app.get('/manifest.json', async (_request, reply) => {
+    reply.header('Cache-Control', config.production ? 'public, max-age=3600' : 'no-cache');
+    return reply.type('application/manifest+json; charset=utf-8').send(await readFile(path.join(config.webDir, 'manifest.json'), 'utf8'));
+  });
+
+  app.get('/sw.js', async (_request, reply) => {
+    reply.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    reply.header('Content-Type', 'application/javascript; charset=utf-8');
+    reply.header('Service-Worker-Allowed', '/');
+    return reply.send(await readFile(path.join(config.webDir, 'sw.js'), 'utf8'));
+  });
+
+  const offlineHandler = async (_request: FastifyRequest, reply: FastifyReply) => {
+    reply.header('Cache-Control', 'no-store');
+    return reply.type('text/html; charset=utf-8').send(await readFile(path.join(config.webDir, 'offline.html'), 'utf8'));
+  };
+  app.get('/offline.html', offlineHandler);
+  app.get('/offline', offlineHandler);
 
   app.get('/favicon.ico', async (_request, reply) => {
     reply.header('Cache-Control', 'public, max-age=86400');

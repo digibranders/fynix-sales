@@ -216,4 +216,6 @@ export interface PageState {
   leads: LeadsState;
   drawerId: string | null;
   listConfirm: string | null;
+  /** The person whose Delete button was pressed and is waiting for a second click. */
+  userConfirm: string | null;
 }

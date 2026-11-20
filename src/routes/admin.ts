@@ -639,6 +639,21 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     return { ok: true };
   });
 
+  /** Removes a person for good. Their sign-ins, invites and service memberships go with them; anyone who still owns leads must be dealt with first. */
+  app.delete<{ Params: { id: string } }>('/api/admin/users/:id', async (request) => {
+    const me = superadmin(request);
+    await tx(db, async (db) => {
+      const user = await one<UserRow>(db, 'SELECT id, name, email, role, category, active, last_login_at FROM users WHERE id = ?', [request.params.id]);
+      if (!user) throw new HttpError(404, 'not_found', 'That person does not exist.');
+      if (user.id === me.id) throw new HttpError(400, 'invalid_request', 'You cannot delete your own account.');
+      const owned = await claimCount(db, 'SELECT COUNT(*) AS n FROM claims WHERE owner_id = ?', [user.id]);
+      if (owned > 0) throw new HttpError(409, 'in_use', `${user.name} still owns ${owned} leads. Reassign or release them first.`);
+      await run(db, 'DELETE FROM users WHERE id = ?', [user.id]);
+      await logActivity(db, user.category, `${me.name} deleted ${user.name}`, '');
+    });
+    return { ok: true };
+  });
+
   /** A fresh one-time link for someone who has not signed up yet, or who needs a new password. The old link stops working. */
   app.post<{ Params: { id: string } }>('/api/admin/users/:id/invite', async (request) => {
     const me = superadmin(request);

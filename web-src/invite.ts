@@ -2,6 +2,9 @@ import { ApiError, getJson, postJson } from './shared/api.js';
 import { busy, el } from './shared/dom.js';
 import { wirePasswordToggles } from './shared/password.js';
 import { startQuotes } from './shared/quotes.js';
+import { initPwa } from './shared/pwa.js';
+
+initPwa();
 
 interface InviteInfo {
   name: string;
