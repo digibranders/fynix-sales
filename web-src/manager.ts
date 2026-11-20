@@ -1,6 +1,9 @@
 import { api, messageOf } from './admin/api.js';
 import type { Category, LeadsPage, ManagerBootstrap, ManagerView, TeamMember, VerificationItem, Workspace } from './manager/types.js';
 import { el } from './shared/dom.js';
+import { initPwa } from './shared/pwa.js';
+
+initPwa();
 
 const ICON: Record<'team' | 'leads', string> = {
   team: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19c.5-3.2 2.8-4.8 5.5-4.8s5 1.6 5.5 4.8"/><path d="M15.5 5.6a3.1 3.1 0 0 1 0 5.8M17.5 14.5c1.7.6 2.7 2 3 4.5"/></svg>',
@@ -189,7 +192,6 @@ function vVerifyModal(): string {
           : isFalse
             ? '<span class="v-lead-badge v-lead-false"><svg viewBox="0 0 8 8" class="v-mb-ic" aria-hidden="true"><path d="M1 1l6 6M7 1L1 7"/></svg>Rejected</span>'
             : '<span class="v-lead-badge v-lead-pending"><svg viewBox="0 0 8 8" class="v-mb-ic" aria-hidden="true"><circle cx="4" cy="4" r="3"/></svg>Pending</span>';
-        const subTxt = [item.leadCompany, item.leadArea || item.leadCity, item.leadPhone].filter(Boolean).join(' · ');
         const isEditingStage = S.editingClaimId === item.id;
         const stageControl = isEditingStage
           ? '<div class="vm-stage-edit">' +
@@ -205,8 +207,8 @@ function vVerifyModal(): string {
           '<tr class="' + rowClass + '" data-card-cid="' + item.id + '">' +
           '<td class="td-num">' + (i + 1) + '</td>' +
           '<td class="lead-col">' +
-          '<div class="lead-name">' + esc(item.leadName) + '<span class="tag-chip">' + esc(item.workspaceName) + '</span>' + (item.workspaceCategory ? ct(item.workspaceCategory) : '') + '</div>' +
-          (subTxt ? '<div class="lead-sub">' + esc(subTxt) + '</div>' : '') +
+          '<div class="lead-name">' + esc(item.leadName) + '<span class="tag-chip">' + esc(item.workspaceName) + '</span></div>' +
+          (item.leadPhone ? '<div class="lead-sub">' + esc(item.leadPhone) + '</div>' : '') +
           '</td>' +
           '<td class="note-col">' +
           (item.latestNote ? '<div class="sales-note-box">' + esc(item.latestNote) + '</div>' : '<span class="muted" style="font-size:12px">None</span>') +
@@ -235,7 +237,9 @@ function vVerifyModal(): string {
     '<div><h2 id="vm-title">Verify Closed Claims · ' + esc(u.name) + '</h2>' +
     '<span class="sub">' + (items ? '<b class="c-true">' + verified + ' verified</b> · <span class="c-false">' + rejected + ' rejected</span> · <span class="c-pending">' + pending + ' pending</span> (Total: ' + total + ' claimed)' : 'Checking records...') + '</span>' +
     '</div>' +
-    '<button type="button" class="drawer-x" data-close-verify aria-label="Close modal">×</button>' +
+    '<button type="button" class="modal-close-btn" data-close-verify aria-label="Close modal">' +
+    '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4L4 12"/></svg>' +
+    '</button>' +
     '</div>' +
     '<div class="modal-b">' + body + '</div>' +
     '<div class="modal-f"><button type="button" class="btn dark" data-close-verify>Done</button></div>' +

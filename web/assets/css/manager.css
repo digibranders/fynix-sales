@@ -57,6 +57,9 @@
 .modal-h{padding:18px 20px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start}
 .modal-h h2{font-size:17px;font-weight:600;margin:0 0 4px}
 .modal-h .sub{font-size:13px;color:var(--muted)}
+.modal-close-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--line2);background:transparent;color:var(--muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s ease;flex:none}
+.modal-close-btn:hover{background:var(--hover);color:var(--fg);border-color:var(--line)}
+.modal-close-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:block}
 .modal-b{padding:16px 20px;overflow-y:auto;flex:1;min-height:120px;display:flex;flex-direction:column;gap:12px}
 .verify-modal .modal-b{padding:0;overflow:auto;display:block}
 .modal-f{padding:12px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;background:var(--bg)}
