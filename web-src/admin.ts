@@ -285,7 +285,7 @@ function vLists(): string {
         const ask = S.listConfirm === l.id;
         const acts = ask
           ? '<span class="muted">Remove this list?</span><button class="btn sm" data-lcancel>Keep</button> <button class="btn sm danger" data-ldel="' + esc(l.id) + '">Remove</button>'
-          : '<button class="btn sm" data-ltoggle="' + esc(l.id) + '">' + (l.archived ? 'Activate' : 'Deactivate') + '</button><button class="btn sm danger" data-lask="' + esc(l.id) + '">Remove</button>';
+          : iconBtn('data-ltoggle', l.id, l.archived ? 'Activate' : 'Deactivate', l.archived ? ACT_ICON.play : ACT_ICON.pause) + iconBtn('data-lask', l.id, 'Remove', ACT_ICON.trash, true);
         return '<tr' + (l.archived ? ' style="opacity:.62"' : '') + '><td class="muted num">' + (i + 1) + '</td><td style="font-weight:500">' + esc(l.name) +
           (l.archived ? ' <span class="muted" style="font-weight:400;font-size:12px;border:1px solid var(--line2);border-radius:6px;padding:1px 6px;margin-left:6px">Inactive</span>' : '') +
           '</td>' + (S.cat === 'all' ? '<td>' + ct(l.category) + '</td>' : '') + '<td class="muted num">' + esc(l.fileName) + '</td><td>' + num(l.leadCount) + '</td><td><div class="chips">' +
