@@ -42,6 +42,7 @@ export interface PersonStats {
   contacted: number;
   meetings: number;
   won: number;
+  verifiedWon?: number;
 }
 
 export interface Person {

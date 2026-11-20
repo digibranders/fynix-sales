@@ -1,5 +1,5 @@
 import { api, messageOf } from './admin/api.js';
-import type { Category, LeadsPage, ManagerBootstrap, ManagerView, TeamMember, Workspace } from './manager/types.js';
+import type { Category, LeadsPage, ManagerBootstrap, ManagerView, TeamMember, VerificationItem, Workspace } from './manager/types.js';
 import { el } from './shared/dom.js';
 
 const ICON: Record<'team' | 'leads', string> = {
@@ -18,9 +18,24 @@ interface State {
   page: number;
   leads: LeadsPage | null;
   editName: boolean;
+  verifyUser: { id: string; name: string } | null;
+  verifications: VerificationItem[] | null;
+  loadingVerifications: boolean;
+  editingClaimId: string | null;
 }
 
-const S: State = { view: 'team', cat: 'all', q: '', page: 1, leads: null, editName: false };
+const S: State = {
+  view: 'team',
+  cat: 'all',
+  q: '',
+  page: 1,
+  leads: null,
+  editName: false,
+  verifyUser: null,
+  verifications: null,
+  loadingVerifications: false,
+  editingClaimId: null,
+};
 let D: ManagerBootstrap | null = null;
 
 function data(): ManagerBootstrap {
@@ -115,23 +130,104 @@ function chips(p: TeamMember): string {
 
 function vTeam(): string {
   const people = data().people.filter(inCat);
-  let h = head('Team', 'Salespeople and their numbers this month, ' + sub());
+  let h = head('Team', 'Salespeople, monthly closed claims, and verifications, ' + sub());
   h +=
     '<div class="tw cards team"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th><th>Category</th><th>Services</th><th>Assigned</th><th>Contacted</th><th>Closed</th><th>Status</th></tr></thead><tbody>' +
     (people.length
       ? people
           .map((p, i) => {
             const state = !p.active ? 'Deactivated' : p.invited ? 'Invited' : 'Active';
+            const won = p.stats.won;
+            const vWon = p.stats.verifiedWon ?? 0;
+            const closedTd = won > 0
+              ? '<td data-label="Closed" data-l="closed"><div class="v-cell"><button type="button" class="btn sm v-review-btn" data-verify-user="' + p.id + '" data-verify-name="' + esc(p.name) + '" title="Verify closed claims"><b class="num">' + vWon + '</b><span class="v-slash"> / ' + won + ' verified</span><span class="v-chip">Verify</span></button></div></td>'
+              : '<td data-label="Closed" data-l="closed">' + num(0) + '</td>';
             return (
               '<tr><td class="muted num" data-l="n">' + (i + 1) + '</td><td data-l="name"><span class="own static"><span class="av">' + esc(p.ini) + '</span><span>' + esc(p.name) + '</span></span></td><td data-l="cat">' +
-              (p.category ? ct(p.category) : '') + '</td><td data-label="Services" data-l="svc">' + chips(p) + '</td><td data-label="Assigned">' + num(p.stats.assigned) + '</td><td data-label="Contacted">' + num(p.stats.contacted) + '</td><td data-label="Closed">' + num(p.stats.won) +
-              '</td><td data-l="state"><span class="dotl' + (p.active && !p.invited ? '' : ' off') + '"><i></i>' + state + '</span></td></tr>'
+              (p.category ? ct(p.category) : '') + '</td><td data-label="Services" data-l="svc">' + chips(p) + '</td><td data-label="Assigned">' + num(p.stats.assigned) + '</td><td data-label="Contacted">' + num(p.stats.contacted) + '</td>' + closedTd +
+              '<td data-l="state"><span class="dotl' + (p.active && !p.invited ? '' : ' off') + '"><i></i>' + state + '</span></td></tr>'
             );
           })
           .join('')
       : '<tr><td colspan="8"><div class="empty"><b>No salespeople yet</b>They appear here once a superadmin invites them.</div></td></tr>') +
     '</tbody></table></div>';
-  return h + '<p class="hint">Assigned is everything a person owns. Contacted and Closed count this month. This page is view only.</p>';
+  return h + '<p class="hint">Assigned is everything a person owns. Contacted and Closed count this month. Managers review claimed closed deals to confirm validity.</p>';
+}
+
+function vVerifyModal(): string {
+  if (!S.verifyUser) return '';
+  const u = S.verifyUser;
+  const items = S.verifications;
+  const total = items ? items.length : 0;
+  const verified = items ? items.filter((x) => x.verified === 1).length : 0;
+  const rejected = items ? items.filter((x) => x.verified === 2).length : 0;
+  const pending = items ? items.filter((x) => x.verified === 0).length : 0;
+
+  let body: string;
+  if (S.loadingVerifications) {
+    body = '<div class="empty">Loading claimed closed leads...</div>';
+  } else if (!items || items.length === 0) {
+    body = '<div class="empty"><b>No closed claims found</b>' + esc(u.name) + ' has no claimed closed leads to verify this month.</div>';
+  } else {
+    body = '<div class="vm-list">' +
+      items.map((item) => {
+        const isTrue = item.verified === 1;
+        const isFalse = item.verified === 2;
+        const badge = isTrue
+          ? '<span class="v-pill v-pill-true">✓ True (Verified)</span>'
+          : isFalse
+            ? '<span class="v-pill v-pill-false">✕ False (Rejected)</span>'
+            : '<span class="v-pill v-pill-pending">⏳ Unverified / Pending</span>';
+        const subTxt = [item.leadCompany, item.leadArea || item.leadCity, item.leadPhone].filter(Boolean).join(' · ');
+        const isEditingStage = S.editingClaimId === item.id;
+        const stageSelect = isEditingStage ? (
+          '<div class="vm-stage-edit">' +
+          '<label class="fl">Change stage:</label>' +
+          '<select class="inp sm vm-stage-sel" data-stage-sel="' + item.id + '">' +
+          ['Won', 'Negotiation', 'Meeting', 'Interested', 'Contacted', 'Lost'].map((st) => '<option value="' + st + '"' + (st === item.status ? ' selected' : '') + '>' + st + '</option>').join('') +
+          '</select>' +
+          '<button type="button" class="btn sm dark" data-save-stage="' + item.id + '">Save</button>' +
+          '<button type="button" class="btn sm" data-cancel-stage>Cancel</button>' +
+          '</div>'
+        ) : '';
+
+        return (
+          '<div class="vm-card' + (isTrue ? ' is-true' : isFalse ? ' is-false' : '') + '" data-card-cid="' + item.id + '">' +
+          '<div class="vm-card-top">' +
+          '<div><b class="vm-lead-name">' + esc(item.leadName) + '</b><span class="vm-svc-chip">' + esc(item.workspaceName) + '</span>' + (item.workspaceCategory ? ct(item.workspaceCategory) : '') + '</div>' +
+          badge +
+          '</div>' +
+          (subTxt ? '<div class="vm-sub">' + esc(subTxt) + '</div>' : '') +
+          (item.latestNote ? '<div class="vm-note"><span class="k">Sales note:</span> ' + esc(item.latestNote) + '</div>' : '') +
+          (item.verificationNote ? '<div class="vm-vnote"><span class="k">Manager note:</span> ' + esc(item.verificationNote) + '</div>' : '') +
+          stageSelect +
+          '<div class="vm-actions">' +
+          '<div class="vm-btns">' +
+          '<button type="button" class="btn sm v-act-btn v-act-true' + (isTrue ? ' on' : '') + '" data-verify-act="1" data-cid="' + item.id + '">✓ True (Verify)</button>' +
+          '<button type="button" class="btn sm v-act-btn v-act-false' + (isFalse ? ' on' : '') + '" data-verify-act="2" data-cid="' + item.id + '">✕ False (Reject)</button>' +
+          '<button type="button" class="btn sm v-act-btn" data-toggle-stage="' + item.id + '">✎ Edit Stage</button>' +
+          '</div>' +
+          '<div class="vm-note-box"><input type="text" class="inp sm vm-note-inp" placeholder="Verification note / reason (optional)" data-note-cid="' + item.id + '" value="' + esc(item.verificationNote || '') + '"></div>' +
+          '</div>' +
+          '</div>'
+        );
+      }).join('') +
+      '</div>';
+  }
+
+  return (
+    '<div class="backdrop" data-close-verify></div>' +
+    '<div class="modal verify-modal" role="dialog" aria-modal="true" aria-labelledby="vm-title">' +
+    '<div class="modal-h">' +
+    '<div><h2 id="vm-title">Verify Closed Claims · ' + esc(u.name) + '</h2>' +
+    '<span class="sub">' + (items ? '<b class="c-true">' + verified + ' verified</b> · <span class="c-false">' + rejected + ' rejected</span> · <span class="c-pending">' + pending + ' pending</span> (Total: ' + total + ' claimed)' : 'Checking records...') + '</span>' +
+    '</div>' +
+    '<button type="button" class="drawer-x" data-close-verify aria-label="Close modal">×</button>' +
+    '</div>' +
+    '<div class="modal-b">' + body + '</div>' +
+    '<div class="modal-f"><button type="button" class="btn dark" data-close-verify>Done</button></div>' +
+    '</div>'
+  );
 }
 
 function serviceColumns(): { key: string; name: string }[] {
@@ -198,7 +294,7 @@ function vAccount(): string {
   return (
     head('Account', 'Manager') +
     who +
-    '<p class="hint">You can look at the team and every lead in ' + esc(seeing) + '. This page is view only, so nothing you do here changes anything.</p>' +
+    '<p class="hint">You can look at the team and every lead in ' + esc(seeing) + '. Managers can also review and verify closed leads.</p>' +
     '<button type="button" class="btn dark acct-out" data-signout>Sign out</button>'
   );
 }
@@ -208,7 +304,7 @@ function render(keepFocus?: boolean): void {
   const view = el('view');
   const focused = keepFocus && document.activeElement instanceof HTMLInputElement ? document.activeElement : null;
   const caret = focused ? focused.selectionStart : null;
-  view.innerHTML = S.view === 'account' ? vAccount() : (S.view === 'team' ? vTeam() : vLeads());
+  view.innerHTML = (S.view === 'account' ? vAccount() : (S.view === 'team' ? vTeam() : vLeads())) + vVerifyModal();
   if (focused) {
     const input = document.getElementById('lq');
     if (input instanceof HTMLInputElement) {
@@ -229,6 +325,25 @@ function loadLeads(keepFocus?: boolean): void {
       if (S.view === 'leads') render(keepFocus);
     })
     .catch(fail);
+}
+
+function openVerificationModal(userId: string, name: string): void {
+  S.verifyUser = { id: userId, name };
+  S.loadingVerifications = true;
+  S.verifications = null;
+  S.editingClaimId = null;
+  render();
+  api<VerificationItem[]>('GET', '/api/manager/verifications?userId=' + encodeURIComponent(userId))
+    .then((items) => {
+      S.verifications = items;
+      S.loadingVerifications = false;
+      render();
+    })
+    .catch((e: unknown) => {
+      S.loadingVerifications = false;
+      fail(e);
+      render();
+    });
 }
 
 let searchTimer: number | undefined;
@@ -278,6 +393,7 @@ document.addEventListener('click', (e) => {
   if (!(t instanceof Element)) return;
   const hit = (selector: string): HTMLElement | null => t.closest<HTMLElement>(selector);
   let c: HTMLElement | null;
+
   if (hit('[data-signout]')) {
     const back = (): void => {
       window.location.href = '/login';
@@ -322,6 +438,91 @@ document.addEventListener('click', (e) => {
     const step = Number(c.dataset['lpage']);
     S.page = Math.max(1, S.page + (step < 0 ? -1 : 1));
     loadLeads();
+    return;
+  }
+
+  // Verification modal handlers
+  if ((c = hit('[data-verify-user]'))) {
+    const uid = c.dataset['verifyUser'];
+    const uname = c.dataset['verifyName'] || 'Salesperson';
+    if (uid) openVerificationModal(uid, uname);
+    return;
+  }
+  if (hit('[data-close-verify]')) {
+    S.verifyUser = null;
+    S.verifications = null;
+    S.editingClaimId = null;
+    render();
+    return;
+  }
+  if ((c = hit('[data-verify-act]'))) {
+    const act = Number(c.dataset['verifyAct']) as 1 | 2;
+    const cid = c.dataset['cid'];
+    if (!cid) return;
+    const noteInp = document.querySelector<HTMLInputElement>('[data-note-cid="' + cid + '"]');
+    const note = noteInp ? noteInp.value.trim() : undefined;
+    api<{ ok: boolean; verified: number; status: string }>('PATCH', '/api/manager/claims/' + cid + '/verify', { verified: act, note })
+      .then((res) => {
+        if (S.verifications) {
+          const item = S.verifications.find((x) => x.id === cid);
+          if (item) {
+            item.verified = res.verified;
+            if (note !== undefined) item.verificationNote = note || null;
+          }
+        }
+        if (S.verifyUser) {
+          const person = data().people.find((p) => p.id === S.verifyUser?.id);
+          if (person && S.verifications) {
+            person.stats.verifiedWon = S.verifications.filter((x) => x.verified === 1).length;
+          }
+        }
+        render();
+        toast(act === 1 ? 'Marked as Verified (True)' : 'Marked as Rejected (False)');
+      })
+      .catch(fail);
+    return;
+  }
+  if ((c = hit('[data-toggle-stage]'))) {
+    const cid = c.dataset['toggleStage'];
+    if (cid) {
+      S.editingClaimId = S.editingClaimId === cid ? null : cid;
+      render();
+    }
+    return;
+  }
+  if ((c = hit('[data-save-stage]'))) {
+    const cid = c.dataset['saveStage'];
+    if (!cid) return;
+    const sel = document.querySelector<HTMLSelectElement>('[data-stage-sel="' + cid + '"]');
+    const newStage = sel ? sel.value : 'Won';
+    const act = newStage === 'Won' ? 1 : 2;
+    api<{ ok: boolean; verified: number; status: string }>('PATCH', '/api/manager/claims/' + cid + '/verify', { verified: act, status: newStage })
+      .then((res) => {
+        if (S.verifications) {
+          const item = S.verifications.find((x) => x.id === cid);
+          if (item) {
+            item.status = res.status;
+            item.verified = res.verified;
+          }
+        }
+        if (S.verifyUser) {
+          const person = data().people.find((p) => p.id === S.verifyUser?.id);
+          if (person && S.verifications) {
+            person.stats.won = S.verifications.filter((x) => x.status === 'Won').length;
+            person.stats.verifiedWon = S.verifications.filter((x) => x.status === 'Won' && x.verified === 1).length;
+          }
+        }
+        S.editingClaimId = null;
+        render();
+        toast('Stage updated to ' + newStage);
+      })
+      .catch(fail);
+    return;
+  }
+  if (hit('[data-cancel-stage]')) {
+    S.editingClaimId = null;
+    render();
+    return;
   }
 });
 

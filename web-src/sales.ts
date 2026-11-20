@@ -1180,7 +1180,8 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     const body = groups.map((g) => {
       const closed = g.key === 'closed';
       if (closed) n = 0; /* closed leads are numbered from 1 on their own */
-      const head = closed ? '<button type="button" class="qsec closed-t" data-closedtoggle aria-expanded="' + state.closedOpen + '">Closed · ' + g.items.length + CHEV + '</button>' : '<div class="qsec' + (g.key === 'od' ? ' od' : '') + '">' + g.title + ' · ' + g.items.length + '</div>';
+      const verifiedInGroup = closed ? g.items.filter((x) => claim(x).verified === 1).length : 0;
+      const head = closed ? '<button type="button" class="qsec closed-t" data-closedtoggle aria-expanded="' + state.closedOpen + '">Closed · ' + g.items.length + (g.items.length > 0 ? ' (' + verifiedInGroup + ' verified)' : '') + CHEV + '</button>' : '<div class="qsec' + (g.key === 'od' ? ' od' : '') + '">' + g.title + ' · ' + g.items.length + '</div>';
       return head + g.items.map((l) => {
         const w = claim(l);
         n++;
@@ -1191,8 +1192,15 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
         const wl = waLink(l);
         const subTxt = isScale() ? (esc([jobTitleOf(l), l.company].filter(Boolean).join(' · ') || l.city)) : esc(l.area || l.city);
         const acts = hasAct ? '<span class="act2">' + (dg ? '<a class="a2" href="tel:+' + dg + '" aria-label="Call ' + esc(toTitleCase(l.name)) + '">' + tileOf('call') + '</a>' : '') + (wl ? '<a class="a2" href="' + esc(wl) + '" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp ' + esc(toTitleCase(l.name)) + '">' + tileOf('whatsapp') + '</a>' : '') + '</span>' : '';
+        const vBadge = w.status === 'Won'
+          ? (w.verified === 1
+              ? '<span class="v-lead-badge v-lead-true" title="Verified by Manager">✓ Verified</span>'
+              : w.verified === 2
+                ? '<span class="v-lead-badge v-lead-false" title="Marked as False / Rejected by Manager">✕ Rejected</span>'
+                : '<span class="v-lead-badge v-lead-pending" title="Pending Manager Verification">⏳ Pending</span>')
+          : '';
         return '<div class="item-wrap' + (hasAct ? ' has-act' : '') + (closed ? ' closed-item' : '') + '"><button class="item" role="listitem" data-pick="' + l.id + '" aria-current="' + (l.id === state.selected) + '"><span class="no num">' + n + '</span>' +
-          '<span class="name">' + esc(toTitleCase(l.name)) + '</span><span class="m-sub">' + subTxt + '</span><span class="st">' + assignedStagePreview(w) + '</span><span class="stgt" aria-label="Current stage is ' + esc(SL(w.status)) + '">' + assignedStagePreview(w) + '</span>' + fu + '<span class="last">' + esc(ucfirst(agoText(w.last))) + '</span></button>' + acts + '</div>';
+          '<span class="name">' + esc(toTitleCase(l.name)) + vBadge + '</span><span class="m-sub">' + subTxt + '</span><span class="st">' + assignedStagePreview(w) + '</span><span class="stgt" aria-label="Current stage is ' + esc(SL(w.status)) + '">' + assignedStagePreview(w) + '</span>' + fu + '<span class="last">' + esc(ucfirst(agoText(w.last))) + '</span></button>' + acts + '</div>';
       }).join('');
     }).join('');
     h += '<div class="split' + (state.showDetail ? ' show-detail' : '') + '"><div class="list' + (state.closedOpen ? ' closed-open' : '') + '" role="list"><div class="qhead" aria-hidden="true"><span>Sr.</span><span>' + (isScale() ? 'Lead' : 'Store') + '</span><span>Stage</span><span>Follow-up</span><span class="c-last">Last touched</span><span></span></div>' + body + '</div>' + detail(cur) + '</div>';
@@ -1513,10 +1521,17 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     const fuBox = (won || lost) ? '<span class="sm">Closed</span>' :
       '<div class="fuw"><div class="combo"><button type="button" class="field combo-btn fu-btn" data-fubtn aria-haspopup="dialog" aria-expanded="' + (state.open === 'fu') + '"><span class="' + (w.next ? '' : 'ph') + '">' + (w.next ? esc(fuFull(w.next)) : 'Pick a date') + '</span>' + ico('cal') + '</button>' + (state.open === 'fu' ? '<div class="pop cal">' + calHtml(w.next) + '</div>' : '') + '</div><div class="fq"><button type="button" data-fu="1">Tomorrow</button><button type="button" data-fu="3">In 3 days</button><button type="button" data-fu="7">Next week</button>' + (w.next ? '<button type="button" data-fu="clear">Clear</button>' : '') + '</div></div>';
     const detailSub = isScale() ? (esc([jobTitleOf(l), l.company].filter(Boolean).join(' · ') || l.city)) : esc(l.area || l.city);
+    const vBanner = w.status === 'Won' ? (
+      w.verified === 1
+        ? '<div class="v-banner v-banner-true"><span class="v-bicon">✓</span><div><b>Verified Closed Deal</b><span>Verified by manager.' + (w.verificationNote ? ' Note: ' + esc(w.verificationNote) : '') + '</span></div></div>'
+        : w.verified === 2
+          ? '<div class="v-banner v-banner-false"><span class="v-bicon">✕</span><div><b>Rejected / Unverified</b><span>Manager marked this claim as false / rejected.' + (w.verificationNote ? ' Reason: ' + esc(w.verificationNote) : '') + '</span></div></div>'
+          : '<div class="v-banner v-banner-pending"><span class="v-bicon">⏳</span><div><b>Pending Manager Verification</b><span>Claimed as closed; awaiting manager review.</span></div></div>'
+    ) : '';
     return '<div class="detail">' +
       '<button type="button" class="drawer-x" data-back aria-label="Close panel">×</button>' +
       '<div class="d-head"><div><h1>' + (isPhone() ? '<button type="button" class="d-back" data-back aria-label="Back to the Assigned list"><svg viewBox="0 0 8 14" aria-hidden="true"><path d="M7 1L1 7l6 6"/></svg></button>' : '') + esc(toTitleCase(l.name)) + '<button type="button" class="info-i" data-info="' + l.id + '" aria-label="' + (isScale() ? 'Lead info' : 'Store info') + '" title="' + (l.email.length ? esc(l.email.join(', ')) : (pNum || '')) + '">' + tileOf('info') + '</button></h1><div class="sm">' + detailSub + ' · Last touched ' + esc(agoText(w.last)) + '</div></div></div>' +
-      acts +
+      acts + vBanner +
       (isPhone()
         ? phoneStage(w, stageOpts) + '<div class="sf"><div><div class="k">Next follow-up</div>' + fuBox + '</div></div>' + phoneActivity(w) + '</div>'
         : '<div class="sf"><div><div class="k">Stage</div>' + stageBox + prog + '</div><div><div class="k">Next follow-up</div>' + fuBox + '</div></div>' +
@@ -1533,7 +1548,9 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     const start = periodStart('month');
     const m = mine();
     const contacted = m.filter((l) => leftNewIn(l, start)).length;
-    const won = m.filter((l) => enteredIn(l, 'Won', start)).length;
+    const wonLeads = m.filter((l) => enteredIn(l, 'Won', start));
+    const won = wonLeads.length;
+    const verifiedWon = wonLeads.filter((l) => claim(l).verified === 1).length;
     const unread = notifications().filter((n) => n.unread).length;
     const services = SERVICES.map((x) => {
       const free = LEADS.filter((l) => l.open.indexOf(x.id) > -1).length;
@@ -1542,7 +1559,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     }).join('');
     view.innerHTML = '<div class="pf">' +
       '<div class="pf-card"><span class="pav" aria-hidden="true">' + esc(u.ini) + '</span><div class="pf-who"><b>' + esc(u.name) + '</b><span class="sm">' + esc(DATA.me.email) + '</span><span class="sm">Salesperson</span></div></div>' +
-      statStrip(m.filter((l) => assignedIn(l, start)).length, contacted, won, true, 'This month in ' + s.name) +
+      statStrip(m.filter((l) => assignedIn(l, start)).length, contacted, won, true, 'This month in ' + s.name, verifiedWon) +
       '<p class="pf-cap">This month · ' + esc(s.name) + '</p>' +
       '<h3 class="pf-h">Services</h3><div class="pf-list">' + services + '</div>' +
       '<h3 class="pf-h">Work</h3><div class="pf-list">' +
@@ -1802,11 +1819,18 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     return h.length > 0 && h[0].t >= start;
   }
   /* Three boxes: Assigned (just the number), then Contacted and Closed, each the number big with "of <monthly target>" small under it. */
-  function statStrip(assigned: number, contacted: number, closed: number, showTarget: boolean, aria: string): string {
-    function box(n: number, label: string, target: number): string {
-      return '<div><b class="num">' + n + '</b><small class="pf-of">' + (showTarget && target ? 'of ' + target : '&nbsp;') + '</small><span>' + label + '</span></div>';
+  function statStrip(assigned: number, contacted: number, closed: number, showTarget: boolean, aria: string, verifiedClosed?: number): string {
+    function box(n: number, label: string, target: number, sub?: string): string {
+      return '<div><b class="num">' + n + '</b><small class="pf-of">' + (sub !== undefined ? sub : (showTarget && target ? 'of ' + target : '&nbsp;')) + '</small><span>' + label + '</span></div>';
     }
-    return '<div class="pf-stats" role="group" aria-label="' + esc(aria) + '">' + box(assigned, 'Assigned', 0) + box(contacted, 'Contacted', TARGETS.contacted) + box(closed, 'Closed', TARGETS.won) + '</div>';
+    const closedSub = verifiedClosed !== undefined && closed > 0
+      ? (verifiedClosed + ' of ' + closed + ' verified')
+      : (showTarget && TARGETS.won ? 'of ' + TARGETS.won : '&nbsp;');
+    return '<div class="pf-stats" role="group" aria-label="' + esc(aria) + '">' +
+      box(assigned, 'Assigned', 0) +
+      box(contacted, 'Contacted', TARGETS.contacted) +
+      box(verifiedClosed !== undefined ? verifiedClosed : closed, 'Closed', TARGETS.won, closedSub) +
+      '</div>';
   }
 
   function renderKpi(): void {
@@ -1822,7 +1846,9 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     const start = periodStart(p);
     const month = (p === 'month');
     const contacted = m.filter((l) => leftNewIn(l, start)).length;
-    const won = m.filter((l) => enteredIn(l, 'Won', start)).length;
+    const wonLeads = m.filter((l) => enteredIn(l, 'Won', start));
+    const won = wonLeads.length;
+    const verifiedWon = wonLeads.filter((l) => claim(l).verified === 1).length;
     const openL = m.filter((l) => {
       const s = claim(l).status;
       return s !== 'Won' && s !== 'Lost';
@@ -1850,7 +1876,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       att = '<div class="katt ' + (overdue ? 'hot' : 'warn') + '"><div><div class="katt-t"><svg class="katt-i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.2M12 16.3v.2"/></svg>Needs attention</div><ul class="katt-l">' + bits.join('') + '</ul></div><button type="button" class="btn assign" data-kgo="' + (overdue ? 'od' : 'later') + '">View in Assigned</button></div>';
     } else att = '<div class="katt calm"><span class="sm">Nothing overdue, and every open lead has a follow-up date.</span></div>';
     h += '<h3 class="kp-sh">' + (month ? 'Monthly target' : (p === 'today' ? 'Today' : 'Last 7 days')) + '</h3>' +
-      statStrip(m.filter((l) => assignedIn(l, start)).length, contacted, won, month, month ? 'Monthly target' : 'Counts for the period') +
+      statStrip(m.filter((l) => assignedIn(l, start)).length, contacted, won, month, month ? 'Monthly target' : 'Counts for the period', verifiedWon) +
       (month ? '<p class="sm kpnote">This month · ' + Math.round(monthElapsed() * 100) + '% of the month gone</p>' : '<p class="sm kpnote">Counts for ' + (p === 'today' ? 'today' : 'the last 7 days') + ' · targets show on This month</p>') +
       att +
       '<div class="kcols"><section class="ksec"><h3>Pipeline now</h3>' +

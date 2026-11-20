@@ -275,7 +275,7 @@ export function registerSalesRoutes(app: FastifyInstance, ctx: AppContext): void
       const now = Date.now();
       let next = body.next;
       if (body.status !== undefined && body.status !== claim.status) {
-        await run(db, 'UPDATE claims SET status = ? WHERE id = ?', [body.status, claim.id]);
+        await run(db, 'UPDATE claims SET status = ?, verified = 0, verified_at = NULL, verified_by = NULL, verification_note = NULL WHERE id = ?', [body.status, claim.id]);
         await run(db, 'INSERT INTO claim_events (claim_id, status, at) VALUES (?, ?, ?)', [claim.id, body.status, now]);
         await run(db, "INSERT INTO notes (claim_id, author_id, system, stage, text, at) VALUES (?, NULL, 1, ?, ?, ?)", [
           claim.id,

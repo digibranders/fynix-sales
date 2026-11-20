@@ -8,7 +8,14 @@ import { openDb } from '../src/db.js';
 import { seedDatabase } from '../src/seed.js';
 
 const PASSWORD = 'test-password-123';
-const CSV = ['title,category,address,phone,website,place_id', 'Alpha Jewellers,Jewelry store,"Khar West, Mumbai",9820011111,https://alpha.example,p1', 'Beta Diamonds,Jewelry store,"Khar East, Mumbai",9820022222,,p2'].join('\n');
+const CSV = [
+  'title,category,address,phone,website,place_id',
+  'Alpha Jewellers,Jewelry store,"Khar West, Mumbai",9820011111,https://alpha.example,p1',
+  'Beta Diamonds,Jewelry store,"Khar East, Mumbai",9820022222,,p2',
+  'Gamma Gems,Jewelry store,"Bandra, Mumbai",9820033333,,p3',
+  'Delta Gold,Jewelry store,"Andheri, Mumbai",9820044444,,p4',
+  'Epsilon Silver,Jewelry store,"Juhu, Mumbai",9820055555,,p5',
+].join('\n');
 
 let app: FastifyInstance;
 let db: Db;
@@ -121,5 +128,76 @@ describe('manager', () => {
     assert.equal((await call(aarav, 'POST', '/api/admin/users', { name: 'No Category', email: 'nocat@fynix.test', role: 'sales' })).status, 400);
     assert.equal((await call(aarav, 'POST', '/api/admin/users', { name: 'Odd Role', email: 'odd@fynix.test', role: 'owner' })).status, 400);
     assert.equal((await call(aarav, 'POST', '/api/admin/users', { name: 'Both Cats', email: 'both@fynix.test', role: 'manager' })).status, 201);
+  });
+
+  it('allows manager to verify closed claims (5 claimed, 3 verified, 2 rejected) and reflects on dashboards', async () => {
+    const priya = await login('priya@fynix.test');
+    const nisha = await login('nisha@fynix.test');
+
+    // Priya claims 5 leads in Scale Website
+    const bootSales = (await call(priya, 'GET', '/api/sales/bootstrap')).body as {
+      leads: { id: string; open: string[] }[];
+    };
+    const openLeads = bootSales.leads.filter((l) => l.open.includes('scale-website')).slice(0, 5);
+    assert.equal(openLeads.length, 5, 'should have at least 5 leads available to claim');
+
+    const claimIds: string[] = [];
+    for (const l of openLeads) {
+      const claimed = await call(priya, 'POST', '/api/sales/claims', { leadId: l.id, workspaceId: 'scale-website' });
+      assert.equal(claimed.status, 201);
+      const cid = (claimed.body as { id: string }).id;
+      claimIds.push(cid);
+      // Mark as Won (Closed)
+      const won = await call(priya, 'PATCH', `/api/sales/claims/${cid}`, { status: 'Won' });
+      assert.equal(won.status, 200);
+      assert.equal((won.body as { verified: number }).verified, 0, 'newly claimed Won lead must be pending verification (0)');
+    }
+
+    // Manager checks verifications
+    const vers = (await call(nisha, 'GET', '/api/manager/verifications')).body as unknown as { id: string; verified: number; ownerName: string }[];
+    const priyaVers = vers.filter((v) => claimIds.includes(v.id));
+    assert.equal(priyaVers.length, 5, 'manager sees all 5 closed claims');
+    assert.ok(priyaVers.every((v) => v.verified === 0), 'all 5 claims initially pending');
+
+    // Manager verifies 3 as True (1), and 2 as False / Rejected (2)
+    for (let i = 0; i < 3; i++) {
+      const res = await call(nisha, 'PATCH', `/api/manager/claims/${claimIds[i]}/verify`, { verified: 1, note: 'Approved deal' });
+      assert.equal(res.status, 200);
+      assert.equal(res.body['verified'], 1);
+    }
+    for (let i = 3; i < 5; i++) {
+      const res = await call(nisha, 'PATCH', `/api/manager/claims/${claimIds[i]}/verify`, { verified: 2, note: 'Deal fell through' });
+      assert.equal(res.status, 200);
+      assert.equal(res.body['verified'], 2);
+    }
+
+    // Manager bootstrap now shows 3 verifiedWon out of 5 won for Priya
+    const bootMgr = (await call(nisha, 'GET', '/api/manager/bootstrap')).body as {
+      people: { name: string; stats: { won: number; verifiedWon: number } }[];
+    };
+    const priyaStats = bootMgr.people.find((p) => p.name === 'Priya Sharma')?.stats;
+    assert.ok(priyaStats);
+    assert.equal(priyaStats.won, 5, 'Priya claimed 5 won');
+    assert.equal(priyaStats.verifiedWon, 3, 'Manager verified 3 won');
+
+    // Priya (salesperson) bootstrap also reflects the verified status on the claims
+    const bootSalesAfter = (await call(priya, 'GET', '/api/sales/bootstrap')).body as {
+      leads: { id: string; work: Record<string, { verified: number; verificationNote: string | null }> }[];
+    };
+    for (let i = 0; i < 3; i++) {
+      const lead = bootSalesAfter.leads.find((l) => l.id === openLeads[i]?.id);
+      const claimDto = lead?.work['scale-website'];
+      assert.equal(claimDto?.verified, 1);
+      assert.equal(claimDto?.verificationNote, 'Approved deal');
+    }
+    for (let i = 3; i < 5; i++) {
+      const lead = bootSalesAfter.leads.find((l) => l.id === openLeads[i]?.id);
+      const claimDto = lead?.work['scale-website'];
+      assert.equal(claimDto?.verified, 2);
+      assert.equal(claimDto?.verificationNote, 'Deal fell through');
+    }
+
+    // Salesperson cannot call verify API
+    assert.equal((await call(priya, 'PATCH', `/api/manager/claims/${claimIds[0]}/verify`, { verified: 1 })).status, 403);
   });
 });

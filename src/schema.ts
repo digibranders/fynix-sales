@@ -145,6 +145,11 @@ export const claims = pgTable(
     nextFollowUp: text('next_follow_up'),
     lastActivityAt: ms('last_activity_at').notNull(),
     createdAt: ms('created_at').notNull(),
+    /** 0: unverified / pending, 1: verified (true), 2: rejected (false) */
+    verified: integer('verified').notNull().default(0),
+    verifiedAt: ms('verified_at'),
+    verifiedBy: text('verified_by').references(() => users.id, { onDelete: 'set null' }),
+    verificationNote: text('verification_note'),
   },
   (t) => [unique('claims_lead_workspace').on(t.leadId, t.workspaceId), index('idx_claims_owner').on(t.ownerId), index('idx_claims_workspace').on(t.workspaceId)],
 );
