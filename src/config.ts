@@ -7,6 +7,7 @@ export interface Config {
   production: boolean;
   sessionDays: number;
   appUrl: string;
+  brevoApiKey: string | null;
   resendApiKey: string | null;
   mailFrom: string | null;
   webDir: string;
@@ -32,6 +33,7 @@ export function loadConfig(): Config {
     production: process.env['NODE_ENV'] === 'production',
     sessionDays: intFromEnv('SESSION_DAYS', 14),
     appUrl: (process.env['APP_URL'] || `http://127.0.0.1:${intFromEnv('PORT', 3000)}`).replace(/\/+$/, ''),
+    brevoApiKey: process.env['BREVO_API_KEY'] || null,
     resendApiKey: process.env['RESEND_API_KEY'] || null,
     mailFrom: process.env['MAIL_FROM'] || null,
     webDir: WEB_DIR,

@@ -916,10 +916,20 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     renderNt(true);
   }
 
+  const THEME_ICONS: Record<string, string> = {
+    light: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M4.93 4.93l1.77 1.77M17.3 17.3l1.77 1.77M2 12h2.5M19.5 12H22M6.7 17.3l-1.77 1.77M19.07 4.93l-1.77 1.77"/></svg>',
+    dark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+    system: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>'
+  };
+
   function renderWho(): void {
     const open = state.open === 'who';
+    const curTheme = themePref();
+    const themeSeg = '<div class="theme-seg-row" role="group" aria-label="Theme">' +
+      THEMES.map((x) => '<button type="button" class="theme-icon-btn" data-setheme="' + x[0] + '" aria-label="' + esc(x[1]) + ' theme" title="' + esc(x[1]) + '" aria-pressed="' + (curTheme === x[0]) + '">' + (THEME_ICONS[x[0]] || '') + '</button>').join('') +
+      '</div>';
     el('who-dd').innerHTML = '<button type="button" class="who-btn" data-whobtn aria-label="Account menu" aria-haspopup="menu" aria-expanded="' + open + '"><span>' + esc(self().name) + '</span>' + CHEV + '</button>' +
-      (open ? '<div class="pop pop-r"><div class="sm pop-h">' + esc(DATA.me.email) + '</div><div class="opts" role="menu"><div class="sm pop-h">Theme</div>' + THEMES.map((x) => optHtml('data-setheme', x[0], x[1], '', themePref() === x[0])).join('') + '<div class="sm pop-h">Account</div>' + optHtml('data-signout', '1', 'Sign out', '', false) + '</div></div>' : '');
+      (open ? '<div class="pop pop-r"><div class="sm pop-h">' + esc(DATA.me.email) + '</div><div class="opts" role="menu"><div class="sm pop-h">Theme</div>' + themeSeg + '<div class="sm pop-h">Account</div>' + optHtml('data-forgotpw', '1', 'Forgot password', '', false) + optHtml('data-signout', '1', 'Sign out', '', false) + '</div></div>' : '');
   }
 
   /* ---------- shared bits ---------- */
@@ -1280,7 +1290,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     root.classList.add('theme-fade');
     applyTheme();
     document.querySelectorAll<HTMLElement>('[data-setheme]').forEach((b) => {
-      if (b.classList.contains('pf-seg-b') || (b.parentNode instanceof Element && b.parentNode.classList.contains('pf-seg'))) b.setAttribute('aria-pressed', String(b.dataset.setheme === p));
+      if (b.classList.contains('pf-seg-b') || b.classList.contains('theme-icon-btn') || (b.parentNode instanceof Element && (b.parentNode.classList.contains('pf-seg') || b.parentNode.classList.contains('theme-seg-row')))) b.setAttribute('aria-pressed', String(b.dataset.setheme === p));
     });
     if (state.open === 'who') setOpen('');
     clearTimeout(themeTimer);
@@ -1543,6 +1553,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
         '<div class="combo">' + pfRow(ptile('bell'), '<span>Notifications</span>', unread ? '<span class="pf-n">' + unread + '</span>' : '', 'data-pf="notifications"') + '</div>' +
         pfRow(ptile('user'), '<span>Edit name</span><span class="sm">' + esc(u.name) + '</span>', '', 'data-pf="name"') +
         pfRow(ptile('key'), '<span>Change password</span>', '', 'data-pf="password"') +
+        pfRow(ptile('key'), '<span>Forgot password</span>', '', 'data-forgotpw') +
         pfRow(ptile('devices'), '<span>Sign out of all devices</span>', '', 'data-pf="signall"') +
         pfRow(ptile('logout'), '<span>Sign out</span>', '', 'data-signout', 'pf-out') +
       '</div></div>';
@@ -1644,6 +1655,20 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       const box = document.getElementById('rp-body');
       if (box) box.innerHTML = '<p class="pw-err">' + esc(messageOf(e, 'The report could not load.')) + '</p>';
     });
+  }
+
+  function openForgotPw(): void {
+    state.modal = 'forgotpw';
+    lockScroll();
+    layer.innerHTML = '<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">' +
+      '<div class="m-head"><div><h2 id="m-title">Forgot password</h2><div class="sm">Password reset</div></div><button class="x" id="m-x" aria-label="Close">×</button></div>' +
+      '<div class="pw-body" style="padding:18px 20px 8px"><p style="margin:0;font-size:14px;color:var(--fg);line-height:1.5">Contact the superadmin for link.</p></div>' +
+      '<div class="m-foot"><button class="btn assign" id="m-ok">OK</button></div></div></div>';
+    const ok = el('m-ok');
+    const x = el('m-x');
+    if (ok) ok.onclick = closeModal;
+    if (x) x.onclick = closeModal;
+    wireScrim();
   }
 
   function openPassword(): void {
@@ -1950,6 +1975,12 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     const th_ = closestOf(e, '[data-setheme]');
     if (th_) {
       setTheme(ds(th_, 'setheme'));
+      return;
+    }
+    const fp_ = closestOf(e, '[data-forgotpw]');
+    if (fp_) {
+      setOpen('');
+      openForgotPw();
       return;
     }
     const so_ = closestOf(e, '[data-signout]');

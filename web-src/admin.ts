@@ -369,6 +369,7 @@ function loadLeads(keepFocus?: boolean): void {
 }
 
 const ACT_ICON = {
+  swap: '<path d="M6 8h12l-3-3M18 16H6l3 3"/>',
   pencil: '<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14.5 7.5l3 3"/>',
   services: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
   key: '<circle cx="8" cy="15" r="3.5"/><path d="M10.5 12.5L19 4M16 7l2.5 2.5M13.5 9.5L15 11"/>',
@@ -397,6 +398,7 @@ function vTeam(): string {
         (S.userConfirm === p.id
           ? '<span class="muted">Delete ' + esc(p.name) + ' for good?</span> <button class="btn sm" data-ucancel>Keep</button> <button class="btn sm danger" data-udel="' + esc(p.id) + '">Delete</button>'
           : iconBtn('data-rename', p.id, 'Edit name', ACT_ICON.pencil) +
+            (p.role === 'superadmin' ? '' : iconBtn('data-chcat', p.id, 'Change category', ACT_ICON.swap)) +
             (p.role === 'sales' ? iconBtn('data-editpeople', p.id, 'Services', ACT_ICON.services) : '') +
             (self
               ? ''
@@ -544,20 +546,28 @@ function listPick(cat: Category): PickItem[] {
     .lists.filter((l) => l.category === cat)
     .map((l) => ({ id: l.id, name: l.name + ' (' + l.leadCount + ')' }));
 }
+/** The sentence above the link: copy it yourself, or press the button to email it. */
+function inviteBody(name: string, email: string, canEmail: boolean, reset: boolean): string {
+  const what = reset ? 'a new password' : 'their own password';
+  return canEmail
+    ? 'Copy this link and send it to ' + name + ', or email it to ' + email + ' with the button below. They open it and choose ' + what + '.'
+    : 'Copy this link and send it to ' + name + '. They open it and choose ' + what + '. Email is not set up yet.';
+}
 function newForm(): ModalForm {
-  return { error: '', busy: false, id: '', name: '', email: '', role: 'sales', cat: dc(), members: [], lists: [], wss: [], csv: '', fileName: '', title: '', body: '', link: '' };
+  return { error: '', busy: false, id: '', name: '', email: '', role: 'sales', cat: dc(), members: [], lists: [], wss: [], csv: '', fileName: '', title: '', body: '', link: '', userId: '', canEmail: false, sent: false };
 }
 function openModal(kind: 'ws' | 'list' | 'person'): void;
-function openModal(kind: 'editpeople' | 'rename', personId: string): void;
+function openModal(kind: 'editpeople' | 'rename' | 'category', personId: string): void;
 function openModal(kind: 'link', info: LinkInfo): void;
 function openModal(kind: ModalKind, extra?: string | LinkInfo): void {
   const F = newForm();
-  if (kind === 'editpeople' || kind === 'rename') {
+  if (kind === 'editpeople' || kind === 'rename' || kind === 'category') {
     const p = typeof extra === 'string' ? person(extra) : undefined;
     if (!p) return;
     F.id = p.id;
     F.name = p.name;
-    F.cat = p.category ?? dc();
+    F.role = p.role;
+    F.cat = p.category ?? (p.role === 'manager' ? 'both' : dc());
     F.wss = p.workspaceIds.slice();
   } else if (kind === 'link') {
     if (typeof extra !== 'object') return;
@@ -616,6 +626,15 @@ function paintModal(): void {
           ? '<span class="fl">Category</span>' + catSeg(F.cat, true) + '<p class="hint">Managers can look at the team and every lead in their category, but cannot change anything.</p>'
           : '<span class="fl">Category</span>' + catSeg(F.cat) + '<span class="fl">' + esc(catName(cat)) + ' services</span>' + pickRows(wsPick(cat), F.wss, 'wss')) +
       foot('Create invite link', 'person');
+  } else if (k === 'category') {
+    const sales = F.role === 'sales';
+    const to = singleCat(F.cat);
+    h =
+      mh('Change category for ' + esc(F.name)) + '<div class="mb"><span class="fl" style="margin-top:6px">Category</span>' + catSeg(F.cat, !sales) +
+      (sales
+        ? '<span class="fl">' + esc(catName(to)) + ' services</span>' + pickRows(wsPick(to), F.wss, 'wss') + '<p class="hint">Their current services are removed when the category changes. They can only be moved while they own no leads.</p>'
+        : '<p class="hint">Scale, Reach or both: what this manager can look at.</p>') +
+      foot('Save', 'category');
   } else if (k === 'rename') {
     h = mh('Edit name') + '<div class="mb"><label class="fl" for="f-name" style="margin-top:6px">Name</label><input class="inp" id="f-name" type="text" maxlength="80" value="' + esc(F.name) + '"><p class="hint">This is how they appear to the team and in reports.</p>' + foot('Save', 'rename');
   } else if (k === 'editpeople') {
@@ -623,7 +642,7 @@ function paintModal(): void {
     h = mh('Services for ' + esc(F.name)) + '<div class="mb"><p class="hint" style="margin-top:0">' + esc(catName(cat)) + ' services only.</p>' + pickRows(wsPick(cat), F.wss, 'wss') + foot('Save', 'editpeople');
   } else if (k === 'link') {
     h =
-      mh(esc(F.title)) + '<div class="mb"><p style="margin:6px 0 10px">' + esc(F.body) + '</p><input class="inp" id="invite-link" type="text" readonly value="' + esc(F.link) + '" onclick="this.select()" aria-label="Invite link"><p class="hint">It works once and expires in 7 days. Send it only to ' + esc(F.name) + '. A new link replaces this one.</p></div><div class="df"><button class="btn" data-copy-link>Copy link</button><button class="btn dark" data-close>Done</button></div>';
+      mh(esc(F.title)) + '<div class="mb"><p style="margin:6px 0 10px">' + esc(F.body) + '</p><input class="inp" id="invite-link" type="text" readonly value="' + esc(F.link) + '" onclick="this.select()" aria-label="Invite link"><p class="hint">It works once and expires in 7 days. Send it only to ' + esc(F.name) + '. A new link replaces this one.</p></div><div class="df"><button class="btn" data-copy-link>Copy link</button>' + (F.canEmail ? '<button class="btn" data-send-link' + (F.sent || F.busy ? ' disabled' : '') + '>' + (F.sent ? 'Email sent' : F.busy ? 'Sending' : 'Send email') + '</button>' : '') + '<button class="btn dark" data-close>Done</button></div>';
   }
   el('modal').innerHTML = h;
 }
@@ -670,9 +689,9 @@ interface SaveOutcome {
   view: View;
   after?: () => void;
 }
-type SaveKind = 'ws' | 'list' | 'person' | 'editpeople' | 'rename';
+type SaveKind = 'ws' | 'list' | 'person' | 'editpeople' | 'rename' | 'category';
 function isSaveKind(v: string | undefined): v is SaveKind {
-  return v === 'ws' || v === 'list' || v === 'person' || v === 'editpeople' || v === 'rename';
+  return v === 'ws' || v === 'list' || v === 'person' || v === 'editpeople' || v === 'rename' || v === 'category';
 }
 
 function save(kind: SaveKind): void {
@@ -721,11 +740,27 @@ function save(kind: SaveKind): void {
       after: () => {
         openModal('link', {
           title: 'Invite link for ' + body.name,
-          body: r.emailed ? 'We also emailed it to ' + body.email + '. You can copy it here too.' : 'Copy this link and send it to ' + body.name + '. They open it and choose their own password.',
+          body: inviteBody(body.name, body.email, r.canEmail, false),
           link: r.inviteUrl,
           name: body.name,
+          userId: r.id,
+          email: body.email,
+          canEmail: r.canEmail,
         });
       },
+      view: 'team',
+    }));
+  } else if (kind === 'category') {
+    const cur = person(F.id);
+    if (!cur) return;
+    if ((cur.category ?? 'both') === F.cat) {
+      F.error = 'They are already in that category.';
+      return paintModal();
+    }
+    const body: { category: FormCat; workspaceIds?: string[] } = { category: F.cat };
+    if (F.role === 'sales') body.workspaceIds = F.wss;
+    req = api<unknown>('PATCH', '/api/admin/users/' + F.id, body).then(() => ({
+      msg: F.name + ' moved to ' + (F.cat === 'both' ? 'Scale and Reach' : catName(F.cat)),
       view: 'team',
     }));
   } else if (kind === 'rename') {
@@ -858,6 +893,10 @@ document.addEventListener('click', (e) => {
   if ((c = hit('[data-new]'))) {
     const kind = c.dataset['new'];
     if (kind === 'ws' || kind === 'list' || kind === 'person') openModal(kind);
+    return;
+  }
+  if ((c = hit('[data-chcat]'))) {
+    openModal('category', c.dataset['chcat'] ?? '');
     return;
   }
   if ((c = hit('[data-rename]'))) {
@@ -1013,9 +1052,12 @@ document.addEventListener('click', (e) => {
       .then((r) => {
         openModal('link', {
           title: (r.reset ? 'Password reset link for ' : 'Invite link for ') + rp.name,
-          body: r.emailed ? 'We also emailed it to ' + rp.email + '. You can copy it here too.' : 'Copy this link and send it to ' + rp.name + '. They open it and choose a ' + (r.reset ? 'new ' : '') + 'password.',
+          body: inviteBody(rp.name, rp.email, r.canEmail, r.reset),
           link: r.inviteUrl,
           name: rp.name,
+          userId: rp.id,
+          email: rp.email,
+          canEmail: r.canEmail,
         });
       })
       .catch(fail);
@@ -1059,6 +1101,27 @@ document.addEventListener('click', (e) => {
   if ((c = hit('[data-lpage]'))) {
     S.leads.page += parseInt(c.dataset['lpage'] ?? '0', 10);
     loadLeads();
+    return;
+  }
+  if (hit('[data-send-link]')) {
+    const F = S.form.m;
+    if (!F || F.busy || F.sent) return;
+    const token = F.link.split('/').pop() ?? '';
+    F.busy = true;
+    F.error = '';
+    paintModal();
+    api<{ ok: boolean; sentTo: string }>('POST', '/api/admin/users/' + encodeURIComponent(F.userId) + '/invite/email', { token })
+      .then((r) => {
+        F.busy = false;
+        F.sent = true;
+        paintModal();
+        toast('Email sent to ' + r.sentTo);
+      })
+      .catch((err: unknown) => {
+        F.busy = false;
+        paintModal();
+        toast(messageOf(err, 'We could not send the email.'));
+      });
     return;
   }
   if (hit('[data-copy-link]')) {

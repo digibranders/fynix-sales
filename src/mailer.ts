@@ -17,6 +17,51 @@ export function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c);
 }
 
+/** Splits `Name <address>` (or a bare address) into the two parts Brevo wants. Returns null when there is no usable address. */
+export function parseSender(from: string): { name?: string; email: string } | null {
+  const match = /^\s*(?:"?([^"<]*?)"?\s*)?<([^<>\s]+@[^<>\s]+)>\s*$/.exec(from);
+  if (match?.[2]) {
+    const name = match[1]?.trim();
+    return name ? { name, email: match[2] } : { email: match[2] };
+  }
+  const bare = from.trim();
+  return /^[^\s<>@]+@[^\s<>@]+$/.test(bare) ? { email: bare } : null;
+}
+
+class BrevoMailer implements Mailer {
+  readonly enabled = true;
+
+  constructor(
+    private readonly apiKey: string,
+    private readonly sender: { name?: string; email: string },
+  ) {}
+
+  async send(message: MailMessage): Promise<boolean> {
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': this.apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          sender: this.sender,
+          to: [{ email: message.to }],
+          subject: message.subject,
+          textContent: message.text,
+          htmlContent: message.html,
+        }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) {
+        console.error(`Brevo rejected an email (${response.status}): ${(await response.text()).slice(0, 300)}`);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Could not reach Brevo:', error instanceof Error ? error.message : error);
+      return false;
+    }
+  }
+}
+
 class ResendMailer implements Mailer {
   readonly enabled = true;
 
@@ -54,6 +99,12 @@ class DisabledMailer implements Mailer {
 }
 
 export function createMailer(config: Config): Mailer {
+  if (config.brevoApiKey && config.mailFrom) {
+    const sender = parseSender(config.mailFrom);
+    if (sender) return new BrevoMailer(config.brevoApiKey, sender);
+    console.error('MAIL_FROM must look like "Name <address@your-domain>". Email is switched off.');
+    return new DisabledMailer();
+  }
   if (config.resendApiKey && config.mailFrom) return new ResendMailer(config.resendApiKey, config.mailFrom);
   return new DisabledMailer();
 }
