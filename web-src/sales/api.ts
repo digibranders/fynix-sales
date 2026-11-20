@@ -10,7 +10,7 @@ export class SalesApiError extends Error {
   }
 }
 
-export type HttpMethod = 'GET' | 'POST' | 'PATCH';
+export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
 interface ErrorBody {
   error?: unknown;

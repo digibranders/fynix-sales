@@ -334,6 +334,23 @@ export function registerSalesRoutes(app: FastifyInstance, ctx: AppContext): void
     return await claimDto(db, note.claim_id);
   });
 
+  /** A salesperson can delete their own notes. System lines and other people's notes are off limits. */
+  app.delete<{ Params: { id: string } }>('/api/sales/notes/:id', async (request) => {
+    const user = salesUser(request);
+    const id = Number(request.params.id);
+    const note = Number.isInteger(id)
+      ? await one<{ claim_id: string; author_id: string | null; system: number }>(
+          db,
+          'SELECT n.claim_id, n.author_id, n.system FROM notes n JOIN claims c ON c.id = n.claim_id WHERE n.id = ? AND c.owner_id = ?',
+          [id, user.id],
+        )
+      : undefined;
+    if (!note || note.system === 1 || note.author_id !== user.id) throw new HttpError(404, 'not_found', 'That note is not yours to delete.');
+    await run(db, 'DELETE FROM notes WHERE id = ?', [id]);
+    await run(db, 'UPDATE claims SET last_activity_at = ? WHERE id = ?', [Date.now(), note.claim_id]);
+    return await claimDto(db, note.claim_id);
+  });
+
   app.post('/api/sales/notifications/read', async (request) => {
     const user = salesUser(request);
     const body = readBody.parse(request.body);
