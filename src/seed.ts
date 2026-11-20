@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { hashPassword } from './auth.js';
+import type { Role } from './auth.js';
 import { loadConfig } from './config.js';
 import type { Category, Db } from './db.js';
 import { insertMany, newId, one, openDb, run, tx } from './db.js';
@@ -11,7 +12,7 @@ import { parseLeadsCsv } from './importer.js';
 interface SeedUser {
   name: string;
   email: string;
-  role: 'superadmin' | 'sales';
+  role: Role;
   category: Category | null;
   workspaces: string[];
 }
@@ -29,6 +30,7 @@ const WORKSPACES: { category: Category; name: string; icon: WorkspaceIcon }[] = 
 const USERS: SeedUser[] = [
   { name: 'Aarav Kapoor', email: 'aarav@fynix.test', role: 'superadmin', category: null, workspaces: [] },
   { name: 'Meera Nair', email: 'meera@fynix.test', role: 'superadmin', category: null, workspaces: [] },
+  { name: 'Nisha Verma', email: 'nisha@fynix.test', role: 'manager', category: null, workspaces: [] },
   { name: 'Priya Sharma', email: 'priya@fynix.test', role: 'sales', category: 'scale', workspaces: ['scale-website', 'scale-seo'] },
   { name: 'Rohan Mehta', email: 'rohan@fynix.test', role: 'sales', category: 'scale', workspaces: ['scale-website', 'scale-social-media', 'scale-idraft'] },
   { name: 'Aisha Khan', email: 'aisha@fynix.test', role: 'sales', category: 'reach', workspaces: ['reach-social-media', 'reach-website'] },

@@ -86,11 +86,12 @@ function isCategory(v: string | undefined): v is Category {
 function isCategoryFilter(v: string | undefined): v is CategoryFilter {
   return v === 'all' || isCategory(v);
 }
+const ROLE_NAME: Record<Role, string> = { sales: 'Sales', manager: 'Manager', superadmin: 'Superadmin' };
 function isFormCat(v: string | undefined): v is FormCat {
   return v === 'both' || isCategory(v);
 }
 function isRole(v: string | undefined): v is Role {
-  return v === 'sales' || v === 'superadmin';
+  return v === 'sales' || v === 'manager' || v === 'superadmin';
 }
 function isView(v: string | undefined): v is View {
   return v !== undefined && Object.prototype.hasOwnProperty.call(VIEWS, v);
@@ -113,7 +114,7 @@ function inCat(x: { category: Category | null }): boolean {
   return S.cat === 'all' || x.category === S.cat;
 }
 function pInCat(p: Person): boolean {
-  return S.cat === 'all' || p.role === 'superadmin' || p.category === S.cat;
+  return S.cat === 'all' || p.role === 'superadmin' || (p.role === 'manager' && p.category === null) || p.category === S.cat;
 }
 function ct(c: Category | null): string {
   return c ? '<span class="ct"><i class="mk ' + c + '"></i>' + esc(catName(c)) + '</span>' : '<span class="ct muted">Both</span>';
@@ -138,6 +139,7 @@ function when(ms: number): string {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 function wsOf(p: Person): string {
+  if (p.role === 'manager') return '<span class="muted">Team and leads, view only</span>';
   return p.role === 'superadmin'
     ? '<span class="muted">Every workspace</span>'
     : p.workspaceIds.length
@@ -371,7 +373,7 @@ function vTeam(): string {
     P.map((p, i) => {
       const self = p.id === d.me.id;
       return (
-        '<tr><td class="muted num">' + (i + 1) + '</td><td><span class="own static">' + av(p) + '<span>' + esc(p.name) + '<br><small class="muted">' + esc(p.email) + '</small></span></span></td><td class="role">' + (p.role === 'superadmin' ? 'Superadmin' : 'Sales') + '</td><td>' + (p.role === 'superadmin' ? ct(null) : ct(p.category)) + '</td><td>' + wsOf(p) + '</td>' +
+        '<tr><td class="muted num">' + (i + 1) + '</td><td><span class="own static">' + av(p) + '<span>' + esc(p.name) + '<br><small class="muted">' + esc(p.email) + '</small></span></span></td><td class="role">' + ROLE_NAME[p.role] + '</td><td>' + (p.role === 'superadmin' ? ct(null) : ct(p.category)) + '</td><td>' + wsOf(p) + '</td>' +
         '<td><span class="dotl' + (p.active && !p.invited ? '' : ' off') + '"><i></i>' + (!p.active ? 'Deactivated' : p.invited ? 'Invited' : 'Active') + '</span></td>' +
         '<td style="text-align:right;white-space:nowrap">' + (p.role === 'sales' ? '<button class="btn sm" data-editpeople="' + esc(p.id) + '">Services</button> ' : '') +
         (self ? '' : '<button class="btn sm" data-reset="' + esc(p.id) + '">' + (p.invited ? 'Invite link' : 'Reset password') + '</button> <button class="btn sm" data-toggle="' + esc(p.id) + '">' + (p.active ? 'Deactivate' : 'Reactivate') + '</button>') +
@@ -379,7 +381,7 @@ function vTeam(): string {
       );
     }).join('') +
     '</tbody></table></div>';
-  return h + '<p class="hint">A salesperson belongs to one category and can only see that category\'s data. Superadmins see both.</p>';
+  return h + '<p class="hint">A salesperson belongs to one category and can only see that category\'s data. Managers can look at the team and leads in their category (or both) but cannot change anything. Superadmins see both.</p>';
 }
 
 function reportMonth(): string {
@@ -575,14 +577,16 @@ function paintModal(): void {
   } else if (k === 'person') {
     const cat = singleCat(F.cat);
     const sa = F.role === 'superadmin';
-    const roles: [Role, string][] = [['sales', 'Sales'], ['superadmin', 'Superadmin']];
+    const roles: [Role, string][] = [['sales', 'Sales'], ['manager', 'Manager'], ['superadmin', 'Superadmin']];
     h =
       mh('Invite member') + '<div class="mb"><label class="fl" for="f-name" style="margin-top:6px">Name</label><input class="inp" id="f-name" type="text" maxlength="80" placeholder="Full name" value="' + esc(F.name) + '">' +
       '<label class="fl" for="f-email">Email</label><input class="inp" id="f-email" type="email" maxlength="200" placeholder="name@company.com" value="' + esc(F.email) + '">' +
       '<span class="fl">Role</span><div class="seg">' + roles.map((r) => '<button type="button" data-rl="' + r[0] + '" aria-pressed="' + (F.role === r[0]) + '">' + r[1] + '</button>').join('') + '</div>' +
       (sa
         ? '<p class="hint">Superadmins can see both categories and every workspace.</p>'
-        : '<span class="fl">Category</span>' + catSeg(F.cat) + '<span class="fl">' + esc(catName(cat)) + ' services</span>' + pickRows(wsPick(cat), F.wss, 'wss')) +
+        : F.role === 'manager'
+          ? '<span class="fl">Category</span>' + catSeg(F.cat, true) + '<p class="hint">Managers can look at the team and every lead in their category, but cannot change anything.</p>'
+          : '<span class="fl">Category</span>' + catSeg(F.cat) + '<span class="fl">' + esc(catName(cat)) + ' services</span>' + pickRows(wsPick(cat), F.wss, 'wss')) +
       foot('Create invite link', 'person');
   } else if (k === 'editpeople') {
     const cat = singleCat(F.cat);
@@ -682,6 +686,7 @@ function save(kind: SaveKind): void {
     }
     const body: UserCreateBody = { name: F.name.trim(), email: F.email.trim(), role: F.role, workspaceIds: F.role === 'sales' ? F.wss : [] };
     if (F.role === 'sales') body.category = singleCat(F.cat);
+    else if (F.role === 'manager' && F.cat !== 'both') body.category = F.cat;
     req = api<UserCreateResult>('POST', '/api/admin/users', body).then((r) => ({
       after: () => {
         openModal('link', {

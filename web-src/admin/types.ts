@@ -5,7 +5,7 @@ export type CategoryFilter = Category | 'all';
 /** The category choice when adding a service, which can also create it in both. */
 export type FormCat = Category | 'both';
 export type Metric = 'contacted' | 'meetings' | 'won';
-export type Role = 'sales' | 'superadmin';
+export type Role = 'sales' | 'manager' | 'superadmin';
 export type View = 'overview' | 'workspaces' | 'lists' | 'leads' | 'team' | 'reports';
 
 export interface CategoryInfo {

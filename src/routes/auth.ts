@@ -10,8 +10,10 @@ import {
   destroyUserSessions,
   findInvite,
   hashPassword,
+  homeForRole,
   verifyPassword,
 } from '../auth.js';
+import type { Role } from '../auth.js';
 import { all, one, run, tx } from '../db.js';
 import { HttpError, initials } from '../domain.js';
 
@@ -30,7 +32,7 @@ interface UserAuthRow {
   id: string;
   name: string;
   password_hash: string;
-  role: 'superadmin' | 'sales';
+  role: Role;
   must_change_password: number;
 }
 
@@ -93,7 +95,7 @@ export function registerAuthRoutes(app: FastifyInstance, ctx: AppContext): void 
     }
     const session = await createSession(db, invite.userId, config.sessionDays);
     setSessionCookie(ctx, reply, session.token, session.expiresAt);
-    return { redirect: invite.role === 'superadmin' ? '/admin' : '/app' };
+    return { redirect: homeForRole(invite.role) };
   });
 
   app.post('/api/auth/login', async (request, reply) => {
@@ -119,7 +121,7 @@ export function registerAuthRoutes(app: FastifyInstance, ctx: AppContext): void 
     const mustChange = row.must_change_password === 1;
     return {
       mustChangePassword: mustChange,
-      redirect: mustChange ? '/login' : row.role === 'superadmin' ? '/admin' : '/app',
+      redirect: mustChange ? '/login' : homeForRole(row.role),
     };
   });
 
