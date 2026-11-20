@@ -232,3 +232,19 @@ export const activity = pgTable(
   },
   (t) => [index('idx_activity_at').on(t.at), check('activity_category_check', sql`${t.category} IN ('scale', 'reach')`)],
 );
+
+/** One-time links that let a person choose their own password (new accounts and resets). Only a hash of the link's secret is kept. */
+export const invites = pgTable(
+  'invites',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull().unique(),
+    expiresAt: ms('expires_at').notNull(),
+    usedAt: ms('used_at'),
+    createdAt: ms('created_at').notNull(),
+  },
+  (t) => [index('idx_invites_user').on(t.userId)],
+);

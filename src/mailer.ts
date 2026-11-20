@@ -58,26 +58,17 @@ export function createMailer(config: Config): Mailer {
   return new DisabledMailer();
 }
 
-export function inviteEmail(opts: { name: string; email: string; invitedBy: string; password: string; appUrl: string; reset: boolean }): MailMessage {
-  const { name, email, invitedBy, password, appUrl, reset } = opts;
-  const subject = reset ? 'Your Fynix Sales password was reset' : `${invitedBy} invited you to Fynix Sales`;
-  const intro = reset ? `${invitedBy} reset your Fynix Sales password.` : `${invitedBy} added you to Fynix Sales.`;
-  const text = [
-    `Hi ${name},`,
-    '',
-    intro,
-    '',
-    `Sign in: ${appUrl}/login`,
-    `Email: ${email}`,
-    `Temporary password: ${password}`,
-    '',
-    'You will be asked to choose your own password the first time you sign in.',
-  ].join('\n');
+export function inviteEmail(opts: { name: string; email: string; invitedBy: string; link: string; reset: boolean; days: number }): MailMessage {
+  const { name, email, invitedBy, link, reset, days } = opts;
+  const subject = reset ? 'Choose a new Fynix Sales password' : `${invitedBy} invited you to Fynix Sales`;
+  const intro = reset ? `${invitedBy} sent you a link to choose a new Fynix Sales password.` : `${invitedBy} added you to Fynix Sales.`;
+  const cta = reset ? 'Choose a new password' : 'Set your password and get started';
+  const note = `This link works once and expires in ${days} days. It is only for ${email}.`;
+  const text = [`Hi ${name},`, '', intro, '', `${cta}:`, link, '', note].join('\n');
   const html = `<div style="font-family:Inter,Arial,sans-serif;font-size:15px;line-height:1.5;color:#111318">
 <p>Hi ${escapeHtml(name)},</p>
 <p>${escapeHtml(intro)}</p>
-<p><a href="${escapeHtml(appUrl)}/login">Sign in to Fynix Sales</a></p>
-<p>Email: <b>${escapeHtml(email)}</b><br>Temporary password: <b style="font-family:monospace">${escapeHtml(password)}</b></p>
-<p style="color:#6a7280">You will be asked to choose your own password the first time you sign in.</p></div>`;
+<p><a href="${escapeHtml(link)}" style="display:inline-block;background:#0d1f16;color:#fff;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:600">${escapeHtml(cta)}</a></p>
+<p style="color:#6a7280">${escapeHtml(note)}</p></div>`;
   return { to: email, subject, text, html };
 }

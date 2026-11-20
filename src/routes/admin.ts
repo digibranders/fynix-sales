@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { AppContext } from '../app.js';
 import type { SessionUser } from '../auth.js';
-import { destroyUserSessions, generatePassword, hashPassword } from '../auth.js';
+import { INVITE_DAYS, NO_PASSWORD, createInvite, destroyUserSessions } from '../auth.js';
 import type { Category, Db, Metric } from '../db.js';
 import { CATEGORIES, METRICS, all, inClause, insertMany, newId, one, run, tx } from '../db.js';
 import {
@@ -558,19 +558,18 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     if (isSales && !body.category) throw new HttpError(400, 'invalid_request', 'Choose Scale or Reach for a salesperson.');
     const userCategory = isSales ? (body.category ?? null) : null;
     const workspaceIds = isSales ? unique(body.workspaceIds) : [];
-    const password = generatePassword();
-    const passwordHash = await hashPassword(password);
     const id = newId();
     await tx(db, async (db) => {
       if (await one(db, 'SELECT 1 AS x FROM users WHERE email = ?', [body.email])) {
         throw new HttpError(409, 'duplicate', 'Someone with that email already has an account.');
       }
       if (userCategory) await checkUserWorkspaces(db, userCategory, workspaceIds);
-      await run(db, 'INSERT INTO users (id, name, email, password_hash, role, category, active, must_change_password, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?)', [
+      // No password yet: the person chooses their own through the invite link.
+      await run(db, 'INSERT INTO users (id, name, email, password_hash, role, category, active, must_change_password, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, 0, ?)', [
         id,
         body.name,
         body.email,
-        passwordHash,
+        NO_PASSWORD,
         body.role,
         userCategory,
         Date.now(),
@@ -578,11 +577,13 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       for (const workspaceId of workspaceIds) await run(db, 'INSERT INTO workspace_members (workspace_id, user_id) VALUES (?, ?)', [workspaceId, id]);
       await logActivity(db, userCategory, `${me.name} invited ${body.name}`, isSales && userCategory ? CATEGORY_INFO[userCategory].name : 'Superadmin');
     });
+    const invite = await createInvite(db, id);
+    const inviteUrl = `${config.appUrl}/invite/${invite.token}`;
     const emailed = await mailer.send(
-      inviteEmail({ name: body.name, email: body.email, invitedBy: me.name, password, appUrl: config.appUrl, reset: false }),
+      inviteEmail({ name: body.name, email: body.email, invitedBy: me.name, link: inviteUrl, reset: false, days: INVITE_DAYS }),
     );
     reply.status(201);
-    return emailed ? { id, emailed } : { id, emailed, temporaryPassword: password };
+    return { id, emailed, inviteUrl, expiresAt: invite.expiresAt };
   });
 
   app.patch<{ Params: { id: string } }>('/api/admin/users/:id', async (request) => {
@@ -617,18 +618,18 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     return { ok: true };
   });
 
-  app.post<{ Params: { id: string } }>('/api/admin/users/:id/reset-password', async (request) => {
+  /** A fresh one-time link for someone who has not signed up yet, or who needs a new password. The old link stops working. */
+  app.post<{ Params: { id: string } }>('/api/admin/users/:id/invite', async (request) => {
     const me = superadmin(request);
     const user = await one<UserRow>(db, 'SELECT id, name, email, role, category, active, last_login_at FROM users WHERE id = ?', [request.params.id]);
     if (!user) throw new HttpError(404, 'not_found', 'That person does not exist.');
-    if (user.id === me.id) throw new HttpError(400, 'invalid_request', 'Change your own password from the sign-in page.');
-    const password = generatePassword();
-    await run(db, 'UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?', [await hashPassword(password), user.id]);
-    await destroyUserSessions(db, user.id);
-    const emailed = await mailer.send(
-      inviteEmail({ name: user.name, email: user.email, invitedBy: me.name, password, appUrl: config.appUrl, reset: true }),
-    );
-    return emailed ? { emailed } : { emailed, temporaryPassword: password };
+    if (user.id === me.id) throw new HttpError(400, 'invalid_request', 'Ask another superadmin for a link to change your own password.');
+    if (user.active !== 1) throw new HttpError(409, 'inactive', `${user.name} is deactivated. Reactivate them first.`);
+    const invite = await createInvite(db, user.id);
+    const inviteUrl = `${config.appUrl}/invite/${invite.token}`;
+    const reset = user.last_login_at !== null;
+    const emailed = await mailer.send(inviteEmail({ name: user.name, email: user.email, invitedBy: me.name, link: inviteUrl, reset, days: INVITE_DAYS }));
+    return { emailed, inviteUrl, expiresAt: invite.expiresAt, reset };
   });
 
   app.put('/api/admin/targets', async (request) => {
