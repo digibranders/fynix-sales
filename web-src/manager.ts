@@ -169,50 +169,63 @@ function vVerifyModal(): string {
   } else if (!items || items.length === 0) {
     body = '<div class="empty"><b>No closed claims found</b>' + esc(u.name) + ' has no claimed closed leads to verify this month.</div>';
   } else {
-    body = '<div class="vm-list">' +
-      items.map((item) => {
+    body =
+      '<table class="vtable">' +
+      '<thead><tr>' +
+      '<th class="td-num">#</th>' +
+      '<th>Lead / Store</th>' +
+      '<th>Salesperson Note</th>' +
+      '<th>Status</th>' +
+      '<th>Manager Action</th>' +
+      '<th>Manager Reason / Note</th>' +
+      '</tr></thead>' +
+      '<tbody>' +
+      items.map((item, i) => {
         const isTrue = item.verified === 1;
         const isFalse = item.verified === 2;
+        const rowClass = isTrue ? ' row-verified' : isFalse ? ' row-rejected' : '';
         const badge = isTrue
-          ? '<span class="v-pill v-pill-true"><svg viewBox="0 0 10 8" class="v-mb-ic" aria-hidden="true"><path d="M1 4l2.5 2.5L9 1"/></svg>Verified</span>'
+          ? '<span class="v-lead-badge v-lead-true"><svg viewBox="0 0 10 8" class="v-mb-ic" aria-hidden="true"><path d="M1 4l2.5 2.5L9 1"/></svg>Verified</span>'
           : isFalse
-            ? '<span class="v-pill v-pill-false"><svg viewBox="0 0 8 8" class="v-mb-ic" aria-hidden="true"><path d="M1 1l6 6M7 1L1 7"/></svg>Rejected</span>'
-            : '<span class="v-pill v-pill-pending"><svg viewBox="0 0 8 8" class="v-mb-ic" aria-hidden="true"><circle cx="4" cy="4" r="3"/></svg>Pending Review</span>';
+            ? '<span class="v-lead-badge v-lead-false"><svg viewBox="0 0 8 8" class="v-mb-ic" aria-hidden="true"><path d="M1 1l6 6M7 1L1 7"/></svg>Rejected</span>'
+            : '<span class="v-lead-badge v-lead-pending"><svg viewBox="0 0 8 8" class="v-mb-ic" aria-hidden="true"><circle cx="4" cy="4" r="3"/></svg>Pending</span>';
         const subTxt = [item.leadCompany, item.leadArea || item.leadCity, item.leadPhone].filter(Boolean).join(' · ');
         const isEditingStage = S.editingClaimId === item.id;
-        const stageSelect = isEditingStage ? (
-          '<div class="vm-stage-edit">' +
-          '<label class="fl">Change stage:</label>' +
-          '<select class="inp sm vm-stage-sel" data-stage-sel="' + item.id + '">' +
-          ['Won', 'Negotiation', 'Meeting', 'Interested', 'Contacted', 'Lost'].map((st) => '<option value="' + st + '"' + (st === item.status ? ' selected' : '') + '>' + st + '</option>').join('') +
-          '</select>' +
-          '<button type="button" class="btn sm dark" data-save-stage="' + item.id + '">Save</button>' +
-          '<button type="button" class="btn sm" data-cancel-stage>Cancel</button>' +
-          '</div>'
-        ) : '';
+        const stageControl = isEditingStage
+          ? '<div class="vm-stage-edit">' +
+            '<select class="inp sm vm-stage-sel" data-stage-sel="' + item.id + '">' +
+            ['Won', 'Negotiation', 'Meeting', 'Interested', 'Contacted', 'Lost'].map((st) => '<option value="' + st + '"' + (st === item.status ? ' selected' : '') + '>' + st + '</option>').join('') +
+            '</select>' +
+            '<button type="button" class="btn sm dark" data-save-stage="' + item.id + '">Save</button>' +
+            '<button type="button" class="btn sm" data-cancel-stage aria-label="Cancel">✕</button>' +
+            '</div>'
+          : '<button type="button" class="stage-pill-btn" data-toggle-stage="' + item.id + '">Stage: ' + esc(item.status) + ' ▾</button>';
 
         return (
-          '<div class="vm-card' + (isTrue ? ' is-true' : isFalse ? ' is-false' : '') + '" data-card-cid="' + item.id + '">' +
-          '<div class="vm-card-top">' +
-          '<div><b class="vm-lead-name">' + esc(item.leadName) + '</b><span class="vm-svc-chip">' + esc(item.workspaceName) + '</span>' + (item.workspaceCategory ? ct(item.workspaceCategory) : '') + '</div>' +
-          badge +
+          '<tr class="' + rowClass + '" data-card-cid="' + item.id + '">' +
+          '<td class="td-num">' + (i + 1) + '</td>' +
+          '<td class="lead-col">' +
+          '<div class="lead-name">' + esc(item.leadName) + '<span class="tag-chip">' + esc(item.workspaceName) + '</span>' + (item.workspaceCategory ? ct(item.workspaceCategory) : '') + '</div>' +
+          (subTxt ? '<div class="lead-sub">' + esc(subTxt) + '</div>' : '') +
+          '</td>' +
+          '<td class="note-col">' +
+          (item.latestNote ? '<div class="sales-note-box">' + esc(item.latestNote) + '</div>' : '<span class="muted" style="font-size:12px">None</span>') +
+          '</td>' +
+          '<td class="status-col">' + badge + '</td>' +
+          '<td class="actions-col">' +
+          '<div class="act-toggle-grp">' +
+          '<button type="button" class="act-tbtn' + (isTrue ? ' is-true' : '') + '" data-verify-act="1" data-cid="' + item.id + '" title="Mark as Verified">✓ True</button>' +
+          '<button type="button" class="act-tbtn' + (isFalse ? ' is-false' : '') + '" data-verify-act="2" data-cid="' + item.id + '" title="Mark as Rejected">✕ False</button>' +
           '</div>' +
-          (subTxt ? '<div class="vm-sub">' + esc(subTxt) + '</div>' : '') +
-          (item.latestNote ? '<div class="vm-note"><span class="k">Sales note:</span> ' + esc(item.latestNote) + '</div>' : '') +
-          (item.verificationNote ? '<div class="vm-vnote"><span class="k">Manager note:</span> ' + esc(item.verificationNote) + '</div>' : '') +
-          stageSelect +
-          '<div class="vm-actions">' +
-          '<div class="vm-btns">' +
-          '<button type="button" class="btn sm v-act-btn v-act-true' + (isTrue ? ' on' : '') + '" data-verify-act="1" data-cid="' + item.id + '">✓ True (Verify)</button>' +
-          '<button type="button" class="btn sm v-act-btn v-act-false' + (isFalse ? ' on' : '') + '" data-verify-act="2" data-cid="' + item.id + '">✕ False (Reject)</button>' +
-          '<button type="button" class="btn sm v-act-btn" data-toggle-stage="' + item.id + '">✎ Edit Stage</button>' +
-          '</div>' +
-          '<div class="vm-note-box"><input type="text" class="inp sm vm-note-inp" placeholder="Verification note / reason (optional)" data-note-cid="' + item.id + '" value="' + esc(item.verificationNote || '') + '"></div>' +
-          '</div>' +
-          '</div>'
+          '<div>' + stageControl + '</div>' +
+          '</td>' +
+          '<td class="mgr-note-col">' +
+          '<input type="text" class="mgr-inp" placeholder="Optional reason / note..." data-note-cid="' + item.id + '" value="' + esc(item.verificationNote || '') + '">' +
+          '</td>' +
+          '</tr>'
         );
       }).join('') +
-      '</div>';
+      '</tbody></table>';
   }
 
   return (

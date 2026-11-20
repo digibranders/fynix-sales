@@ -29,6 +29,20 @@ if (dayEl) {
   dayEl.textContent = days[new Date().getDay()] ?? 'Today';
 }
 
+// Shimmer runs on first visit only; subsequent visits skip to resting state
+try {
+  const titleEl = document.querySelector('.welcome-title');
+  if (titleEl) {
+    if (sessionStorage.getItem('fynix_shimmer_seen')) {
+      titleEl.classList.add('shimmer-done');
+    } else {
+      sessionStorage.setItem('fynix_shimmer_seen', '1');
+    }
+  }
+} catch {
+  // Ignore in sandboxed / private environments
+}
+
 const signin = el<HTMLFormElement>('signin');
 const change = el<HTMLFormElement>('change');
 

@@ -40,6 +40,15 @@ getJson<InviteInfo>(endpoint)
     isReset = info.reset;
     const first = info.name.split(' ')[0] || 'there';
     el('h').textContent = isReset ? 'Choose a new password' : `Welcome, ${first}`;
+    try {
+      if (sessionStorage.getItem('fynix_shimmer_seen')) {
+        el('h').classList.add('shimmer-done');
+      } else {
+        sessionStorage.setItem('fynix_shimmer_seen', '1');
+      }
+    } catch {
+      // Ignore in sandboxed / private environments
+    }
     el('sub').textContent = isReset ? 'Set a new password for your account.' : 'Choose a password to finish setting up your account.';
     el('go').textContent = submitLabel();
     el<HTMLInputElement>('email').value = info.email;
