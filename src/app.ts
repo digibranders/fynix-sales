@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ZodError } from 'zod';
 import type { Config } from './config.js';
@@ -56,10 +57,6 @@ export async function buildApp(db: Db, config: Config, mailer: Mailer = createMa
     root: path.join(config.webDir, 'assets'),
     prefix: '/assets/',
     maxAge: config.production ? '1h' : 0,
-    // Compiled page scripts are revalidated on every load, so a new release never runs against old code.
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.js') || filePath.endsWith('.js.map')) res.header('Cache-Control', 'no-cache');
-    },
   });
 
   app.decorateRequest('user', null);
@@ -102,6 +99,18 @@ export async function buildApp(db: Db, config: Config, mailer: Mailer = createMa
     return reply.status(404).type('text/plain').send('Not found');
   });
 
+  // Page scripts load from a folder named after this release. Browsers and the CDN keep each release's files for
+  // a long time, and a new release gets new addresses, so nobody ever runs a page against scripts from another release.
+  const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+  const release = Date.now().toString(36);
+  const scriptRoot = path.join(config.webDir, 'assets', 'js');
+  const pageHtml = async (file: string): Promise<string> =>
+    (await readFile(path.join(config.webDir, file), 'utf8')).replaceAll('/assets/js/', `/assets/js-${release}/`);
+
+  app.get<{ Params: { '*': string } }>('/assets/js-:release/*', async (request, reply) => {
+    return reply.sendFile(request.params['*'], scriptRoot, { maxAge: ONE_YEAR_MS, immutable: true });
+  });
+
   const page = (file: string, roles: SessionUser['role'][] | null) => async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user;
     if (roles !== null) {
@@ -111,7 +120,7 @@ export async function buildApp(db: Db, config: Config, mailer: Mailer = createMa
       return reply.redirect(homeFor(user));
     }
     reply.header('Cache-Control', 'no-store');
-    return reply.type('text/html; charset=utf-8').sendFile(file, config.webDir);
+    return reply.type('text/html; charset=utf-8').send(await pageHtml(file));
   };
 
   app.get('/', async (request, reply) => {
@@ -124,7 +133,7 @@ export async function buildApp(db: Db, config: Config, mailer: Mailer = createMa
   app.get<{ Params: { token: string } }>('/invite/:token', async (_request, reply) => {
     reply.header('Cache-Control', 'no-store');
     reply.header('X-Robots-Tag', 'noindex');
-    return reply.type('text/html; charset=utf-8').sendFile('invite.html', config.webDir);
+    return reply.type('text/html; charset=utf-8').send(await pageHtml('invite.html'));
   });
   app.get('/health', async () => ({ ok: true }));
 
