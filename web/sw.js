@@ -1,10 +1,14 @@
-const CACHE_VERSION = 'fynix-v1';
+// Fynix Sales service worker.
+//
+// It keeps only public files (icons, styles, scripts, the offline page) so the app opens quickly and shows a friendly
+// page when there is no connection. It never stores a page or a response that belongs to a signed-in person: pages and
+// data always come straight from the network, so nothing private can be left behind in the browser after sign-out.
+
+const CACHE_VERSION = 'fynix-v2';
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
-const DYNAMIC_CACHE = `dynamic-${CACHE_VERSION}`;
+const MAX_STATIC_ENTRIES = 150;
 
 const PRECACHE_ASSETS = [
-  '/',
-  '/login',
   '/offline.html',
   '/manifest.json',
   '/assets/icons/icon-192.png',
@@ -12,49 +16,33 @@ const PRECACHE_ASSETS = [
   '/assets/icons/apple-touch-icon.png',
   '/assets/icons/favicon.svg',
   '/assets/icons/favicon-32x32.png',
-  '/assets/img/fynix-logo.svg',
   '/assets/img/fynix-white-logo.svg',
   '/assets/gbc.json',
-  '/assets/css/sales.css',
-  '/assets/css/admin.css',
-  '/assets/css/auth.css',
 ];
 
 // ─── Install ────────────────────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE).then(async (cache) => {
-      // Precache assets individually to avoid failing install if one resource is missing
+      // One missing file must not stop the worker from installing.
       await Promise.allSettled(
         PRECACHE_ASSETS.map(async (url) => {
-          try {
-            const res = await fetch(url, { cache: 'no-cache' });
-            if (res.ok) {
-              await cache.put(url, res);
-            }
-          } catch (e) {
-            console.warn('[SW] Could not precache:', url, e);
-          }
-        })
+          const res = await fetch(url, { cache: 'no-cache' });
+          if (res.ok) await cache.put(url, res);
+        }),
       );
-    })
+    }),
   );
   self.skipWaiting();
 });
 
 // ─── Activate ───────────────────────────────────────────────────────────────
+// Every cache from an older version is deleted. This also clears the pages and data that version 1 used to keep.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== STATIC_CACHE && key !== DYNAMIC_CACHE)
-          .map((key) => {
-            console.log('[SW] Removing old cache:', key);
-            return caches.delete(key);
-          })
-      )
-    )
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((key) => key !== STATIC_CACHE).map((key) => caches.delete(key)))),
   );
   self.clients.claim();
 });
@@ -62,97 +50,54 @@ self.addEventListener('activate', (event) => {
 // ─── Fetch ──────────────────────────────────────────────────────────────────
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-
-  // Only intercept GET requests
   if (request.method !== 'GET') return;
-
   const url = new URL(request.url);
 
-  // Strategy A: HTML Page Navigations -> Network-First, fallback to Cache / offline.html
-  if (request.mode === 'navigate' || request.headers.get('Accept')?.includes('text/html')) {
-    event.respondWith(handleNavigation(request));
+  // Pages: always the network. Only when there is no connection is the offline page shown. Pages are never stored.
+  if (request.mode === 'navigate') {
+    event.respondWith(fetch(request).catch(offlineResponse));
     return;
   }
 
-  // Strategy B: Static Assets (JS, CSS, Images, Fonts, Icons, JSON) -> Cache-First
-  const isStatic =
-    url.pathname.startsWith('/assets/') ||
-    url.pathname === '/manifest.json' ||
+  // Data (/api/): not touched at all, so the server's "never store this" instructions apply.
+  if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) return;
+
+  // Public files: from the cache when we have them, otherwise fetched and kept.
+  const isPublicFile =
+    (url.origin === self.location.origin && (url.pathname.startsWith('/assets/') || url.pathname === '/manifest.json')) ||
     url.hostname === 'fonts.googleapis.com' ||
-    url.hostname === 'fonts.gstatic.com' ||
-    /\.(?:css|js|svg|png|jpg|jpeg|ico|woff2?|json)$/i.test(url.pathname);
-
-  if (isStatic) {
-    event.respondWith(handleCacheFirst(request));
-    return;
-  }
-
-  // Strategy C: GET API requests -> Network-First with cache fallback
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(handleApiRequest(request));
-    return;
+    url.hostname === 'fonts.gstatic.com';
+  if (isPublicFile) {
+    event.respondWith(cacheFirst(request));
   }
 });
 
-// ─── Handlers ───────────────────────────────────────────────────────────────
-async function handleNavigation(request) {
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse && networkResponse.status === 200) {
-      const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, networkResponse.clone());
-    }
-    return networkResponse;
-  } catch (error) {
-    console.log('[SW] Navigation failed, attempting offline fallback:', request.url);
-    const cached = await caches.match(request);
-    if (cached) return cached;
-    const offlinePage = await caches.match('/offline.html');
-    if (offlinePage) return offlinePage;
-    return new Response('You are offline. Please reconnect to access Fynix Sales.', {
+async function offlineResponse() {
+  const page = await caches.match('/offline.html');
+  return (
+    page ||
+    new Response('You are offline. Please reconnect to use Fynix Sales.', {
       status: 503,
       headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-    });
-  }
+    })
+  );
 }
 
-async function handleCacheFirst(request) {
+async function cacheFirst(request) {
   const cached = await caches.match(request);
   if (cached) return cached;
-
-  try {
-    const response = await fetch(request);
-    if (response && (response.status === 200 || response.type === 'opaque')) {
-      const cache = await caches.open(STATIC_CACHE);
-      cache.put(request, response.clone());
-    }
-    return response;
-  } catch (error) {
-    // If static request fails and not cached, return 503
-    return new Response('Asset unavailable offline', { status: 503 });
+  const response = await fetch(request);
+  if (response && (response.ok || response.type === 'opaque')) {
+    const cache = await caches.open(STATIC_CACHE);
+    await cache.put(request, response.clone());
+    await trim(cache);
   }
+  return response;
 }
 
-async function handleApiRequest(request) {
-  try {
-    const response = await fetch(request);
-    if (response && response.status === 200) {
-      const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, response.clone());
-    }
-    return response;
-  } catch (error) {
-    const cached = await caches.match(request);
-    if (cached) return cached;
-    return new Response(
-      JSON.stringify({
-        error: 'offline',
-        message: 'You are currently offline. Please reconnect to continue.',
-      }),
-      {
-        status: 503,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
-  }
+/** Old release files pile up, so the oldest entries are dropped once the cache is over its limit. */
+async function trim(cache) {
+  const keys = await cache.keys();
+  const extra = keys.length - MAX_STATIC_ENTRIES;
+  for (let i = 0; i < extra; i += 1) await cache.delete(keys[i]);
 }

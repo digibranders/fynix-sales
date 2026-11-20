@@ -21,7 +21,7 @@ const STAGE_COLUMNS = [
   ['Interested', 'Interested'],
   ['Meetings', 'Meeting'],
   ['Negotiation', 'Negotiation'],
-  ['Won', 'Won'],
+  ['Closed', 'Won'],
   ['Lost', 'Lost'],
 ] as const;
 

@@ -90,7 +90,7 @@ describe('monthly report', () => {
     assert.match(String(res.headers['content-disposition']), new RegExp(`fynix-sales-report-${month}-scale\\.csv`));
 
     const rows = parseCsv(res.body);
-    assert.deepEqual(rows[0], ['Month', 'Category', 'Service', 'Salesperson', 'Assigned', 'Contacted', 'Interested', 'Meetings', 'Negotiation', 'Won', 'Lost', 'Open now']);
+    assert.deepEqual(rows[0], ['Month', 'Category', 'Service', 'Salesperson', 'Assigned', 'Contacted', 'Interested', 'Meetings', 'Negotiation', 'Closed', 'Lost', 'Open now']);
     const priyaWebsite = rows.find((r) => r[2] === 'Website' && r[3] === 'Priya Sharma');
     // assigned 2, contacted 2 (A left New, B went straight to Lost), won 1, lost 1, nothing left open
     assert.deepEqual(priyaWebsite?.slice(4), ['2', '2', '0', '0', '0', '1', '1', '0']);
