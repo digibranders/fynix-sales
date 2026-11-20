@@ -1194,10 +1194,10 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
         const acts = hasAct ? '<span class="act2">' + (dg ? '<a class="a2" href="tel:+' + dg + '" aria-label="Call ' + esc(toTitleCase(l.name)) + '">' + tileOf('call') + '</a>' : '') + (wl ? '<a class="a2" href="' + esc(wl) + '" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp ' + esc(toTitleCase(l.name)) + '">' + tileOf('whatsapp') + '</a>' : '') + '</span>' : '';
         const vBadge = w.status === 'Won'
           ? (w.verified === 1
-              ? '<span class="v-lead-badge v-lead-true" title="Verified by Manager">✓ Verified</span>'
+              ? '<span class="v-lead-badge v-lead-true" title="Verified by Manager"><svg viewBox="0 0 10 8" class="v-mb-ic" aria-hidden="true"><path d="M1 4l2.5 2.5L9 1"/></svg>Verified</span>'
               : w.verified === 2
-                ? '<span class="v-lead-badge v-lead-false" title="Marked as False / Rejected by Manager">✕ Rejected</span>'
-                : '<span class="v-lead-badge v-lead-pending" title="Pending Manager Verification">⏳ Pending</span>')
+                ? '<span class="v-lead-badge v-lead-false" title="Rejected by Manager"><svg viewBox="0 0 8 8" class="v-mb-ic" aria-hidden="true"><path d="M1 1l6 6M7 1L1 7"/></svg>Rejected</span>'
+                : '<span class="v-lead-badge v-lead-pending" title="Awaiting Manager Verification"><svg viewBox="0 0 8 8" class="v-mb-ic" aria-hidden="true"><circle cx="4" cy="4" r="3"/></svg>Pending</span>')
           : '';
         return '<div class="item-wrap' + (hasAct ? ' has-act' : '') + (closed ? ' closed-item' : '') + '"><button class="item" role="listitem" data-pick="' + l.id + '" aria-current="' + (l.id === state.selected) + '"><span class="no num">' + n + '</span>' +
           '<span class="name">' + esc(toTitleCase(l.name)) + vBadge + '</span><span class="m-sub">' + subTxt + '</span><span class="st">' + assignedStagePreview(w) + '</span><span class="stgt" aria-label="Current stage is ' + esc(SL(w.status)) + '">' + assignedStagePreview(w) + '</span>' + fu + '<span class="last">' + esc(ucfirst(agoText(w.last))) + '</span></button>' + acts + '</div>';
@@ -1523,10 +1523,27 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     const detailSub = isScale() ? (esc([jobTitleOf(l), l.company].filter(Boolean).join(' · ') || l.city)) : esc(l.area || l.city);
     const vBanner = w.status === 'Won' ? (
       w.verified === 1
-        ? '<div class="v-banner v-banner-true"><span class="v-bicon">✓</span><div><b>Verified Closed Deal</b><span>Verified by manager.' + (w.verificationNote ? ' Note: ' + esc(w.verificationNote) : '') + '</span></div></div>'
+        ? '<div class="v-status-card v-status-true">' +
+          '<div class="v-sc-head">' +
+            '<span class="v-sc-badge"><svg viewBox="0 0 10 8" class="v-sc-ic" aria-hidden="true"><path d="M1 4l2.5 2.5L9 1"/></svg>Verified Closed Deal</span>' +
+            '<span class="v-sc-by">by manager</span>' +
+          '</div>' +
+          (w.verificationNote ? '<div class="v-sc-note">' + esc(w.verificationNote) + '</div>' : '') +
+          '</div>'
         : w.verified === 2
-          ? '<div class="v-banner v-banner-false"><span class="v-bicon">✕</span><div><b>Rejected / Unverified</b><span>Manager marked this claim as false / rejected.' + (w.verificationNote ? ' Reason: ' + esc(w.verificationNote) : '') + '</span></div></div>'
-          : '<div class="v-banner v-banner-pending"><span class="v-bicon">⏳</span><div><b>Pending Manager Verification</b><span>Claimed as closed; awaiting manager review.</span></div></div>'
+          ? '<div class="v-status-card v-status-false">' +
+            '<div class="v-sc-head">' +
+              '<span class="v-sc-badge"><svg viewBox="0 0 8 8" class="v-sc-ic" aria-hidden="true"><path d="M1 1l6 6M7 1L1 7"/></svg>Rejected / Unverified</span>' +
+              '<span class="v-sc-by">by manager</span>' +
+            '</div>' +
+            '<div class="v-sc-note">' + (w.verificationNote ? esc(w.verificationNote) : 'Manager marked this deal as unverified.') + '</div>' +
+            '</div>'
+          : '<div class="v-status-card v-status-pending">' +
+            '<div class="v-sc-head">' +
+              '<span class="v-sc-badge"><svg viewBox="0 0 8 8" class="v-sc-ic" aria-hidden="true"><circle cx="4" cy="4" r="3"/></svg>Pending Manager Verification</span>' +
+            '</div>' +
+            '<div class="v-sc-note">Claimed as closed · awaiting review</div>' +
+            '</div>'
     ) : '';
     return '<div class="detail">' +
       '<button type="button" class="drawer-x" data-back aria-label="Close panel">×</button>' +
