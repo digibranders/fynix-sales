@@ -56,6 +56,10 @@ export async function buildApp(db: Db, config: Config, mailer: Mailer = createMa
     root: path.join(config.webDir, 'assets'),
     prefix: '/assets/',
     maxAge: config.production ? '1h' : 0,
+    // Compiled page scripts are revalidated on every load, so a new release never runs against old code.
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.js') || filePath.endsWith('.js.map')) res.header('Cache-Control', 'no-cache');
+    },
   });
 
   app.decorateRequest('user', null);
