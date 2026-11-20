@@ -109,12 +109,26 @@ export function createMailer(config: Config): Mailer {
   return new DisabledMailer();
 }
 
-export function inviteEmail(opts: { name: string; email: string; invitedBy: string; link: string; reset: boolean; days: number }): MailMessage {
-  const { name, email, invitedBy, link, reset, days } = opts;
-  const subject = reset ? 'Choose a new Fynix Sales password' : `${invitedBy} invited you to Fynix Sales`;
-  const intro = reset ? `${invitedBy} sent you a link to choose a new Fynix Sales password.` : `${invitedBy} added you to Fynix Sales.`;
-  const cta = reset ? 'Choose a new password' : 'Set your password and get started';
-  const note = `This link works once and expires in ${days} days. It is only for ${email}.`;
+export function inviteEmail(opts: {
+  name: string;
+  email: string;
+  invitedBy: string;
+  link: string;
+  reset: boolean;
+  days: number;
+  /** The person asked for this link themselves from the sign-in page, so nobody invited them. */
+  selfRequested?: boolean;
+}): MailMessage {
+  const { name, email, invitedBy, link, reset, days, selfRequested = false } = opts;
+  const subject = selfRequested ? 'Reset your Fynix Sales password' : reset ? 'Choose a new Fynix Sales password' : `${invitedBy} invited you to Fynix Sales`;
+  const intro = selfRequested
+    ? 'We got a request to reset the password for your Fynix Sales account. If it was you, choose a new password below.'
+    : reset
+      ? `${invitedBy} sent you a link to choose a new Fynix Sales password.`
+      : `${invitedBy} added you to Fynix Sales.`;
+  const cta = selfRequested || reset ? 'Choose a new password' : 'Set your password and get started';
+  const ignore = selfRequested ? ' If you did not ask for this, ignore this email and your password stays the same.' : '';
+  const note = `This link works once and expires in ${days} days. It is only for ${email}.${ignore}`;
   const text = [`Hi ${name},`, '', intro, '', `${cta}:`, link, '', note].join('\n');
 
   const origin = ((): string => {
@@ -192,7 +206,7 @@ export function inviteEmail(opts: { name: string; email: string; invitedBy: stri
 
               <!-- Expiration Note -->
               <div class="email-note" style="border-top: 1px solid #f1f5f9; padding-top: 18px; font-size: 13px; line-height: 1.5; color: #64748b;">
-                This link works once and expires in <strong class="email-strong" style="color: #0f172a;">${days} days</strong>. It is only for <strong class="email-strong" style="color: #0f172a;">${escapeHtml(email)}</strong>.
+                This link works once and expires in <strong class="email-strong" style="color: #0f172a;">${days} days</strong>. It is only for <strong class="email-strong" style="color: #0f172a;">${escapeHtml(email)}</strong>.${escapeHtml(ignore)}
               </div>
 
               <!-- Fallback Link with Copy Icon on Right -->

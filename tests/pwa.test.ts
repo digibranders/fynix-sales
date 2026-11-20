@@ -69,11 +69,12 @@ describe('pwa support', () => {
     assert.match(csp, /worker-src 'self'/);
   });
 
-  it('includes manifest and apple meta tags in HTML shell', async () => {
+  it('includes manifest and mobile meta tags in HTML shell', async () => {
     const res = await app.inject({ method: 'GET', url: '/login' });
     assert.equal(res.statusCode, 200);
     assert.ok(res.body.includes('rel="manifest"'));
-    assert.ok(res.body.includes('name="apple-mobile-web-app-capable"'));
+    assert.ok(res.body.includes('name="mobile-web-app-capable" content="yes"'));
+    assert.ok(res.body.includes('name="apple-mobile-web-app-capable" content="yes"'));
     assert.ok(res.body.includes('name="theme-color"'));
     assert.ok(res.body.includes('rel="apple-touch-icon"'));
   });

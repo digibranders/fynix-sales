@@ -3,8 +3,10 @@ import { z } from 'zod';
 import type { AppContext } from '../app.js';
 import { homeFor } from '../app.js';
 import {
+  INVITE_DAYS,
   INVITE_TOKEN,
   SESSION_COOKIE,
+  createInvite,
   createSession,
   destroySession,
   destroyUserSessions,
@@ -16,6 +18,7 @@ import {
 import type { Role } from '../auth.js';
 import { all, one, run, tx } from '../db.js';
 import { HttpError, initials } from '../domain.js';
+import { inviteEmail } from '../mailer.js';
 
 const loginBody = z.object({
   email: z.string().trim().toLowerCase().min(3).max(200),
@@ -53,11 +56,12 @@ function setSessionCookie(ctx: AppContext, reply: FastifyReply, token: string, e
   });
 }
 
+const forgotBody = z.object({ email: z.string().trim().toLowerCase().min(3, 'Enter your email address.').max(200) });
 const inviteBody = z.object({ password: z.string().min(10, 'Use at least 10 characters.').max(200) });
 const INVITE_GONE = new HttpError(404, 'invite_invalid', 'This invite link has expired or was already used. Ask your admin for a new one.');
 
 export function registerAuthRoutes(app: FastifyInstance, ctx: AppContext): void {
-  const { db, config, limiter, inviteLimiter } = ctx;
+  const { db, config, limiter, inviteLimiter, forgotIpLimiter, forgotEmailLimiter, mailer } = ctx;
 
   /** What the invite page shows: who the link is for. Tells nothing about anyone else. */
   app.get<{ Params: { token: string } }>('/api/auth/invite/:token', async (request) => {
@@ -69,6 +73,42 @@ export function registerAuthRoutes(app: FastifyInstance, ctx: AppContext): void 
       throw INVITE_GONE;
     }
     return { name: invite.name, email: invite.email, reset: invite.reset, expiresAt: invite.expiresAt };
+  });
+
+  /**
+   * "Forgot password": emails a one-time link to a known, active address. The answer is the same whether or not the
+   * address has an account, and every request counts against the limits, so this cannot be used to find out who has
+   * one or to flood someone's inbox. The email is sent after replying so the response time gives nothing away either.
+   */
+  app.post('/api/auth/forgot', async (request) => {
+    const { email } = forgotBody.parse(request.body);
+    const ipKey = `forgot|${request.ip}`;
+    if (forgotIpLimiter.blocked(ipKey) || forgotEmailLimiter.blocked(email)) {
+      throw new HttpError(429, 'too_many_attempts', 'Too many requests. Wait a while and try again.');
+    }
+    forgotIpLimiter.fail(ipKey);
+    forgotEmailLimiter.fail(email);
+    if (!mailer.enabled) return { ok: true, emailed: false };
+    const user = await one<{ id: string; name: string; email: string; last_login_at: number | null }>(
+      db,
+      'SELECT id, name, email, last_login_at FROM users WHERE email = ? AND active = 1',
+      [email],
+    );
+    if (user) {
+      const invite = await createInvite(db, user.id);
+      void mailer.send(
+        inviteEmail({
+          name: user.name,
+          email: user.email,
+          invitedBy: '',
+          link: `${config.appUrl}/invite/${invite.token}`,
+          reset: user.last_login_at !== null,
+          days: INVITE_DAYS,
+          selfRequested: true,
+        }),
+      );
+    }
+    return { ok: true, emailed: true };
   });
 
   /** Uses the link once: sets the password, ends any older sessions, and signs the person in. */

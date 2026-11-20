@@ -29,6 +29,20 @@ if (dayEl) {
   dayEl.textContent = days[new Date().getDay()] ?? 'Today';
 }
 
+// Shimmer runs on first visit only; subsequent visits skip to resting state
+try {
+  const titleEl = document.querySelector('.welcome-title');
+  if (titleEl) {
+    if (sessionStorage.getItem('fynix_shimmer_seen')) {
+      titleEl.classList.add('shimmer-done');
+    } else {
+      sessionStorage.setItem('fynix_shimmer_seen', '1');
+    }
+  }
+} catch {
+  // Ignore in sandboxed / private environments
+}
+
 const signin = el<HTMLFormElement>('signin');
 const change = el<HTMLFormElement>('change');
 
@@ -38,9 +52,59 @@ function showChange(): void {
   el('next').focus();
 }
 
-el('forgot').addEventListener('click', () => {
-  const note = el('forgot-note');
-  note.hidden = !note.hidden;
+const forgotForm = el<HTMLFormElement>('forgotform');
+const forgotLabel = 'Send reset link';
+
+function showForgot(): void {
+  signin.hidden = true;
+  forgotForm.hidden = false;
+  el('err3').textContent = '';
+  el('forgot-done').hidden = true;
+  busy(el<HTMLButtonElement>('go3'), false, forgotLabel);
+  const field = el<HTMLInputElement>('fe');
+  field.value = el<HTMLInputElement>('email').value.trim();
+  field.focus();
+}
+
+function showSignin(): void {
+  forgotForm.hidden = true;
+  signin.hidden = false;
+  el('email').focus();
+}
+
+el('forgot').addEventListener('click', showForgot);
+el('back-signin').addEventListener('click', showSignin);
+
+interface ForgotResult {
+  ok: boolean;
+  emailed: boolean;
+}
+
+forgotForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const error = el('err3');
+  const done = el('forgot-done');
+  const button = el<HTMLButtonElement>('go3');
+  const email = el<HTMLInputElement>('fe').value.trim();
+  error.textContent = '';
+  done.hidden = true;
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    error.textContent = 'Enter a valid email address.';
+    return;
+  }
+  busy(button, true, forgotLabel);
+  postJson<ForgotResult>('/api/auth/forgot', { email })
+    .then((result) => {
+      done.textContent = result.emailed
+        ? `If there is an account for ${email}, we have emailed it a link to choose a new password. It works once and expires in 7 days. Check your spam folder too.`
+        : 'Email is not set up yet, so we cannot send a link. Ask your superadmin to send you a reset link.';
+      done.hidden = false;
+      busy(button, false, result.emailed ? 'Send again' : forgotLabel);
+    })
+    .catch((failure: unknown) => {
+      busy(button, false, forgotLabel);
+      error.textContent = failure instanceof ApiError ? failure.message : 'Something went wrong. Please try again.';
+    });
 });
 
 // Already signed in: go straight to the right screen (or to the password change if one is pending).
