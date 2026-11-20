@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1e40af">
+<meta name="robots" content="noindex">
 <title>Set your password · Fynix Sales</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,80 +14,101 @@
 <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32x32.png">
 <link rel="icon" href="/favicon.ico" sizes="any">
-<meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/assets/css/invite.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/assets/css/auth.css">
 </head>
 <body>
-<div class="page">
-  <div class="card">
-    <main class="side">
-      <div class="brand"><span class="mark"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h3.5v12H3zM9.5 2H13v7H9.5z"/></svg></span>Fynix Sales</div>
 
-      <div class="panel">
-        <p class="sub" id="loading">Checking your link…</p>
+<div class="split-wrapper">
+  <!-- Left column: the same artwork and quotes as the sign-in page -->
+  <aside class="split-art" aria-label="Brand and Social Proof">
+    <div class="art-brand" aria-label="Fynix Digital">
+      <img src="/assets/img/fynix-white-logo.svg" alt="Fynix Digital" class="fynix-logo-img">
+    </div>
 
-        <form id="accept" novalidate hidden>
-          <h1 id="h">Create your password</h1>
-          <p class="sub" id="sub">Choose a password to finish setting up your account.</p>
+    <div class="art-testimonial">
+      <div class="quote-fader" id="quote-fader">
+        <h2 class="quote-title" id="quote-text">“Every ‘no’ brings you one step closer to a ‘yes.’”</h2>
+        <p class="quote-author" id="quote-author">— Mark Cuban</p>
+      </div>
+    </div>
+  </aside>
 
-          <label class="l" for="email">Email</label>
-          <div class="inp"><input id="email" type="email" readonly tabindex="-1" autocomplete="username"></div>
+  <!-- Right column: choose a password -->
+  <main class="split-form-col">
+    <div class="form-center-box">
+      <p class="invite-loading" id="loading">Checking your link…</p>
 
-          <label class="l" for="pw">Password</label>
-          <div class="inp pw">
-            <input id="pw" type="password" placeholder="At least 10 characters" autocomplete="new-password" minlength="10" enterkeyhint="next" required>
-            <button type="button" class="eye" data-eye="pw" aria-label="Show password" aria-pressed="false">Show</button>
-          </div>
+      <form id="accept" class="auth-form" novalidate hidden>
+        <h1 class="welcome-title" id="h">Create your password</h1>
+        <p class="invite-sub" id="sub" style="text-align:center">Choose a password to finish setting up your account.</p>
 
-          <label class="l" for="again">Repeat password</label>
-          <div class="inp pw">
-            <input id="again" type="password" placeholder="Type it once more" autocomplete="new-password" enterkeyhint="go" required>
-            <button type="button" class="eye" data-eye="again" aria-label="Show password" aria-pressed="false">Show</button>
-          </div>
+        <div class="field-group has-icon">
+          <label class="sr-only" for="email">Email</label>
+          <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <rect width="20" height="16" x="2" y="4" rx="2"/>
+            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+          </svg>
+          <input class="field-input" id="email" type="email" readonly tabindex="-1" autocomplete="username">
+        </div>
 
-          <p class="err" id="err" role="alert"></p>
-          <button class="btn" type="submit" id="go">Create account</button>
-        </form>
+        <div class="field-group has-icon has-eye">
+          <label class="sr-only" for="pw">Password</label>
+          <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <input class="field-input" id="pw" type="password" placeholder="Password (at least 10 characters)" autocomplete="new-password" minlength="10" enterkeyhint="next" required>
+          <button type="button" class="eye" data-eye="pw" aria-label="Show password" aria-pressed="false">
+            <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61M2 2l20 20"/></svg>
+          </button>
+        </div>
 
-        <div id="bad" hidden>
-          <h1>This link can't be used</h1>
-          <p class="sub" id="bad-msg">It has expired or was already used. Ask your admin for a new invite link.</p>
-          <a class="btn go-login" href="/login">Go to sign in</a>
+        <div class="field-group has-icon has-eye">
+          <label class="sr-only" for="again">Repeat password</label>
+          <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <input class="field-input" id="again" type="password" placeholder="Repeat password" autocomplete="new-password" enterkeyhint="go" required>
+          <button type="button" class="eye" data-eye="again" aria-label="Show password" aria-pressed="false">
+            <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61M2 2l20 20"/></svg>
+          </button>
+        </div>
+
+        <p class="err" id="err" role="alert"></p>
+
+        <button class="btn-submit" type="submit" id="go">Create account</button>
+      </form>
+
+      <div id="bad" hidden>
+        <h1 class="welcome-title">This link can't be used</h1>
+        <p class="invite-sub" id="bad-msg" style="text-align:center">It has expired or was already used. Ask your admin for a new invite link.</p>
+        <a class="btn-submit" href="/login">Go to sign in</a>
+      </div>
+
+      <div class="auth-features" aria-label="Key Capabilities">
+        <div class="feature-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+          <span>Track Performance</span>
+        </div>
+        <div class="feature-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Manage Opportunities</span>
+        </div>
+        <div class="feature-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+          <span>Hit Your Targets</span>
         </div>
       </div>
-
-      <p class="foot">sales.fynix.digital</p>
-    </main>
-
-    <section class="art" id="art" aria-label="Sales reminders">
-      <p class="q-text swap" id="q-text"></p>
-      <div class="ctl">
-        <button type="button" class="arrow" id="prev" aria-label="Previous reminder"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
-        <button type="button" class="arrow" id="next-q" aria-label="Next reminder"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
-        <span class="count" id="count">01 / 06</span>
-      </div>
-
-      <div class="scene" aria-hidden="true">
-        <svg viewBox="0 0 520 300" preserveAspectRatio="xMidYMax meet">
-          <circle cx="70" cy="78" r="40" fill="#e5483b"/>
-          <line x1="0" y1="290.5" x2="520" y2="290.5" stroke="rgba(242,239,230,.18)"/>
-          <g class="stair" id="stair"></g>
-          <g stroke-linecap="round">
-            <line x1="485" y1="110" x2="485" y2="54" stroke="#f2efe6" stroke-width="3"/>
-            <path d="M486 54h30l-8 11 8 11h-30z" fill="#e5483b"/>
-          </g>
-          <g class="runner" id="runner" style="transform:translate(65px,250px)">
-            <path d="M0 -24V-11M0 -11L-6 0M0 -11L6 0M-7 -19L7 -23" stroke="#f2efe6" stroke-width="3.5" stroke-linecap="round" fill="none"/>
-            <circle cx="0" cy="-32" r="7" fill="#f2efe6"/>
-          </g>
-        </svg>
-      </div>
-    </section>
-  </div>
+    </div>
+  </main>
 </div>
+
 <script type="module" src="/assets/js/invite.js"></script>
 </body>
 </html>
