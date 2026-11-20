@@ -174,10 +174,10 @@ function vVerifyModal(): string {
         const isTrue = item.verified === 1;
         const isFalse = item.verified === 2;
         const badge = isTrue
-          ? '<span class="v-pill v-pill-true">✓ True (Verified)</span>'
+          ? '<span class="v-pill v-pill-true"><svg viewBox="0 0 10 8" class="v-mb-ic" aria-hidden="true"><path d="M1 4l2.5 2.5L9 1"/></svg>Verified</span>'
           : isFalse
-            ? '<span class="v-pill v-pill-false">✕ False (Rejected)</span>'
-            : '<span class="v-pill v-pill-pending">⏳ Unverified / Pending</span>';
+            ? '<span class="v-pill v-pill-false"><svg viewBox="0 0 8 8" class="v-mb-ic" aria-hidden="true"><path d="M1 1l6 6M7 1L1 7"/></svg>Rejected</span>'
+            : '<span class="v-pill v-pill-pending"><svg viewBox="0 0 8 8" class="v-mb-ic" aria-hidden="true"><circle cx="4" cy="4" r="3"/></svg>Pending Review</span>';
         const subTxt = [item.leadCompany, item.leadArea || item.leadCity, item.leadPhone].filter(Boolean).join(' · ');
         const isEditingStage = S.editingClaimId === item.id;
         const stageSelect = isEditingStage ? (
