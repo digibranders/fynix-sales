@@ -1,7 +1,7 @@
 import { ApiError, getJson, postJson } from './shared/api.js';
 import { busy, el } from './shared/dom.js';
 import { wirePasswordToggles } from './shared/password.js';
-import { startQuotes } from './shared/quotes.js';
+import { initMotivationQuotes } from './shared/auth-art.js';
 import { initPwa } from './shared/pwa.js';
 
 initPwa();
@@ -16,7 +16,7 @@ interface Redirect {
   redirect: string;
 }
 
-startQuotes();
+initMotivationQuotes();
 wirePasswordToggles();
 
 const token = decodeURIComponent(window.location.pathname.split('/').filter(Boolean).pop() ?? '');

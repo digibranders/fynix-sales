@@ -17,7 +17,7 @@ const PRECACHE_ASSETS = [
   '/assets/gbc.json',
   '/assets/css/sales.css',
   '/assets/css/admin.css',
-  '/assets/css/invite.css',
+  '/assets/css/auth.css',
 ];
 
 // ─── Install ────────────────────────────────────────────────────────────────

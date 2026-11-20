@@ -1,0 +1,461 @@
+/* Shared look for the sign-in and invite pages: split layout with the gradient artwork on the left. */
+:root{
+  --font-main: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --bg-page: #ffffff;
+  --ink-primary: #0f172a;
+  --ink-secondary: #64748b;
+  --ink-muted: #94a3b8;
+  --border-field: #e2e8f0;
+  --border-focus: #4361ee;
+  --btn-blue: #4361ee;
+  --btn-blue-hover: #3451db;
+  --btn-blue-active: #2742c4;
+  --err-color: #ef4444;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  min-height: 100%;
+  height: 100%;
+  font-family: var(--font-main);
+  background: var(--bg-page);
+  color: var(--ink-primary);
+  -webkit-font-smoothing: antialiased;
+}
+[hidden]{display:none!important}
+button,input{font:inherit}
+
+/* Main Split Layout */
+.split-wrapper{
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* =========================================================
+   LEFT SIDE - Modern SaaS Fluid Gradient Art
+   ========================================================= */
+.split-art{
+  flex: 0 0 42%;
+  max-width: 42%;
+  position: relative;
+  background: #0937e8 url('/assets/img/login-fluid-bg.jpg') center center / cover no-repeat;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 48px 56px;
+  overflow: hidden;
+}
+/* Subtle ambient radial highlights for glow */
+.split-art::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.25) 0%, transparent 50%),
+              radial-gradient(circle at 80% 40%, rgba(236, 72, 153, 0.22) 0%, transparent 45%);
+  pointer-events: none;
+}
+
+/* Brand Logo (Top-Left) */
+.art-brand{
+  position: absolute;
+  top: 48px;
+  left: 56px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  user-select: none;
+}
+.fynix-logo-img{
+  height: 38px;
+  width: auto;
+  display: block;
+}
+
+/* Testimonial & Rating (Centered) */
+.art-testimonial{
+  position: relative;
+  z-index: 2;
+  max-width: 440px;
+  text-align: center;
+}
+.quote-fader{
+  transition: opacity .35s ease, transform .35s ease;
+  will-change: opacity, transform;
+}
+.quote-fader.fading{
+  opacity: 0;
+  transform: translateY(6px);
+}
+.quote-title{
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+  margin-bottom: 12px;
+  color: #ffffff;
+}
+.quote-author{
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.01em;
+}
+
+/* =========================================================
+   RIGHT SIDE - Pure SaaS Form
+   ========================================================= */
+.split-form-col{
+  flex: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 48px 40px;
+  background: #ffffff;
+}
+
+/* Main Form Center Container */
+.form-center-box{
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+
+/* Greeting Headline */
+.welcome-title{
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--ink-primary);
+  margin-bottom: 24px;
+  line-height: 1.2;
+}
+
+/* Form Styles */
+.auth-form{
+  text-align: left;
+}
+.field-group{
+  margin-bottom: 14px;
+  position: relative;
+}
+.field-icon{
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: #94a3b8;
+  pointer-events: none;
+  transition: color .15s ease;
+}
+.field-group:focus-within .field-icon{
+  color: var(--btn-blue);
+}
+.field-group.has-icon .field-input{
+  padding-left: 42px;
+}
+.sr-only{
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+.field-input{
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  border: 1px solid var(--border-field);
+  border-radius: 10px;
+  font-size: 14.5px;
+  color: var(--ink-primary);
+  background: #ffffff;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.field-input::placeholder{
+  color: var(--ink-muted);
+}
+.field-input:hover{
+  border-color: #cbd5e1;
+}
+.field-input:focus{
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.16);
+}
+
+/* Password field with Eye toggle */
+.field-group.has-eye .field-input{
+  padding-right: 48px;
+}
+.eye{
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 0;
+  transition: color .15s ease;
+}
+.eye:hover{
+  color: var(--ink-primary);
+}
+.eye svg{
+  width: 19px;
+  height: 19px;
+  stroke-width: 1.8;
+}
+.eye .eye-closed{display:none}
+.eye.showing .eye-closed{display:block}
+.eye.showing .eye-open{display:none}
+
+/* Forgot Password Link Row */
+.forgot-row{
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+  margin-bottom: 14px;
+}
+.forgot-btn{
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--ink-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color .15s ease;
+}
+.forgot-btn:hover{
+  color: var(--btn-blue);
+  text-decoration: underline;
+}
+.note{
+  margin: 6px 0 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid var(--border-field);
+  font-size: 13px;
+  color: var(--ink-secondary);
+  line-height: 1.45;
+  text-align: left;
+}
+
+/* Terms Note */
+/* Error Alert */
+.err{
+  color: var(--err-color);
+  font-size: 13.5px;
+  font-weight: 600;
+  min-height: 18px;
+  margin: 6px 0 14px;
+  text-align: center;
+}
+.err:empty{display:none}
+
+/* Primary Action Button (Styled from .btn.assign in sales.html) */
+.btn-submit{
+  position: relative;
+  width: 100%;
+  height: 48px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--btn-blue);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--btn-blue), inset 0 0 6px 2px rgba(255, 255, 255, 0.24);
+  transition: transform .12s ease, box-shadow .12s ease, filter .15s ease, background-color .15s ease;
+  margin-top: 6px;
+}
+.btn-submit::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+.btn-submit:hover{
+  background: var(--btn-blue-hover);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.24), 0 0 0 1px var(--btn-blue-hover), inset 0 0 6px 2px rgba(255, 255, 255, 0.3);
+}
+.btn-submit:active{
+  transform: translateY(1px);
+  background: var(--btn-blue-active);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22), 0 0 0 1px var(--btn-blue-active), inset 0 0 6px 2px rgba(255, 255, 255, 0.24);
+}
+.btn-arrow{
+  width: 17px;
+  height: 17px;
+  margin-left: 8px;
+  transition: transform .15s ease;
+}
+.btn-submit:hover .btn-arrow{
+  transform: translateX(3px);
+}
+
+/* Feature Badges (Matching Reference Design) */
+.auth-features{
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.feature-item{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  flex: 1;
+}
+.feature-item svg{
+  width: 18px;
+  height: 18px;
+  color: var(--btn-blue);
+}
+.feature-item span{
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: #64748b;
+}
+
+/* =========================================================
+   MOBILE RESPONSIVENESS
+   ========================================================= */
+@media (max-width: 860px){
+  .split-wrapper{
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  .split-art{
+    flex: none;
+    max-width: 100%;
+    width: 100%;
+    height: 270px;
+    min-height: 270px;
+    padding: 32px 20px 44px 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .art-brand{
+    display: flex;
+    position: relative;
+    top: auto;
+    left: auto;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+  .fynix-logo-img{
+    height: 30px;
+  }
+  .art-testimonial{
+    max-width: 320px;
+    text-align: center;
+    margin: 0;
+  }
+  .quote-title{
+    font-size: 15px;
+    margin-bottom: 4px;
+    line-height: 1.35;
+  }
+  .quote-author{
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  /* Form Column on Mobile */
+  .split-form-col{
+    flex: 1;
+    min-height: auto;
+    border-radius: 28px 28px 0 0;
+    margin-top: -24px;
+    position: relative;
+    z-index: 5;
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
+    padding: 32px 24px 36px 24px;
+    justify-content: space-between;
+    background: #ffffff;
+  }
+  .form-center-box{
+    max-width: 380px;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .welcome-title{
+    font-size: 26px;
+    margin-bottom: 20px;
+  }
+  .auth-features{
+    margin-top: 28px;
+    padding-top: 20px;
+  }
+}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ---- Invite page additions ---- */
+.invite-sub{
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-secondary);
+  margin: -12px 0 24px;
+}
+.field-input[readonly]{
+  background: #f8fafc;
+  color: var(--ink-secondary);
+  cursor: default;
+}
+.field-input[readonly]:focus,
+.field-input[readonly]:hover{
+  border-color: var(--border-field);
+  box-shadow: none;
+}
+.invite-loading{
+  color: var(--ink-secondary);
+  font-size: 14px;
+  padding: 24px 0;
+}
+a.btn-submit{
+  text-decoration: none;
+}
+.auth-form .welcome-title{
+  text-align: center;
+}
