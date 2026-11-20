@@ -47,6 +47,12 @@ const CSP = [
   "form-action 'self'",
 ].join('; ');
 
+/**
+ * Sent with every page and repeated in each page's meta tags. There is deliberately no robots.txt: it would only
+ * announce the site, and it stops crawlers from reading this instruction.
+ */
+const NO_INDEX = 'noindex, nofollow, noarchive, nosnippet, noimageindex';
+
 export function homeFor(user: SessionUser): string {
   return homeForRole(user.role);
 }
@@ -138,6 +144,7 @@ export async function buildApp(db: Db, config: Config, mailer: Mailer = createMa
       return reply.redirect(homeFor(user));
     }
     reply.header('Cache-Control', 'no-store');
+    reply.header('X-Robots-Tag', NO_INDEX);
     return reply.type('text/html; charset=utf-8').send(await pageHtml(file));
   };
 
@@ -146,12 +153,16 @@ export async function buildApp(db: Db, config: Config, mailer: Mailer = createMa
     return reply.redirect(user && !user.mustChangePassword ? homeFor(user) : '/login');
   });
   app.get('/login', page('login.html', null));
+  app.get('/mockup', async (_request, reply) => {
+    reply.header('Cache-Control', 'no-store');
+    return reply.type('text/html; charset=utf-8').send(await pageHtml('mockup-apple-hello.html'));
+  });
   app.get('/app', page('sales.html', ['sales']));
   app.get('/admin', page('admin.html', ['superadmin']));
   app.get('/manager', page('manager.html', ['manager']));
   app.get<{ Params: { token: string } }>('/invite/:token', async (_request, reply) => {
     reply.header('Cache-Control', 'no-store');
-    reply.header('X-Robots-Tag', 'noindex');
+    reply.header('X-Robots-Tag', NO_INDEX);
     return reply.type('text/html; charset=utf-8').send(await pageHtml('invite.html'));
   });
   app.get('/health', async () => ({ ok: true }));

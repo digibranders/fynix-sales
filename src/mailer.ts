@@ -117,12 +117,13 @@ export function inviteEmail(opts: { name: string; email: string; invitedBy: stri
   const note = `This link works once and expires in ${days} days. It is only for ${email}.`;
   const text = [`Hi ${name},`, '', intro, '', `${cta}:`, link, '', note].join('\n');
 
-  let origin = '';
-  try {
-    origin = new URL(link).origin;
-  } catch {
-    origin = '';
-  }
+  const origin = ((): string => {
+    try {
+      return new URL(link).origin;
+    } catch {
+      return '';
+    }
+  })();
   const logoUrl = origin ? `${origin}/assets/img/fynix-logo.png` : 'https://fynix.digital/assets/img/fynix-logo.png';
   const copyIconUrl = origin ? `${origin}/assets/img/copy-icon.png` : 'https://fynix.digital/assets/img/copy-icon.png';
 

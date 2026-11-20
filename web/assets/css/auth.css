@@ -38,7 +38,7 @@ button,input{font:inherit}
   flex: 0 0 42%;
   max-width: 42%;
   position: relative;
-  background: #0937e8 url('/assets/img/login-fluid-bg.jpg') center center / cover no-repeat;
+  background: #0937e8 url('/assets/img/login-fluid-bg.webp') center center / cover no-repeat;
   color: #ffffff;
   display: flex;
   flex-direction: column;
