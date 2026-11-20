@@ -1,5 +1,6 @@
 import { api, messageOf } from './admin/api.js';
 import type { Category, LeadsPage, ManagerBootstrap, ManagerView, TeamMember, VerificationItem, Workspace } from './manager/types.js';
+import { takeEmbedded } from './shared/boot.js';
 import { el } from './shared/dom.js';
 import { initPwa } from './shared/pwa.js';
 
@@ -196,12 +197,12 @@ function vVerifyModal(): string {
         const stageControl = isEditingStage
           ? '<div class="vm-stage-edit">' +
             '<select class="inp sm vm-stage-sel" data-stage-sel="' + item.id + '">' +
-            ['Won', 'Negotiation', 'Meeting', 'Interested', 'Contacted', 'Lost'].map((st) => '<option value="' + st + '"' + (st === item.status ? ' selected' : '') + '>' + st + '</option>').join('') +
+            ['Won', 'Negotiation', 'Meeting', 'Interested', 'Contacted', 'Lost'].map((st) => '<option value="' + st + '"' + (st === item.status ? ' selected' : '') + '>' + (st === 'Won' ? 'Closed' : st) + '</option>').join('') +
             '</select>' +
             '<button type="button" class="btn sm dark" data-save-stage="' + item.id + '">Save</button>' +
             '<button type="button" class="btn sm" data-cancel-stage aria-label="Cancel">✕</button>' +
             '</div>'
-          : '<button type="button" class="stage-pill-btn" data-toggle-stage="' + item.id + '">Stage: ' + esc(item.status) + ' ▾</button>';
+          : '<button type="button" class="stage-pill-btn" data-toggle-stage="' + item.id + '">Stage: ' + esc(item.status === 'Won' ? 'Closed' : item.status) + ' ▾</button>';
 
         return (
           '<tr class="' + rowClass + '" data-card-cid="' + item.id + '">' +
@@ -543,7 +544,8 @@ document.addEventListener('click', (e) => {
   }
 });
 
-api<ManagerBootstrap>('GET', '/api/manager/bootstrap')
+const embedded = takeEmbedded<ManagerBootstrap>();
+(embedded ? Promise.resolve(embedded) : api<ManagerBootstrap>('GET', '/api/manager/bootstrap'))
   .then((d) => {
     D = d;
     render();

@@ -25,6 +25,7 @@ import type {
   Workspace,
   WorkspaceCreateBody,
 } from './admin/types.js';
+import { takeEmbedded } from './shared/boot.js';
 import { el } from './shared/dom.js';
 import { initPwa } from './shared/pwa.js';
 
@@ -41,7 +42,7 @@ const NAVICON: Record<string, string> = {
 };
 const CATS: readonly Category[] = ['scale', 'reach'];
 const PLUS = '<svg viewBox="0 0 14 14"><path d="M7 2v10M2 7h10"/></svg>';
-const STAGE_LIST: readonly string[] = ['New', 'Contacted', 'Interested', 'Meeting', 'Negotiation', 'Won', 'Lost'];
+const STAGE_LIST: readonly string[] = ['New', 'Contacted', 'Interested', 'Meeting', 'Negotiation', 'Closed', 'Lost'];
 const MONTHS: readonly string[] = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 let D: Bootstrap | null = null; /* bootstrap data from the server */
@@ -432,8 +433,8 @@ function vReports(): string {
     '<div class="blk"><h2>What is in the file</h2><ul class="act">' +
     '<li><span>One row for every salesperson in every service, including people who did nothing that month.</span></li>' +
     '<li><span>Assigned: leads claimed in the month. Contacted: leads that first moved out of New in the month.</span></li>' +
-    '<li><span>Interested, Meetings, Negotiation, Won and Lost: leads that reached that stage in the month.</span></li>' +
-    '<li><span>Open now: leads the person still owns that are not Won or Lost.</span></li>' +
+    '<li><span>Interested, Meetings, Negotiation, Closed and Lost: leads that reached that stage in the month.</span></li>' +
+    '<li><span>Open now: leads the person still owns that are not Closed or Lost.</span></li>' +
     '<li><span>A Total row after each service and a final row for everything.</span></li></ul></div>';
   return h;
 }
@@ -1187,4 +1188,10 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-void reload();
+const embedded = takeEmbedded<Bootstrap>();
+if (embedded) {
+  D = embedded;
+  render();
+} else {
+  void reload();
+}

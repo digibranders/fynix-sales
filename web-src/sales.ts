@@ -1,3 +1,4 @@
+import { takeEmbedded } from './shared/boot.js';
 import { el } from './shared/dom.js';
 import { initPwa } from './shared/pwa.js';
 import { api, messageOf, statusOf } from './sales/api.js';
@@ -52,15 +53,6 @@ function isKpiPeriod(p: string): p is KpiPeriod {
   return p === 'today' || p === '7d' || p === 'month';
 }
 
-/* Fonts load after first paint so a slow font host can never leave the page blank. */
-try {
-  const fl = document.createElement('link');
-  fl.rel = 'stylesheet';
-  fl.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap';
-  document.head.appendChild(fl);
-} catch {
-  /* a missing font stylesheet is not worth stopping for */
-}
 /* If something throws before the page is drawn, say so on screen instead of showing nothing. */
 window.addEventListener('error', (ev) => {
   const v = document.getElementById('view');
@@ -88,7 +80,8 @@ function showFatal(message: string): void {
   v.appendChild(d);
 }
 
-Promise.all([api<Bootstrap>('GET', '/api/sales/bootstrap'), loadGbc()])
+const embedded = takeEmbedded<Bootstrap>();
+Promise.all([embedded ? Promise.resolve(embedded) : api<Bootstrap>('GET', '/api/sales/bootstrap'), loadGbc()])
   .then(([data, gbc]) => {
     boot(data, gbc);
   })
@@ -1661,14 +1654,14 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       const body =
         '<div class="rp-month" role="group" aria-label="Month"><button type="button" class="rep-arrow" data-rpm="-1" aria-label="Previous month"><svg viewBox="0 0 8 14" aria-hidden="true"><path d="M7 1L1 7l6 6"/></svg></button><b>' + esc(r.label) + '</b>' +
         '<button type="button" class="rep-arrow" data-rpm="1" aria-label="Next month"' + (reportM >= cur ? ' disabled' : '') + '><svg viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6"/></svg></button></div>' +
-        '<div class="pf-stats four"><div><b class="num">' + tot.assigned + '</b><span>Assigned</span></div><div><b class="num">' + tot.contacted + '</b><span>Contacted</span></div><div><b class="num">' + tot.meetings + '</b><span>Meetings</span></div><div><b class="num">' + tot.won + '</b><span>Won</span></div></div>' +
+        '<div class="pf-stats four"><div><b class="num">' + tot.assigned + '</b><span>Assigned</span></div><div><b class="num">' + tot.contacted + '</b><span>Contacted</span></div><div><b class="num">' + tot.meetings + '</b><span>Meetings</span></div><div><b class="num">' + tot.won + '</b><span>Closed</span></div></div>' +
         '<p class="pf-cap">Interested ' + tot.interested + ' · Negotiation ' + tot.negotiation + ' · Lost ' + tot.lost + ' · Open now ' + tot.openNow + '</p>' +
         '<h3 class="rp-h">By service</h3>' + (r.services.length ? r.services.map((s) => {
           const sv = SERVICES.find((x) => x.name === s.service);
-          return '<div class="rp-row">' + (sv ? svcIcon(sv) : '') + '<span class="rp-l"><b>' + esc(s.service) + '</b><span class="sm">Assigned ' + s.assigned + ' · Contacted ' + s.contacted + ' · Meetings ' + s.meetings + ' · Won ' + s.won + '</span></span></div>';
+          return '<div class="rp-row">' + (sv ? svcIcon(sv) : '') + '<span class="rp-l"><b>' + esc(s.service) + '</b><span class="sm">Assigned ' + s.assigned + ' · Contacted ' + s.contacted + ' · Meetings ' + s.meetings + ' · Closed ' + s.won + '</span></span></div>';
         }).join('') : '<p class="sm">No services yet.</p>') +
         '<h3 class="rp-h">Last 6 months</h3>' + r.history.map((h) => {
-          return '<button type="button" class="rp-hist' + (h.month === r.month ? ' on' : '') + '" data-rpmonth="' + esc(h.month) + '"><b>' + esc(h.label) + '</b><span class="sm">' + h.assigned + ' assigned · ' + h.contacted + ' contacted · ' + h.meetings + ' meetings · ' + h.won + ' won</span></button>';
+          return '<button type="button" class="rp-hist' + (h.month === r.month ? ' on' : '') + '" data-rpmonth="' + esc(h.month) + '"><b>' + esc(h.label) + '</b><span class="sm">' + h.assigned + ' assigned · ' + h.contacted + ' contacted · ' + h.meetings + ' meetings · ' + h.won + ' closed</span></button>';
         }).join('');
       const box = document.getElementById('rp-body');
       if (!box) return;

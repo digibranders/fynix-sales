@@ -69,6 +69,10 @@ export async function buildApp(db: Db, config: Config, mailer: Mailer = createMa
     root: path.join(config.webDir, 'assets'),
     prefix: '/assets/',
     maxAge: config.production ? '1h' : 0,
+    // The category list is large and almost never changes, so browsers keep it for a week instead of asking again.
+    setHeaders: (res, filePath) => {
+      if (config.production && filePath.endsWith('gbc.json')) res.header('Cache-Control', 'public, max-age=604800');
+    },
   });
 
   app.decorateRequest('user', null);
@@ -138,6 +142,15 @@ export async function buildApp(db: Db, config: Config, mailer: Mailer = createMa
     });
   }
 
+  // The signed-in pages carry their first data inside the HTML, which saves one full round trip before anything is drawn.
+  const EMBEDDED: Record<string, string> = {
+    'sales.html': '/api/sales/bootstrap',
+    'admin.html': '/api/admin/bootstrap',
+    'manager.html': '/api/manager/bootstrap',
+  };
+  /** Makes JSON safe inside a <script> element: nothing in it can close the element or open a comment. */
+  const scriptSafe = (json: string): string => json.replace(/[<>&\u2028\u2029]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+
   const page = (file: string, roles: SessionUser['role'][] | null) => async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user;
     if (roles !== null) {
@@ -148,7 +161,16 @@ export async function buildApp(db: Db, config: Config, mailer: Mailer = createMa
     }
     reply.header('Cache-Control', 'no-store');
     reply.header('X-Robots-Tag', NO_INDEX);
-    return reply.type('text/html; charset=utf-8').send(await pageHtml(file));
+    let html = await pageHtml(file);
+    const dataUrl = EMBEDDED[file];
+    if (dataUrl && request.headers.cookie) {
+      const data = await app.inject({ method: 'GET', url: dataUrl, headers: { cookie: request.headers.cookie } });
+      if (data.statusCode === 200) {
+        const tag = `<script type="application/json" id="boot">${scriptSafe(data.body)}</script>\n</body>`;
+        html = html.replace('</body>', () => tag);
+      }
+    }
+    return reply.type('text/html; charset=utf-8').send(html);
   };
 
   app.get('/', async (request, reply) => {
