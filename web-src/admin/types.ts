@@ -118,14 +118,14 @@ export interface ListImportResult {
 /** POST /api/admin/users */
 export interface UserCreateResult {
   id: string;
-  emailed: boolean;
+  canEmail: boolean;
   inviteUrl: string;
   expiresAt: number;
 }
 
 /** POST /api/admin/users/:id/invite */
 export interface InviteResult {
-  emailed: boolean;
+  canEmail: boolean;
   inviteUrl: string;
   expiresAt: number;
   reset: boolean;
@@ -172,16 +172,22 @@ export interface LinkInfo {
   body: string;
   link: string;
   name: string;
+  /** Who the link is for, so it can be emailed on request. */
+  userId: string;
+  email: string;
+  /** False until a mail provider is set up on the server. */
+  canEmail: boolean;
 }
 
-export type ModalKind = 'ws' | 'list' | 'person' | 'editpeople' | 'rename' | 'link';
+export type ModalKind = 'ws' | 'list' | 'person' | 'editpeople' | 'rename' | 'category' | 'link';
 
 /** Everything the open dialog edits. Fields a dialog does not use stay at their defaults. */
 export interface ModalForm extends LinkInfo {
   error: string;
   busy: boolean;
   id: string;
-  email: string;
+  /** The invite link was emailed from this dialog. */
+  sent: boolean;
   role: Role;
   cat: FormCat;
   members: string[];

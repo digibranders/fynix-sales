@@ -122,3 +122,79 @@ describe('editing names', () => {
     assert.equal((await call(await login('nisha@fynix.test'), 'PATCH', `/api/admin/users/${karan.id}`, { name: 'Hacked Name' })).status, 403);
   });
 });
+
+describe('changing category', () => {
+  interface PersonRow {
+    id: string;
+    email: string;
+    category: string | null;
+    workspaceIds: string[];
+  }
+  async function person(cookie: string, email: string): Promise<PersonRow> {
+    const list = ((await call(cookie, 'GET', '/api/admin/bootstrap')).body as unknown as { people: PersonRow[] }).people;
+    const found = list.find((p) => p.email === email);
+    assert.ok(found, `${email} should exist`);
+    return found;
+  }
+
+  it('moves a salesperson to the other category and swaps their services', async () => {
+    const aarav = await login('aarav@fynix.test');
+    const rohan = await person(aarav, 'rohan@fynix.test');
+    assert.equal(rohan.category, 'scale');
+    // a service from the wrong category is refused, and nothing changes
+    assert.equal((await call(aarav, 'PATCH', `/api/admin/users/${rohan.id}`, { category: 'reach', workspaceIds: ['scale-website'] })).status, 400);
+    assert.equal((await person(aarav, 'rohan@fynix.test')).category, 'scale');
+    assert.ok((await person(aarav, 'rohan@fynix.test')).workspaceIds.length > 0, 'the old services are still there after a refused change');
+
+    assert.equal((await call(aarav, 'PATCH', `/api/admin/users/${rohan.id}`, { category: 'reach', workspaceIds: ['reach-website'] })).status, 200);
+    const moved = await person(aarav, 'rohan@fynix.test');
+    assert.equal(moved.category, 'reach');
+    assert.deepEqual(moved.workspaceIds, ['reach-website']);
+    const boot = (await call(await login('rohan@fynix.test'), 'GET', '/api/sales/bootstrap')).body as unknown as { category: string; workspaces: { id: string }[] };
+    assert.equal(boot.category, 'reach');
+    assert.deepEqual(boot.workspaces.map((w) => w.id), ['reach-website']);
+  });
+
+  it('moves them back without picking services, leaving them with none to choose', async () => {
+    const aarav = await login('aarav@fynix.test');
+    const rohan = await person(aarav, 'rohan@fynix.test');
+    assert.equal((await call(aarav, 'PATCH', `/api/admin/users/${rohan.id}`, { category: 'scale' })).status, 200);
+    const back = await person(aarav, 'rohan@fynix.test');
+    assert.equal(back.category, 'scale');
+    assert.deepEqual(back.workspaceIds, []);
+  });
+
+  it('will not move someone who still owns leads', async () => {
+    const aarav = await login('aarav@fynix.test');
+    const aisha = await login('aisha@fynix.test');
+    const boot = (await call(aisha, 'GET', '/api/sales/bootstrap')).body as unknown as { leads: { id: string }[]; workspaces: { id: string }[] };
+    const lead = boot.leads[0];
+    const workspaceId = boot.workspaces[0]?.id;
+    assert.ok(lead && workspaceId);
+    assert.equal((await call(aisha, 'POST', '/api/sales/claims', { leadId: lead.id, workspaceId })).status, 201);
+    const row = await person(aarav, 'aisha@fynix.test');
+    const blocked = await call(aarav, 'PATCH', `/api/admin/users/${row.id}`, { category: 'scale' });
+    assert.equal(blocked.status, 409);
+    assert.match(String(blocked.body['message']), /still owns 1 leads/);
+    assert.equal((await person(aarav, 'aisha@fynix.test')).category, 'reach');
+  });
+
+  it('lets a manager switch between Scale, Reach and both, but keeps salespeople on one and superadmins out', async () => {
+    const aarav = await login('aarav@fynix.test');
+    const nisha = await person(aarav, 'nisha@fynix.test');
+    assert.equal(nisha.category, null);
+    assert.equal((await call(aarav, 'PATCH', `/api/admin/users/${nisha.id}`, { category: 'scale' })).status, 200);
+    assert.equal((await person(aarav, 'nisha@fynix.test')).category, 'scale');
+    const leads = (await call(await login('nisha@fynix.test'), 'GET', '/api/manager/leads')).body as unknown as { leads: { category: string }[] };
+    assert.ok(leads.leads.every((l) => l.category === 'scale'), 'the manager now only sees Scale');
+    assert.equal((await call(aarav, 'PATCH', `/api/admin/users/${nisha.id}`, { category: 'both' })).status, 200);
+    assert.equal((await person(aarav, 'nisha@fynix.test')).category, null);
+
+    const karan = await person(aarav, 'karan@fynix.test');
+    assert.equal((await call(aarav, 'PATCH', `/api/admin/users/${karan.id}`, { category: 'both' })).status, 400, 'a salesperson cannot be in both');
+    const self = await person(aarav, 'aarav@fynix.test');
+    assert.equal((await call(aarav, 'PATCH', `/api/admin/users/${self.id}`, { category: 'scale' })).status, 400, 'superadmins see both');
+    assert.equal((await call(aarav, 'PATCH', `/api/admin/users/${karan.id}`, { category: 'moon' })).status, 400);
+    assert.equal((await call(await login('nisha@fynix.test'), 'PATCH', `/api/admin/users/${karan.id}`, { category: 'scale' })).status, 403);
+  });
+});

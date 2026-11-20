@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { AppContext } from '../app.js';
 import type { Role, SessionUser } from '../auth.js';
-import { INVITE_DAYS, NO_PASSWORD, createInvite, destroyUserSessions } from '../auth.js';
+import { INVITE_TOKEN, NO_PASSWORD, createInvite, destroyUserSessions, findInvite } from '../auth.js';
 import type { Category, Db, Metric } from '../db.js';
 import { CATEGORIES, METRICS, all, inClause, insertMany, newId, one, run, tx } from '../db.js';
 import {
@@ -53,10 +53,13 @@ const userCreate = z.object({
 const userUpdate = z
   .object({
     name: z.string().trim().min(2, 'Enter the full name.').max(80, 'That name is too long.').optional(),
+    /** Moves a salesperson to the other category, or sets a manager's category ('both' for a manager who sees everything). */
+    category: z.enum([...CATEGORIES, 'both']).optional(),
     active: z.boolean().optional(),
     workspaceIds: z.array(z.string().max(80)).max(50).optional(),
   })
-  .refine((v) => v.name !== undefined || v.active !== undefined || v.workspaceIds !== undefined, 'Nothing to change.');
+  .refine((v) => v.name !== undefined || v.category !== undefined || v.active !== undefined || v.workspaceIds !== undefined, 'Nothing to change.');
+const inviteEmailBody = z.object({ token: z.string().regex(INVITE_TOKEN, 'That link is not valid.') });
 const ownerBody = z.object({ ownerId: z.union([z.string().max(64), z.null()]) });
 const targetsBody = z.object({
   category,
@@ -601,11 +604,8 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     });
     const invite = await createInvite(db, id);
     const inviteUrl = `${config.appUrl}/invite/${invite.token}`;
-    const emailed = await mailer.send(
-      inviteEmail({ name: body.name, email: body.email, invitedBy: me.name, link: inviteUrl, reset: false, days: INVITE_DAYS }),
-    );
     reply.status(201);
-    return { id, emailed, inviteUrl, expiresAt: invite.expiresAt };
+    return { id, inviteUrl, expiresAt: invite.expiresAt, canEmail: mailer.enabled };
   });
 
   app.patch<{ Params: { id: string } }>('/api/admin/users/:id', async (request) => {
@@ -617,6 +617,22 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       if (body.name !== undefined && body.name !== user.name) {
         await run(db, 'UPDATE users SET name = ? WHERE id = ?', [body.name, user.id]);
         await logActivity(db, user.category, `${me.name} renamed ${user.name} to ${body.name}`, '');
+      }
+      if (body.category !== undefined) {
+        if (user.role === 'superadmin') throw new HttpError(400, 'invalid_request', 'Superadmins already see both categories.');
+        const next: Category | null = body.category === 'both' ? null : body.category;
+        if (user.role === 'sales' && next === null) throw new HttpError(400, 'invalid_request', 'A salesperson belongs to Scale or Reach, not both.');
+        if (next !== user.category) {
+          if (user.role === 'sales') {
+            const owned = await claimCount(db, 'SELECT COUNT(*) AS n FROM claims WHERE owner_id = ?', [user.id]);
+            if (owned > 0) throw new HttpError(409, 'in_use', `${user.name} still owns ${owned} leads. Reassign or release them first.`);
+          }
+          // Services belong to one category, so the old ones go; pick the new ones with workspaceIds.
+          await run(db, 'DELETE FROM workspace_members WHERE user_id = ?', [user.id]);
+          await run(db, 'UPDATE users SET category = ? WHERE id = ?', [next, user.id]);
+          await logActivity(db, next ?? user.category, `${me.name} moved ${user.name} to ${next ? CATEGORY_INFO[next].name : 'Scale and Reach'}`, '');
+          user.category = next;
+        }
       }
       if (body.active !== undefined && body.active !== (user.active === 1)) {
         if (!body.active) {
@@ -669,8 +685,22 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const invite = await createInvite(db, user.id);
     const inviteUrl = `${config.appUrl}/invite/${invite.token}`;
     const reset = user.last_login_at !== null;
-    const emailed = await mailer.send(inviteEmail({ name: user.name, email: user.email, invitedBy: me.name, link: inviteUrl, reset, days: INVITE_DAYS }));
-    return { emailed, inviteUrl, expiresAt: invite.expiresAt, reset };
+    return { inviteUrl, expiresAt: invite.expiresAt, reset, canEmail: mailer.enabled };
+  });
+
+  /** Emails a link that was already shown to the superadmin, only when they press the button. The link itself does not change. */
+  app.post<{ Params: { id: string } }>('/api/admin/users/:id/invite/email', async (request) => {
+    const me = superadmin(request);
+    const { token } = inviteEmailBody.parse(request.body);
+    if (!mailer.enabled) throw new HttpError(409, 'email_off', 'Email is not set up yet. Copy the link and send it yourself.');
+    const invite = await findInvite(db, token);
+    if (!invite || invite.userId !== request.params.id) throw new HttpError(404, 'not_found', 'That link is no longer valid. Create a new one.');
+    const days = Math.max(1, Math.ceil((invite.expiresAt - Date.now()) / 86_400_000));
+    const sent = await mailer.send(
+      inviteEmail({ name: invite.name, email: invite.email, invitedBy: me.name, link: `${config.appUrl}/invite/${token}`, reset: invite.reset, days }),
+    );
+    if (!sent) throw new HttpError(502, 'email_failed', 'We could not send the email. Copy the link and send it yourself.');
+    return { ok: true, sentTo: invite.email };
   });
 
   app.put('/api/admin/targets', async (request) => {
