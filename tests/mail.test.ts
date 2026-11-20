@@ -67,3 +67,68 @@ describe('invite email', () => {
     await db.close();
   });
 });
+
+describe('Brevo', () => {
+  it('reads the sender from MAIL_FROM, with or without a display name', async () => {
+    const { parseSender } = await import('../src/mailer.js');
+    assert.deepEqual(parseSender('Fynix Sales <no-reply@fynix.digital>'), { name: 'Fynix Sales', email: 'no-reply@fynix.digital' });
+    assert.deepEqual(parseSender('"Fynix Sales" <no-reply@fynix.digital>'), { name: 'Fynix Sales', email: 'no-reply@fynix.digital' });
+    assert.deepEqual(parseSender('<no-reply@fynix.digital>'), { email: 'no-reply@fynix.digital' });
+    assert.deepEqual(parseSender('no-reply@fynix.digital'), { email: 'no-reply@fynix.digital' });
+    assert.equal(parseSender('not an address'), null);
+  });
+
+  it('sends through the Brevo API with the key, sender and message, and reports failures without throwing', async () => {
+    const { createMailer, inviteEmail } = await import('../src/mailer.js');
+    const config = { ...loadConfig(), brevoApiKey: 'test-key-123', resendApiKey: null, mailFrom: 'Fynix Sales <no-reply@fynix.digital>' };
+    const mailer = createMailer(config);
+    assert.equal(mailer.enabled, true);
+
+    const realFetch = globalThis.fetch;
+    const calls: { url: string; init: RequestInit }[] = [];
+    let status = 201;
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return new Response(status === 201 ? '{"messageId":"x"}' : '{"message":"Sender not valid"}', { status });
+    }) as typeof fetch;
+    const originalError = console.error;
+    console.error = () => undefined;
+    try {
+      const message = inviteEmail({ name: 'Neha', email: 'neha@fynix.test', invitedBy: 'Aarav', link: 'https://x.test/invite/abc', reset: false, days: 7 });
+      assert.equal(await mailer.send(message), true);
+      const call = calls[0];
+      assert.ok(call);
+      assert.equal(call.url, 'https://api.brevo.com/v3/smtp/email');
+      assert.equal((call.init.headers as Record<string, string>)['api-key'], 'test-key-123');
+      const body = JSON.parse(String(call.init.body)) as Record<string, unknown>;
+      assert.deepEqual(body['sender'], { name: 'Fynix Sales', email: 'no-reply@fynix.digital' });
+      assert.deepEqual(body['to'], [{ email: 'neha@fynix.test' }]);
+      assert.equal(body['subject'], message.subject);
+      assert.equal(body['textContent'], message.text);
+      assert.equal(body['htmlContent'], message.html);
+
+      status = 400;
+      assert.equal(await mailer.send(message), false, 'a rejected email is reported, not thrown');
+      globalThis.fetch = (async () => {
+        throw new Error('network down');
+      }) as typeof fetch;
+      assert.equal(await mailer.send(message), false, 'an unreachable provider is reported, not thrown');
+    } finally {
+      globalThis.fetch = realFetch;
+      console.error = originalError;
+    }
+  });
+
+  it('stays off without a key or with an unusable sender', async () => {
+    const { createMailer } = await import('../src/mailer.js');
+    const base = { ...loadConfig(), brevoApiKey: null, resendApiKey: null };
+    assert.equal(createMailer({ ...base, mailFrom: 'Fynix Sales <no-reply@fynix.digital>' }).enabled, false);
+    const originalError = console.error;
+    console.error = () => undefined;
+    try {
+      assert.equal(createMailer({ ...base, brevoApiKey: 'k', mailFrom: 'nonsense' }).enabled, false);
+    } finally {
+      console.error = originalError;
+    }
+  });
+});

@@ -23,7 +23,7 @@ Demo accounts use the `@fynix.test` domain: `aarav` and `meera` (superadmins), `
 
 ## Email (optional)
 
-Set `RESEND_API_KEY`, `MAIL_FROM` and `APP_URL` in your own `.env` to email invite links through Resend. Without them the superadmin copies the one-time invite link from the screen and sends it themselves. Invite links work once and expire after 7 days; `npm run create-admin -- <email> <name>` prints one for a new superadmin.
+Set `BREVO_API_KEY`, `MAIL_FROM` (like `Fynix Sales <no-reply@fynix.digital>`, a sender verified in Brevo) and `APP_URL` in your own `.env` to email invite links through Brevo. Resend works too, with `RESEND_API_KEY` instead. Without them the superadmin copies the one-time invite link from the screen and sends it themselves. Invite links work once and expire after 7 days; `npm run create-admin -- <email> <name>` prints one for a new superadmin.
 
 ## Scripts
 
