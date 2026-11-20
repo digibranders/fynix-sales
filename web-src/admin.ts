@@ -26,6 +26,9 @@ import type {
   WorkspaceCreateBody,
 } from './admin/types.js';
 import { el } from './shared/dom.js';
+import { initPwa } from './shared/pwa.js';
+
+initPwa();
 
 const NAVICON: Record<string, string> = {
 
@@ -52,6 +55,7 @@ const S: PageState = {
   leads: { q: '', page: 1, res: null, loading: false },
   drawerId: null,
   listConfirm: null,
+  userConfirm: null,
 };
 
 /** The bootstrap data. Nothing is drawn before it has loaded, so a missing value is a bug. */
@@ -364,6 +368,19 @@ function loadLeads(keepFocus?: boolean): void {
     .catch(fail);
 }
 
+const ACT_ICON = {
+  services: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
+  key: '<circle cx="8" cy="15" r="3.5"/><path d="M10.5 12.5L19 4M16 7l2.5 2.5M13.5 9.5L15 11"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  pause: '<circle cx="12" cy="12" r="8.5"/><path d="M10 9v6M14 9v6"/>',
+  play: '<circle cx="12" cy="12" r="8.5"/><path d="M10.5 9l4.5 3-4.5 3z"/>',
+  trash: '<path d="M5 7h14M9 7V5h6v2M7 7l.8 12h8.4L17 7M10 11v5M14 11v5"/>',
+};
+/** A boxless icon button; the label shows on hover and is read out by screen readers. */
+function iconBtn(attr: string, id: string, label: string, paths: string, danger?: boolean): string {
+  return '<button type="button" class="ib' + (danger ? ' danger' : '') + '" ' + attr + '="' + esc(id) + '" title="' + esc(label) + '" aria-label="' + esc(label) + '"><svg viewBox="0 0 24 24" aria-hidden="true">' + paths + '</svg></button>';
+}
+
 function vTeam(): string {
   const d = data();
   const P = d.people.filter(pInCat);
@@ -375,13 +392,21 @@ function vTeam(): string {
       return (
         '<tr><td class="muted num">' + (i + 1) + '</td><td><span class="own static">' + av(p) + '<span>' + esc(p.name) + '<br><small class="muted">' + esc(p.email) + '</small></span></span></td><td class="role">' + ROLE_NAME[p.role] + '</td><td>' + (p.role === 'superadmin' ? ct(null) : ct(p.category)) + '</td><td>' + wsOf(p) + '</td>' +
         '<td><span class="dotl' + (p.active && !p.invited ? '' : ' off') + '"><i></i>' + (!p.active ? 'Deactivated' : p.invited ? 'Invited' : 'Active') + '</span></td>' +
-        '<td style="text-align:right;white-space:nowrap">' + (p.role === 'sales' ? '<button class="btn sm" data-editpeople="' + esc(p.id) + '">Services</button> ' : '') +
-        (self ? '' : '<button class="btn sm" data-reset="' + esc(p.id) + '">' + (p.invited ? 'Invite link' : 'Reset password') + '</button> <button class="btn sm" data-toggle="' + esc(p.id) + '">' + (p.active ? 'Deactivate' : 'Reactivate') + '</button>') +
+        '<td style="text-align:right;white-space:nowrap"><span class="acts">' +
+        (S.userConfirm === p.id
+          ? '<span class="muted">Delete ' + esc(p.name) + ' for good?</span> <button class="btn sm" data-ucancel>Keep</button> <button class="btn sm danger" data-udel="' + esc(p.id) + '">Delete</button>'
+          : (p.role === 'sales' ? iconBtn('data-editpeople', p.id, 'Services', ACT_ICON.services) : '') +
+            (self
+              ? ''
+              : iconBtn('data-reset', p.id, p.invited ? 'Invite link' : 'Reset password', p.invited ? ACT_ICON.link : ACT_ICON.key) +
+                iconBtn('data-toggle', p.id, p.active ? 'Deactivate' : 'Reactivate', p.active ? ACT_ICON.pause : ACT_ICON.play) +
+                iconBtn('data-uask', p.id, 'Delete', ACT_ICON.trash, true))) +
+        '</span>' +
         '</td></tr>'
       );
     }).join('') +
     '</tbody></table></div>';
-  return h + '<p class="hint">A salesperson belongs to one category and can only see that category\'s data. Managers can look at the team and leads in their category (or both) but cannot change anything. Superadmins see both.</p>';
+  return h + '<p class="hint">A salesperson belongs to one category and can only see that category\'s data. Managers can look at the team and leads in their category (or both) but cannot change anything. Superadmins see both. Delete removes a person for good, and is blocked while they still own leads.</p>';
 }
 
 function reportMonth(): string {
@@ -432,6 +457,7 @@ function reload(then?: () => void): Promise<void> {
 }
 function goto(view: View): void {
   S.view = view;
+  S.userConfirm = null;
   closeAll();
   if (view === 'leads') {
     S.leads.res = null;
@@ -926,6 +952,32 @@ document.addEventListener('click', (e) => {
         rd.confirm = false;
         rd.error = messageOf(err, '');
         openDrawer(rd.id);
+      });
+    return;
+  }
+  if ((c = hit('[data-uask]'))) {
+    S.userConfirm = c.dataset['uask'] ?? null;
+    render();
+    return;
+  }
+  if (hit('[data-ucancel]')) {
+    S.userConfirm = null;
+    render();
+    return;
+  }
+  if ((c = hit('[data-udel]'))) {
+    const gone = person(c.dataset['udel'] ?? '');
+    if (!gone) return;
+    api<unknown>('DELETE', '/api/admin/users/' + encodeURIComponent(gone.id))
+      .then(() => {
+        S.userConfirm = null;
+        toast(gone.name + ' deleted');
+        return reload();
+      })
+      .catch((err: unknown) => {
+        S.userConfirm = null;
+        toast(messageOf(err, ''));
+        render();
       });
     return;
   }

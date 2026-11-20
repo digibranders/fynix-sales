@@ -1,5 +1,8 @@
 import { el } from './shared/dom.js';
+import { initPwa } from './shared/pwa.js';
 import { api, messageOf, statusOf } from './sales/api.js';
+
+initPwa();
 import {
   ALLSTAGES, BELL, CAL_DAYS, CHECK, CHEV, GROUPS_Q, KP_PERIODS, NEEDS, NEED_ICON, PAGE, STAGES, THEMES,
   ico, pi, ptile, svcIcon, tileOf, toService,
