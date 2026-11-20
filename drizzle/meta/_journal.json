@@ -29,6 +29,13 @@
       "when": 1795151448847,
       "tag": "0003_invites",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795159887803,
+      "tag": "0004_manager_role",
+      "breakpoints": true
     }
   ]
 }

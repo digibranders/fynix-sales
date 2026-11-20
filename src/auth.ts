@@ -9,11 +9,19 @@ export const SESSION_COOKIE = 'ld_session';
 const KEY_LENGTH = 64;
 const DAY_MS = 86_400_000;
 
+/** Superadmins run everything, managers only look at the team and the leads, salespeople work leads. */
+export type Role = 'superadmin' | 'manager' | 'sales';
+
+export function homeForRole(role: Role): string {
+  if (role === 'superadmin') return '/admin';
+  return role === 'manager' ? '/manager' : '/app';
+}
+
 export interface SessionUser {
   id: string;
   name: string;
   email: string;
-  role: 'superadmin' | 'sales';
+  role: Role;
   category: Category | null;
   mustChangePassword: boolean;
 }
@@ -22,7 +30,7 @@ interface UserRow {
   id: string;
   name: string;
   email: string;
-  role: 'superadmin' | 'sales';
+  role: Role;
   category: Category | null;
   must_change_password: number;
 }
@@ -63,7 +71,7 @@ export interface InviteInfo {
   userId: string;
   name: string;
   email: string;
-  role: 'superadmin' | 'sales';
+  role: Role;
   /** True when the person already has a password, so the link is a reset rather than a first sign-up. */
   reset: boolean;
   expiresAt: number;
@@ -81,7 +89,7 @@ export async function createInvite(db: Db, userId: string, days = INVITE_DAYS): 
 /** The invite behind a link, or null when it is unknown, used, expired, or the person was deactivated. */
 export async function findInvite(db: Db, token: string): Promise<InviteInfo | null> {
   if (!INVITE_TOKEN.test(token)) return null;
-  const row = await one<{ id: string; expires_at: number; user_id: string; name: string; email: string; role: 'superadmin' | 'sales'; password_hash: string }>(
+  const row = await one<{ id: string; expires_at: number; user_id: string; name: string; email: string; role: Role; password_hash: string }>(
     db,
     `SELECT i.id, i.expires_at, u.id AS user_id, u.name, u.email, u.role, u.password_hash
        FROM invites i JOIN users u ON u.id = i.user_id

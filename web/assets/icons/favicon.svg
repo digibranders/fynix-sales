@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="pwa-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e40af" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#pwa-grad)" />
+  <!-- Left bar -->
+  <rect x="14" y="12" width="16" height="40" rx="4" fill="#ffffff" />
+  <!-- Right bar -->
+  <rect x="34" y="12" width="16" height="24" rx="4" fill="#ffffff" />
+</svg>

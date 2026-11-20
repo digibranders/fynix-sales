@@ -19,11 +19,12 @@ export const users = pgTable(
     createdAt: ms('created_at').notNull(),
   },
   (t) => [
-    check('users_role_check', sql`${t.role} IN ('superadmin', 'sales')`),
+    check('users_role_check', sql`${t.role} IN ('superadmin', 'sales', 'manager')`),
     check('users_category_check', sql`${t.category} IN ('scale', 'reach')`),
     check(
       'users_role_category_check',
-      sql`(${t.role} = 'superadmin' AND ${t.category} IS NULL) OR (${t.role} = 'sales' AND ${t.category} IS NOT NULL)`,
+      // A manager sees one category, or both when the category is empty.
+      sql`(${t.role} = 'superadmin' AND ${t.category} IS NULL) OR (${t.role} = 'sales' AND ${t.category} IS NOT NULL) OR ${t.role} = 'manager'`,
     ),
   ],
 );

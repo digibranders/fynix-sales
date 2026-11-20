@@ -9,12 +9,13 @@ import type { Config } from './config.js';
 import { createMailer } from './mailer.js';
 import type { Mailer } from './mailer.js';
 import type { Db } from './db.js';
-import { LoginLimiter, SESSION_COOKIE, userForSession } from './auth.js';
+import { LoginLimiter, SESSION_COOKIE, homeForRole, userForSession } from './auth.js';
 import type { SessionUser } from './auth.js';
 import { HttpError } from './domain.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerSalesRoutes } from './routes/sales.js';
 import { registerAdminRoutes } from './routes/admin.js';
+import { registerManagerRoutes } from './routes/manager.js';
 import { registerReportRoutes } from './routes/reports.js';
 
 declare module 'fastify' {
@@ -45,7 +46,7 @@ const CSP = [
 ].join('; ');
 
 export function homeFor(user: SessionUser): string {
-  return user.role === 'superadmin' ? '/admin' : '/app';
+  return homeForRole(user.role);
 }
 
 export async function buildApp(db: Db, config: Config, mailer: Mailer = createMailer(config)): Promise<FastifyInstance> {
@@ -122,7 +123,7 @@ export async function buildApp(db: Db, config: Config, mailer: Mailer = createMa
   for (const kind of ['js', 'css'] as const) {
     const root = path.join(config.webDir, 'assets', kind);
     app.get<{ Params: { '*': string } }>(`/assets/${kind}-:release/*`, async (request, reply) => {
-      return reply.sendFile(request.params['*'], root, { maxAge: ONE_YEAR_MS, immutable: true });
+      return reply.sendFile(request.params['*'], root, config.production ? { maxAge: ONE_YEAR_MS, immutable: true } : { maxAge: 0 });
     });
   }
 
@@ -145,6 +146,7 @@ export async function buildApp(db: Db, config: Config, mailer: Mailer = createMa
   app.get('/login', page('login.html', null));
   app.get('/app', page('sales.html', ['sales']));
   app.get('/admin', page('admin.html', ['superadmin']));
+  app.get('/manager', page('manager.html', ['manager']));
   app.get<{ Params: { token: string } }>('/invite/:token', async (_request, reply) => {
     reply.header('Cache-Control', 'no-store');
     reply.header('X-Robots-Tag', 'noindex');
@@ -152,9 +154,15 @@ export async function buildApp(db: Db, config: Config, mailer: Mailer = createMa
   });
   app.get('/health', async () => ({ ok: true }));
 
+  app.get('/favicon.ico', async (_request, reply) => {
+    reply.header('Cache-Control', 'public, max-age=86400');
+    return reply.type('image/x-icon').send(await readFile(path.join(config.webDir, 'favicon.ico')));
+  });
+
   registerAuthRoutes(app, ctx);
   registerSalesRoutes(app, ctx);
   registerAdminRoutes(app, ctx);
+  registerManagerRoutes(app, ctx);
   registerReportRoutes(app, ctx);
 
   return app;

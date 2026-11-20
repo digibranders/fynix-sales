@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { AppContext } from '../app.js';
-import type { SessionUser } from '../auth.js';
+import type { Role, SessionUser } from '../auth.js';
 import { INVITE_DAYS, NO_PASSWORD, createInvite, destroyUserSessions } from '../auth.js';
 import type { Category, Db, Metric } from '../db.js';
 import { CATEGORIES, METRICS, all, inClause, insertMany, newId, one, run, tx } from '../db.js';
@@ -45,7 +45,8 @@ const listCreate = z.object({
 const userCreate = z.object({
   name: z.string().trim().min(2, 'Enter the full name.').max(80),
   email: z.string().trim().toLowerCase().email('Enter a valid email address.').max(200),
-  role: z.enum(['sales', 'superadmin']),
+  role: z.enum(['sales', 'superadmin', 'manager']),
+  /** Required for a salesperson, optional for a manager (empty means both categories), unused for a superadmin. */
   category: category.optional(),
   workspaceIds: z.array(z.string().max(80)).max(50).default([]),
 });
@@ -62,7 +63,7 @@ const targetsBody = z.object({
   meetings: z.number().int().min(0).max(10_000).optional(),
   won: z.number().int().min(0).max(10_000),
 });
-const leadsQuery = z.object({
+export const leadsQuery = z.object({
   category: category.optional(),
   q: z.string().trim().max(100).default(''),
   page: z.coerce.number().int().min(1).max(10_000).default(1),
@@ -80,7 +81,7 @@ interface UserRow {
   id: string;
   name: string;
   email: string;
-  role: 'superadmin' | 'sales';
+  role: Role;
   category: Category | null;
   active: number;
   last_login_at: number | null;
@@ -133,12 +134,136 @@ async function claimCount(db: Db, sql: string, params: (string | number)[]): Pro
   return (await one<{ n: number }>(db, sql, params))?.n ?? 0;
 }
 
+/** Everyone who can sign in with this month's numbers. `scope` limits it to the salespeople of those categories (what a manager may see). */
+export async function loadPeople(db: Db, scope: Category[] | null) {
+  const month = monthStartMs();
+  const users = scope
+    ? await all<UserRow>(
+        db,
+        `SELECT id, name, email, role, category, active, last_login_at FROM users WHERE role = 'sales' AND category IN (${inClause(scope)}) ORDER BY name`,
+        scope,
+      )
+    : await all<UserRow>(db, 'SELECT id, name, email, role, category, active, last_login_at FROM users ORDER BY role DESC, name');
+  return Promise.all(users.map(async (u) => {
+    const stats = { assigned: 0, contacted: 0, meetings: 0, won: 0 };
+    if (u.role === 'sales') {
+      stats.assigned = await claimCount(db, 'SELECT COUNT(*) AS n FROM claims WHERE owner_id = ?', [u.id]);
+      stats.contacted = await claimCount(
+        db,
+        `SELECT COUNT(*) AS n FROM (
+           SELECT c.id, MIN(e.at) AS first_at FROM claims c
+             JOIN claim_events e ON e.claim_id = c.id AND e.status <> 'New'
+            WHERE c.owner_id = ? GROUP BY c.id) AS firsts WHERE first_at >= ?`,
+        [u.id, month],
+      );
+      for (const [key, stage] of [['meetings', 'Meeting'], ['won', 'Won']] as const) {
+        stats[key] = await claimCount(
+          db,
+          `SELECT COUNT(DISTINCT c.id) AS n FROM claims c JOIN claim_events e ON e.claim_id = c.id
+            WHERE c.owner_id = ? AND e.status = ? AND e.at >= ?`,
+          [u.id, stage, month],
+        );
+      }
+    }
+    return {
+      id: u.id,
+      name: u.name,
+      ini: initials(u.name),
+      email: u.email,
+      role: u.role,
+      category: u.category,
+      active: u.active === 1,
+      invited: u.last_login_at === null,
+      workspaceIds: (await all<{ workspace_id: string }>(db, 'SELECT workspace_id FROM workspace_members WHERE user_id = ?', [u.id])).map((r) => r.workspace_id),
+      stats,
+    };
+  }));
+}
+
+export type LeadsQuery = z.infer<typeof leadsQuery>;
+
+/** One page of leads with their owners per service. `scope` limits it to those categories (what a manager may see). */
+export async function loadLeads(db: Db, query: LeadsQuery, scope: Category[] | null) {
+  const pageSize = 50;
+  const filters: string[] = [];
+  const params: (string | number)[] = [];
+  const categories = scope ? (query.category ? scope.filter((c) => c === query.category) : scope) : query.category ? [query.category] : null;
+  if (categories) {
+    filters.push(categories.length > 0 ? `s.category IN (${inClause(categories)})` : 'FALSE');
+    params.push(...categories);
+  }
+  if (query.q) {
+    filters.push("(l.name ILIKE ? ESCAPE '\\' OR l.area ILIKE ? ESCAPE '\\' OR l.company ILIKE ? ESCAPE '\\')");
+    const like = `%${query.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    params.push(like, like, like);
+  }
+  const where = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
+  const total = await claimCount(db, `SELECT COUNT(*) AS n FROM leads l JOIN lists s ON s.id = l.list_id ${where}`, params);
+  const rows = await all<{
+    id: string;
+    name: string;
+    area: string;
+    city: string;
+    phone: string;
+    website: string;
+    emails: string;
+    company: string;
+    job_title: string;
+    personal_number: string;
+    keywords: string;
+    linkedin_url: string;
+    list_id: string;
+    category: Category;
+  }>(
+    db,
+    `SELECT l.id, l.name, l.area, l.city, l.phone, l.website, l.emails, l.company, l.job_title, l.personal_number, l.keywords, l.linkedin_url, l.list_id, s.category
+       FROM leads l JOIN lists s ON s.id = l.list_id ${where}
+      ORDER BY lower(l.name), l.id LIMIT ? OFFSET ?`,
+    [...params, pageSize, (query.page - 1) * pageSize],
+  );
+  const owners = new Map<string, Record<string, { id: string; name: string }>>();
+  if (rows.length > 0) {
+    const claims = await all<{ lead_id: string; key: string; owner_id: string; owner_name: string }>(
+      db,
+      `SELECT c.lead_id, w.key, u.id AS owner_id, u.name AS owner_name FROM claims c
+         JOIN workspaces w ON w.id = c.workspace_id JOIN users u ON u.id = c.owner_id
+        WHERE c.lead_id IN (${inClause(rows.map((r) => r.id))})`,
+      rows.map((r) => r.id),
+    );
+    for (const claim of claims) {
+      const entry = owners.get(claim.lead_id) ?? {};
+      entry[claim.key] = { id: claim.owner_id, name: claim.owner_name };
+      owners.set(claim.lead_id, entry);
+    }
+  }
+  return {
+    total,
+    page: query.page,
+    pageSize,
+    leads: rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      area: r.area,
+      city: r.city,
+      company: r.company || '',
+      jobTitle: r.job_title || '',
+      personalNumber: r.personal_number || '',
+      keywords: r.keywords || '',
+      linkedin: r.linkedin_url || '',
+      phone: r.phone,
+      website: r.website,
+      listId: r.list_id,
+      category: r.category,
+      owners: owners.get(r.id) ?? {},
+    })),
+  };
+}
+
 export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void {
   const { db, mailer, config } = ctx;
 
   app.get('/api/admin/bootstrap', async (request) => {
     const me = superadmin(request);
-    const month = monthStartMs();
 
     const workspaces = await Promise.all((await all<WorkspaceRow>(db, 'SELECT id, category, key, name, icon, color FROM workspaces ORDER BY category, position, name')).map(async (w) => ({
       ...w,
@@ -166,40 +291,7 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       workspaceIds: (await all<{ workspace_id: string }>(db, 'SELECT workspace_id FROM workspace_lists WHERE list_id = ?', [l.id])).map((r) => r.workspace_id),
     })));
 
-    const people = await Promise.all((await all<UserRow>(db, 'SELECT id, name, email, role, category, active, last_login_at FROM users ORDER BY role DESC, name')).map(async (u) => {
-      const stats = { assigned: 0, contacted: 0, meetings: 0, won: 0 };
-      if (u.role === 'sales') {
-        stats.assigned = await claimCount(db, 'SELECT COUNT(*) AS n FROM claims WHERE owner_id = ?', [u.id]);
-        stats.contacted = await claimCount(
-          db,
-          `SELECT COUNT(*) AS n FROM (
-             SELECT c.id, MIN(e.at) AS first_at FROM claims c
-               JOIN claim_events e ON e.claim_id = c.id AND e.status <> 'New'
-              WHERE c.owner_id = ? GROUP BY c.id) AS firsts WHERE first_at >= ?`,
-          [u.id, month],
-        );
-        for (const [key, stage] of [['meetings', 'Meeting'], ['won', 'Won']] as const) {
-          stats[key] = await claimCount(
-            db,
-            `SELECT COUNT(DISTINCT c.id) AS n FROM claims c JOIN claim_events e ON e.claim_id = c.id
-              WHERE c.owner_id = ? AND e.status = ? AND e.at >= ?`,
-            [u.id, stage, month],
-          );
-        }
-      }
-      return {
-        id: u.id,
-        name: u.name,
-        ini: initials(u.name),
-        email: u.email,
-        role: u.role,
-        category: u.category,
-        active: u.active === 1,
-        invited: u.last_login_at === null,
-        workspaceIds: (await all<{ workspace_id: string }>(db, 'SELECT workspace_id FROM workspace_members WHERE user_id = ?', [u.id])).map((r) => r.workspace_id),
-        stats,
-      };
-    }));
+    const people = await loadPeople(db, null);
 
     const activity = await all<{ id: number; at: number; category: Category | null; text: string; sub: string }>(
       db,
@@ -413,79 +505,7 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
 
   app.get('/api/admin/leads', async (request) => {
     superadmin(request);
-    const query = leadsQuery.parse(request.query);
-    const pageSize = 50;
-    const filters: string[] = [];
-    const params: (string | number)[] = [];
-    if (query.category) {
-      filters.push('s.category = ?');
-      params.push(query.category);
-    }
-    if (query.q) {
-      filters.push("(l.name ILIKE ? ESCAPE '\\' OR l.area ILIKE ? ESCAPE '\\' OR l.company ILIKE ? ESCAPE '\\')");
-      const like = `%${query.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
-      params.push(like, like, like);
-    }
-    const where = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
-    const total = await claimCount(db, `SELECT COUNT(*) AS n FROM leads l JOIN lists s ON s.id = l.list_id ${where}`, params);
-    const rows = await all<{
-      id: string;
-      name: string;
-      area: string;
-      city: string;
-      phone: string;
-      website: string;
-      emails: string;
-      company: string;
-      job_title: string;
-      personal_number: string;
-      keywords: string;
-      linkedin_url: string;
-      list_id: string;
-      category: Category;
-    }>(
-      db,
-      `SELECT l.id, l.name, l.area, l.city, l.phone, l.website, l.emails, l.company, l.job_title, l.personal_number, l.keywords, l.linkedin_url, l.list_id, s.category
-         FROM leads l JOIN lists s ON s.id = l.list_id ${where}
-        ORDER BY lower(l.name), l.id LIMIT ? OFFSET ?`,
-      [...params, pageSize, (query.page - 1) * pageSize],
-    );
-    const owners = new Map<string, Record<string, { id: string; name: string }>>();
-    if (rows.length > 0) {
-      const claims = await all<{ lead_id: string; key: string; owner_id: string; owner_name: string }>(
-        db,
-        `SELECT c.lead_id, w.key, u.id AS owner_id, u.name AS owner_name FROM claims c
-           JOIN workspaces w ON w.id = c.workspace_id JOIN users u ON u.id = c.owner_id
-          WHERE c.lead_id IN (${inClause(rows.map((r) => r.id))})`,
-        rows.map((r) => r.id),
-      );
-      for (const claim of claims) {
-        const entry = owners.get(claim.lead_id) ?? {};
-        entry[claim.key] = { id: claim.owner_id, name: claim.owner_name };
-        owners.set(claim.lead_id, entry);
-      }
-    }
-    return {
-      total,
-      page: query.page,
-      pageSize,
-      leads: rows.map((r) => ({
-        id: r.id,
-        name: r.name,
-        area: r.area,
-        city: r.city,
-        company: r.company || '',
-        jobTitle: r.job_title || '',
-        personalNumber: r.personal_number || '',
-        keywords: r.keywords || '',
-        linkedin: r.linkedin_url || '',
-        phone: r.phone,
-        website: r.website,
-        listId: r.list_id,
-        category: r.category,
-        owners: owners.get(r.id) ?? {},
-      })),
-    };
+    return loadLeads(db, leadsQuery.parse(request.query), null);
   });
 
   app.put<{ Params: { leadId: string; workspaceId: string } }>('/api/admin/leads/:leadId/owners/:workspaceId', async (request) => {
@@ -556,7 +576,7 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const body = userCreate.parse(request.body);
     const isSales = body.role === 'sales';
     if (isSales && !body.category) throw new HttpError(400, 'invalid_request', 'Choose Scale or Reach for a salesperson.');
-    const userCategory = isSales ? (body.category ?? null) : null;
+    const userCategory = body.role === 'superadmin' ? null : (body.category ?? null);
     const workspaceIds = isSales ? unique(body.workspaceIds) : [];
     const id = newId();
     await tx(db, async (db) => {
@@ -575,7 +595,8 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
         Date.now(),
       ]);
       for (const workspaceId of workspaceIds) await run(db, 'INSERT INTO workspace_members (workspace_id, user_id) VALUES (?, ?)', [workspaceId, id]);
-      await logActivity(db, userCategory, `${me.name} invited ${body.name}`, isSales && userCategory ? CATEGORY_INFO[userCategory].name : 'Superadmin');
+      const subtitle = body.role === 'superadmin' ? 'Superadmin' : body.role === 'manager' ? `Manager, ${userCategory ? CATEGORY_INFO[userCategory].name : 'Scale and Reach'}` : userCategory ? CATEGORY_INFO[userCategory].name : '';
+      await logActivity(db, userCategory, `${me.name} invited ${body.name}`, subtitle);
     });
     const invite = await createInvite(db, id);
     const inviteUrl = `${config.appUrl}/invite/${invite.token}`;
@@ -603,7 +624,7 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
         await logActivity(db, user.category, `${me.name} ${body.active ? 'reactivated' : 'deactivated'} ${user.name}`, '');
       }
       if (body.workspaceIds !== undefined) {
-        if (user.role !== 'sales' || !user.category) throw new HttpError(400, 'invalid_request', 'Superadmins already see every service.');
+        if (user.role !== 'sales' || !user.category) throw new HttpError(400, 'invalid_request', 'Only salespeople are assigned to services.');
         const workspaceIds = unique(body.workspaceIds);
         await checkUserWorkspaces(db, user.category, workspaceIds);
         const current = (await all<{ workspace_id: string }>(db, 'SELECT workspace_id FROM workspace_members WHERE user_id = ?', [user.id])).map((r) => r.workspace_id);
