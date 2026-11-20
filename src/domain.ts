@@ -43,6 +43,10 @@ export interface ClaimDto {
   next: string;
   last: number;
   comments: { id: number; by: string; at: number; text: string; stage: string; edited: boolean }[];
+  verified: number;
+  verifiedAt: number | null;
+  verifiedBy: string | null;
+  verificationNote: string | null;
 }
 
 interface ClaimRow {
@@ -51,6 +55,10 @@ interface ClaimRow {
   status: string;
   next_follow_up: string | null;
   last_activity_at: number;
+  verified: number;
+  verified_at: number | null;
+  verified_by: string | null;
+  verification_note: string | null;
 }
 interface EventRow {
   claim_id: string;
@@ -106,7 +114,11 @@ export async function claimDtos(db: Db, claimIds: string[]): Promise<Map<string,
   const result = new Map<string, ClaimDto>();
   if (claimIds.length === 0) return result;
   const marks = inClause(claimIds);
-  const claims = await all<ClaimRow>(db, `SELECT id, owner_id, status, next_follow_up, last_activity_at FROM claims WHERE id IN (${marks})`, claimIds);
+  const claims = await all<ClaimRow>(
+    db,
+    `SELECT id, owner_id, status, next_follow_up, last_activity_at, verified, verified_at, verified_by, verification_note FROM claims WHERE id IN (${marks})`,
+    claimIds,
+  );
   const events = await all<EventRow>(db, `SELECT claim_id, status, at FROM claim_events WHERE claim_id IN (${marks}) ORDER BY at, id`, claimIds);
   const notes = await all<NoteRow>(db, `SELECT id, edited_at, claim_id, author_id, system, stage, text, at FROM notes WHERE claim_id IN (${marks}) ORDER BY at, id`, claimIds);
   for (const claim of claims) {
@@ -118,6 +130,10 @@ export async function claimDtos(db: Db, claimIds: string[]): Promise<Map<string,
       next: claim.next_follow_up ?? '',
       last: claim.last_activity_at,
       comments: [],
+      verified: claim.verified ?? 0,
+      verifiedAt: claim.verified_at,
+      verifiedBy: claim.verified_by,
+      verificationNote: claim.verification_note,
     });
   }
   for (const event of events) result.get(event.claim_id)?.history.push({ s: event.status, t: event.at });

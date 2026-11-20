@@ -39,6 +39,10 @@ export interface Claim {
   next: string;
   last: number;
   comments: ClaimComment[];
+  verified?: number;
+  verifiedAt?: number | null;
+  verifiedBy?: string | null;
+  verificationNote?: string | null;
 }
 
 /** A lead as the server sends it. */

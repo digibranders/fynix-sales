@@ -23,4 +23,27 @@ export interface ManagerBootstrap {
   people: TeamMember[];
 }
 
+export interface VerificationItem {
+  id: string;
+  leadId: string;
+  workspaceId: string;
+  ownerId: string;
+  status: string;
+  verified: number;
+  verifiedAt: number | null;
+  verifiedBy: string | null;
+  verificationNote: string | null;
+  leadName: string;
+  leadArea: string;
+  leadCity: string;
+  leadCompany: string;
+  leadJobTitle: string;
+  leadPhone: string;
+  workspaceName: string;
+  workspaceCategory: Category;
+  ownerName: string;
+  closedAt: number;
+  latestNote: string | null;
+}
+
 export type ManagerView = 'team' | 'leads' | 'account';

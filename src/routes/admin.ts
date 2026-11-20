@@ -149,7 +149,7 @@ export async function loadPeople(db: Db, scope: Category[] | null) {
       )
     : await all<UserRow>(db, 'SELECT id, name, email, role, category, active, last_login_at FROM users ORDER BY role DESC, name');
   return Promise.all(users.map(async (u) => {
-    const stats = { assigned: 0, contacted: 0, meetings: 0, won: 0 };
+    const stats = { assigned: 0, contacted: 0, meetings: 0, won: 0, verifiedWon: 0 };
     if (u.role === 'sales') {
       stats.assigned = await claimCount(db, 'SELECT COUNT(*) AS n FROM claims WHERE owner_id = ?', [u.id]);
       stats.contacted = await claimCount(
@@ -168,6 +168,12 @@ export async function loadPeople(db: Db, scope: Category[] | null) {
           [u.id, stage, month],
         );
       }
+      stats.verifiedWon = await claimCount(
+        db,
+        `SELECT COUNT(DISTINCT c.id) AS n FROM claims c JOIN claim_events e ON e.claim_id = c.id
+          WHERE c.owner_id = ? AND e.status = 'Won' AND e.at >= ? AND c.verified = 1`,
+        [u.id, month],
+      );
     }
     return {
       id: u.id,
