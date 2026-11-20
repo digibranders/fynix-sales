@@ -103,13 +103,28 @@ export async function buildApp(db: Db, config: Config, mailer: Mailer = createMa
   // a long time, and a new release gets new addresses, so nobody ever runs a page against scripts from another release.
   const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
   const release = Date.now().toString(36);
-  const scriptRoot = path.join(config.webDir, 'assets', 'js');
-  const pageHtml = async (file: string): Promise<string> =>
-    (await readFile(path.join(config.webDir, file), 'utf8')).replaceAll('/assets/js/', `/assets/js-${release}/`);
+  // Pages are read once in production; in development they are read on every request so edits show up.
+  const pageCache = new Map<string, Promise<string>>();
+  const loadPage = (file: string): Promise<string> =>
+    readFile(path.join(config.webDir, file), 'utf8').then((html) =>
+      html.replaceAll('/assets/js/', `/assets/js-${release}/`).replaceAll('/assets/css/', `/assets/css-${release}/`),
+    );
+  const pageHtml = (file: string): Promise<string> => {
+    if (!config.production) return loadPage(file);
+    let html = pageCache.get(file);
+    if (!html) {
+      html = loadPage(file);
+      pageCache.set(file, html);
+    }
+    return html;
+  };
 
-  app.get<{ Params: { '*': string } }>('/assets/js-:release/*', async (request, reply) => {
-    return reply.sendFile(request.params['*'], scriptRoot, { maxAge: ONE_YEAR_MS, immutable: true });
-  });
+  for (const kind of ['js', 'css'] as const) {
+    const root = path.join(config.webDir, 'assets', kind);
+    app.get<{ Params: { '*': string } }>(`/assets/${kind}-:release/*`, async (request, reply) => {
+      return reply.sendFile(request.params['*'], root, { maxAge: ONE_YEAR_MS, immutable: true });
+    });
+  }
 
   const page = (file: string, roles: SessionUser['role'][] | null) => async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user;

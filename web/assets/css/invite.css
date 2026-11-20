@@ -1,0 +1,90 @@
+/* A floating card on a soft sage page. Left: the form. Right: a flat illustration of the pipeline as a staircase,
+   with a runner who climbs one step for every sales line. Phones stack the art on top of the form. */
+:root{
+  --page:#e7ece5; --white:#ffffff; --ink:#121413; --muted:#5f655f; --line:#d9ddd6;
+  --deep:#0d1f16; --green:#2fb36d; --green-d:#178a52; --red:#e5483b; --err:#c8372d; --cream:#f2efe6;
+  --sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --serif:'Instrument Serif',Georgia,'Times New Roman',serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font:15px/1.5 var(--sans);color:var(--ink);background:var(--page);-webkit-font-smoothing:antialiased;min-height:100vh;min-height:100dvh}
+[hidden]{display:none!important}
+button{font:inherit}
+
+.page{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:28px}
+.card{width:100%;max-width:1120px;min-height:660px;display:grid;grid-template-columns:1fr 1.1fr;background:var(--white);border-radius:28px;padding:14px;box-shadow:0 1px 0 rgba(0,0,0,.04),0 24px 60px rgba(13,31,22,.14)}
+
+/* ---------- form side ---------- */
+.side{display:flex;flex-direction:column;padding:26px 46px 22px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+.mark{width:28px;height:28px;border-radius:8px;background:var(--deep);display:grid;place-items:center}
+.mark svg{width:15px;height:15px;fill:var(--green)}
+.panel{width:100%;max-width:380px;margin:auto}
+h1{margin:0;font:600 28px/1.15 var(--sans);letter-spacing:-.02em}
+.sub{margin:8px 0 22px;color:var(--muted);font-size:14.5px}
+
+label.l{display:block;margin:16px 0 7px;font-size:13px;font-weight:500}
+.inp{position:relative}
+.inp input{width:100%;height:50px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:var(--white);color:var(--ink);font:inherit;font-size:16px;transition:border-color .15s ease,box-shadow .15s ease}
+.inp input::placeholder{color:#9a9f98}
+.inp input:hover{border-color:#bfc4bb}
+.inp input:focus-visible{outline:0;border-color:var(--green-d);box-shadow:0 0 0 3px rgba(47,179,109,.22)}
+.inp.pw input{padding-right:62px}
+.eye{position:absolute;right:4px;top:4px;height:42px;min-width:54px;padding:0 10px;border:0;background:none;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer;border-radius:8px}
+.eye:hover{color:var(--ink)}
+.eye:focus-visible{outline:2px solid var(--green-d);outline-offset:-2px}
+
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px}
+.check{display:inline-flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;user-select:none;font-size:14px}
+.check input{position:absolute;opacity:0;width:0;height:0}
+.box{width:18px;height:18px;flex:none;border:1.5px solid #9a9f98;border-radius:5px;display:grid;place-items:center;background:var(--white);transition:background .15s ease,border-color .15s ease}
+.check input:checked+.box{background:var(--deep);border-color:var(--deep)}
+.check input:checked+.box::after{content:"";width:8px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+.check input:focus-visible+.box{outline:2px solid var(--green-d);outline-offset:2px}
+.link{min-height:44px;padding:0;background:none;border:0;color:var(--muted);font-size:14px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-color:#bfc4bb}
+.link:hover{color:var(--ink)}
+.link:focus-visible{outline:2px solid var(--green-d);outline-offset:2px;border-radius:3px}
+.note{margin:8px 0 0;padding:12px 14px;border-radius:10px;background:#f4f6f2;border:1px solid var(--line);font-size:13.5px;color:var(--muted)}
+.hint{margin:7px 0 0;font-size:13px;color:var(--muted)}
+.err{margin:12px 0 0;min-height:20px;color:var(--err);font-size:13.5px;font-weight:500}
+
+.btn{margin-top:10px;width:100%;height:52px;border:0;border-radius:12px;background:var(--deep);color:#fff;font-weight:600;font-size:15px;cursor:pointer;transition:background .15s ease,transform .06s ease}
+.btn:hover{background:#17342a}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--green-d);outline-offset:3px}
+.btn[disabled]{opacity:.6;cursor:default}
+.foot{margin:0;font:400 11.5px/1.4 var(--mono);color:#8c918a;letter-spacing:.04em}
+
+.inp input[readonly]{background:#f4f6f2;color:var(--muted);cursor:default}
+.go-login{display:grid;place-items:center;text-decoration:none;margin-top:18px;height:52px;border-radius:12px;background:var(--deep);color:#fff;font-weight:600;font-size:15px}
+.go-login:hover{background:#17342a}
+/* ---------- art side ---------- */
+.art{position:relative;background:var(--deep);border-radius:20px;color:var(--cream);display:flex;flex-direction:column;padding:34px 36px 26px;overflow:hidden}
+.q-text{margin:0;min-height:3.3em;font:400 clamp(30px,3.1vw,42px)/1.1 var(--serif);letter-spacing:-.005em;text-wrap:balance;max-width:470px}
+.swap{transition:opacity .38s ease,transform .38s ease}
+.out .swap{opacity:0;transform:translateY(8px)}
+.ctl{display:flex;align-items:center;gap:8px;margin-top:20px}
+.arrow{width:40px;height:40px;border-radius:50%;border:1px solid rgba(242,239,230,.28);background:none;color:var(--cream);display:grid;place-items:center;cursor:pointer;transition:background .15s ease,border-color .15s ease}
+.arrow:hover{background:rgba(242,239,230,.1);border-color:rgba(242,239,230,.5)}
+.arrow:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.arrow svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.count{margin-left:8px;font:400 12px/1 var(--mono);color:rgba(242,239,230,.5);letter-spacing:.06em}
+.scene{flex:1;min-height:0;display:flex;align-items:flex-end;margin-top:18px}
+.scene svg{width:100%;height:auto;max-height:100%;display:block;overflow:visible}
+.stair rect{transition:fill .5s ease}
+.runner{transition:transform .8s cubic-bezier(.45,.05,.2,1)}
+
+/* ---------- phone ---------- */
+@media (max-width:899px){
+  .page{padding:0;align-items:stretch;background:var(--white)}
+  .card{display:flex;flex-direction:column-reverse;max-width:none;min-height:100vh;min-height:100dvh;border-radius:0;box-shadow:none;padding:12px}
+  .side{padding:22px 12px}
+  .panel{margin:26px auto 22px}
+  .art{padding:24px 22px 18px}
+  .q-text{font-size:28px}
+  .scene{margin-top:12px}
+  .ctl{margin-top:14px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
