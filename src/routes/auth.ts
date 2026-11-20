@@ -3,14 +3,16 @@ import { z } from 'zod';
 import type { AppContext } from '../app.js';
 import { homeFor } from '../app.js';
 import {
+  INVITE_TOKEN,
   SESSION_COOKIE,
   createSession,
   destroySession,
   destroyUserSessions,
+  findInvite,
   hashPassword,
   verifyPassword,
 } from '../auth.js';
-import { one, run } from '../db.js';
+import { all, one, run, tx } from '../db.js';
 import { HttpError, initials } from '../domain.js';
 
 const loginBody = z.object({
@@ -47,8 +49,52 @@ function setSessionCookie(ctx: AppContext, reply: FastifyReply, token: string, e
   });
 }
 
+const inviteBody = z.object({ password: z.string().min(10, 'Use at least 10 characters.').max(200) });
+const INVITE_GONE = new HttpError(404, 'invite_invalid', 'This invite link has expired or was already used. Ask your admin for a new one.');
+
 export function registerAuthRoutes(app: FastifyInstance, ctx: AppContext): void {
-  const { db, config, limiter } = ctx;
+  const { db, config, limiter, inviteLimiter } = ctx;
+
+  /** What the invite page shows: who the link is for. Tells nothing about anyone else. */
+  app.get<{ Params: { token: string } }>('/api/auth/invite/:token', async (request) => {
+    const key = `invite|${request.ip}`;
+    if (inviteLimiter.blocked(key)) throw new HttpError(429, 'too_many_attempts', 'Too many attempts. Wait a few minutes and try again.');
+    const invite = await findInvite(db, request.params.token);
+    if (!invite) {
+      inviteLimiter.fail(key);
+      throw INVITE_GONE;
+    }
+    return { name: invite.name, email: invite.email, reset: invite.reset, expiresAt: invite.expiresAt };
+  });
+
+  /** Uses the link once: sets the password, ends any older sessions, and signs the person in. */
+  app.post<{ Params: { token: string } }>('/api/auth/invite/:token', async (request, reply) => {
+    const key = `invite|${request.ip}`;
+    if (inviteLimiter.blocked(key)) throw new HttpError(429, 'too_many_attempts', 'Too many attempts. Wait a few minutes and try again.');
+    const body = inviteBody.parse(request.body);
+    if (!INVITE_TOKEN.test(request.params.token)) {
+      inviteLimiter.fail(key);
+      throw INVITE_GONE;
+    }
+    const passwordHash = await hashPassword(body.password);
+    const invite = await tx(db, async (db) => {
+      const found = await findInvite(db, request.params.token);
+      if (!found) return null;
+      // The used_at check decides a race: only one of two simultaneous requests gets a row back.
+      const claimed = await all<{ id: string }>(db, 'UPDATE invites SET used_at = ? WHERE id = ? AND used_at IS NULL RETURNING id', [Date.now(), found.id]);
+      if (claimed.length === 0) return null;
+      await run(db, 'UPDATE users SET password_hash = ?, must_change_password = 0, last_login_at = ? WHERE id = ?', [passwordHash, Date.now(), found.userId]);
+      await destroyUserSessions(db, found.userId);
+      return found;
+    });
+    if (!invite) {
+      inviteLimiter.fail(key);
+      throw INVITE_GONE;
+    }
+    const session = await createSession(db, invite.userId, config.sessionDays);
+    setSessionCookie(ctx, reply, session.token, session.expiresAt);
+    return { redirect: invite.role === 'superadmin' ? '/admin' : '/app' };
+  });
 
   app.post('/api/auth/login', async (request, reply) => {
     const body = loginBody.parse(request.body);

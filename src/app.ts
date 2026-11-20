@@ -26,6 +26,8 @@ export interface AppContext {
   db: Db;
   config: Config;
   limiter: LoginLimiter;
+  /** Looser than the sign-in limiter: link secrets are too long to guess, and a whole office may share one address. */
+  inviteLimiter: LoginLimiter;
   mailer: Mailer;
 }
 
@@ -47,7 +49,7 @@ export function homeFor(user: SessionUser): string {
 
 export async function buildApp(db: Db, config: Config, mailer: Mailer = createMailer(config)): Promise<FastifyInstance> {
   const app = Fastify({ logger: false, bodyLimit: 25 * 1024 * 1024, trustProxy: config.production });
-  const ctx: AppContext = { db, config, limiter: new LoginLimiter(), mailer };
+  const ctx: AppContext = { db, config, limiter: new LoginLimiter(), inviteLimiter: new LoginLimiter(40), mailer };
 
   await app.register(cookie);
   await app.register(fastifyStatic, {
@@ -115,6 +117,11 @@ export async function buildApp(db: Db, config: Config, mailer: Mailer = createMa
   app.get('/login', page('login.html', null));
   app.get('/app', page('sales.html', ['sales']));
   app.get('/admin', page('admin.html', ['superadmin']));
+  app.get<{ Params: { token: string } }>('/invite/:token', async (_request, reply) => {
+    reply.header('Cache-Control', 'no-store');
+    reply.header('X-Robots-Tag', 'noindex');
+    return reply.type('text/html; charset=utf-8').sendFile('invite.html', config.webDir);
+  });
   app.get('/health', async () => ({ ok: true }));
 
   registerAuthRoutes(app, ctx);

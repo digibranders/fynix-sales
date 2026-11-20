@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { sql } from 'drizzle-orm';
 import { after, before, describe, it } from 'node:test';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
@@ -390,28 +391,87 @@ describe('superadmin', () => {
     assert.ok(released?.open.includes('scale-website'));
   });
 
-  it('invites a salesperson with a temporary password that must be changed', async () => {
+  it('invites a salesperson with a one-time link and lets them choose their own password', async () => {
     const aarav = await login('aarav@fynix.test');
     const created = await call(aarav, 'POST', '/api/admin/users', { name: 'Neha Rao', email: 'neha@fynix.test', role: 'sales', category: 'reach', workspaceIds: ['reach-website'] });
     assert.equal(created.status, 201);
-    const temp = created.body['temporaryPassword'] as string;
-    assert.ok(temp.length >= 12);
+    assert.equal('temporaryPassword' in created.body, false, 'no password is ever handed out');
+    const url = String(created.body['inviteUrl']);
+    assert.match(url, /\/invite\/[A-Za-z0-9_-]{40,}$/);
+    const token = url.split('/').pop() ?? '';
     assert.equal((await call(aarav, 'POST', '/api/admin/users', { name: 'Neha Again', email: 'neha@fynix.test', role: 'sales', category: 'reach' })).status, 409);
     assert.equal((await call(aarav, 'POST', '/api/admin/users', { name: 'Wrong Mix', email: 'mix@fynix.test', role: 'sales', category: 'reach', workspaceIds: ['scale-website'] })).status, 400);
 
-    const login1 = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'neha@fynix.test', password: temp } });
-    assert.equal(login1.statusCode, 200);
-    assert.equal(JSON.parse(login1.body).mustChangePassword, true);
-    const cookie = `ld_session=${login1.cookies[0]?.value ?? ''}`;
-    assert.equal((await call(cookie, 'GET', '/api/sales/bootstrap')).status, 403, 'blocked until the password is changed');
-    assert.equal((await app.inject({ method: 'GET', url: '/app', headers: { cookie } })).headers.location, '/login');
+    // before the link is used nobody can sign in as them
+    assert.equal((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'neha@fynix.test', password: 'invite-pending' } })).statusCode, 401);
 
-    assert.equal((await call(cookie, 'POST', '/api/auth/change-password', { current: temp, next: 'short' })).status, 400);
-    const changed = await app.inject({ method: 'POST', url: '/api/auth/change-password', headers: { cookie }, payload: { current: temp, next: 'a-better-password-9' } });
-    assert.equal(changed.statusCode, 200);
-    const fresh = `ld_session=${changed.cookies[0]?.value ?? ''}`;
-    assert.equal((await call(fresh, 'GET', '/api/sales/bootstrap')).status, 200);
-    assert.equal((await call(cookie, 'GET', '/api/auth/me')).status, 401, 'the old session is revoked');
+    // the page shows who the link is for
+    const info = await app.inject({ method: 'GET', url: `/api/auth/invite/${token}` });
+    assert.equal(info.statusCode, 200);
+    assert.deepEqual(JSON.parse(info.body), { name: 'Neha Rao', email: 'neha@fynix.test', reset: false, expiresAt: created.body['expiresAt'] });
+    assert.equal((await app.inject({ method: 'GET', url: `/invite/${token}` })).statusCode, 200, 'the invite page itself is public');
+
+    assert.equal((await app.inject({ method: 'POST', url: `/api/auth/invite/${token}`, payload: { password: 'short' } })).statusCode, 400);
+    const accepted = await app.inject({ method: 'POST', url: `/api/auth/invite/${token}`, payload: { password: 'a-better-password-9' } });
+    assert.equal(accepted.statusCode, 200);
+    assert.equal(JSON.parse(accepted.body).redirect, '/app');
+    const cookie = `ld_session=${accepted.cookies[0]?.value ?? ''}`;
+    assert.equal((await call(cookie, 'GET', '/api/sales/bootstrap')).status, 200, 'signed in straight away');
+
+    // the link works once
+    assert.equal((await app.inject({ method: 'POST', url: `/api/auth/invite/${token}`, payload: { password: 'another-password-9' } })).statusCode, 404);
+    assert.equal((await app.inject({ method: 'GET', url: `/api/auth/invite/${token}` })).statusCode, 404);
+    const again = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'neha@fynix.test', password: 'a-better-password-9' } });
+    assert.equal(again.statusCode, 200);
+    assert.equal(JSON.parse(again.body).mustChangePassword, false);
+  });
+
+  it('rejects unknown, replaced and expired links, and gives superadmins a way to send new ones', async () => {
+    const aarav = await login('aarav@fynix.test');
+    const rohan = await login('rohan@fynix.test');
+    assert.equal((await app.inject({ method: 'GET', url: '/api/auth/invite/not-a-real-link-at-all-1234567890' })).statusCode, 404);
+    assert.equal((await app.inject({ method: 'GET', url: '/api/auth/invite/x' })).statusCode, 404);
+
+    const created = await call(aarav, 'POST', '/api/admin/users', { name: 'Isha Bose', email: 'isha@fynix.test', role: 'sales', category: 'scale' });
+    const first = String(created.body['inviteUrl']).split('/').pop() ?? '';
+    const boot = (await call(aarav, 'GET', '/api/admin/bootstrap')).body as { people: { id: string; email: string; invited: boolean }[]; me: { id: string } };
+    const ishaId = boot.people.find((p) => p.email === 'isha@fynix.test')?.id ?? '';
+    assert.equal(boot.people.find((p) => p.email === 'isha@fynix.test')?.invited, true);
+
+    const fresh = await call(aarav, 'POST', `/api/admin/users/${ishaId}/invite`);
+    assert.equal(fresh.status, 200);
+    assert.equal(fresh.body['reset'], false);
+    const second = String(fresh.body['inviteUrl']).split('/').pop() ?? '';
+    assert.notEqual(first, second);
+    assert.equal((await app.inject({ method: 'GET', url: `/api/auth/invite/${first}` })).statusCode, 404, 'a new link replaces the old one');
+    assert.equal((await app.inject({ method: 'GET', url: `/api/auth/invite/${second}` })).statusCode, 200);
+
+    await db.runner.execute(sql`UPDATE invites SET expires_at = ${Date.now() - 1000} WHERE user_id = ${ishaId}`);
+    assert.equal((await app.inject({ method: 'GET', url: `/api/auth/invite/${second}` })).statusCode, 404, 'expired');
+    assert.equal((await app.inject({ method: 'POST', url: `/api/auth/invite/${second}`, payload: { password: 'a-long-enough-password' } })).statusCode, 404);
+
+    assert.equal((await call(rohan, 'POST', `/api/admin/users/${ishaId}/invite`)).status, 403, 'only superadmins');
+    assert.equal((await call(aarav, 'POST', `/api/admin/users/${boot.me.id}/invite`)).status, 400, 'not for yourself');
+    assert.equal((await call(aarav, 'POST', '/api/admin/users/nobody/invite')).status, 404);
+
+    assert.equal((await call(aarav, 'PATCH', `/api/admin/users/${ishaId}`, { active: false })).status, 200);
+    assert.equal((await call(aarav, 'POST', `/api/admin/users/${ishaId}/invite`)).status, 409, 'deactivated people get no link');
+  });
+
+  it('resets a password through a link and signs out their other sessions', async () => {
+    const aarav = await login('aarav@fynix.test');
+    const boot = (await call(aarav, 'GET', '/api/admin/bootstrap')).body as { people: { id: string; email: string }[] };
+    const nehaId = boot.people.find((p) => p.email === 'neha@fynix.test')?.id ?? '';
+    const oldSession = `ld_session=${(await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'neha@fynix.test', password: 'a-better-password-9' } })).cookies[0]?.value ?? ''}`;
+    const link = await call(aarav, 'POST', `/api/admin/users/${nehaId}/invite`);
+    assert.equal(link.body['reset'], true);
+    const token = String(link.body['inviteUrl']).split('/').pop() ?? '';
+    assert.equal(JSON.parse((await app.inject({ method: 'GET', url: `/api/auth/invite/${token}` })).body).reset, true);
+    assert.equal((await call(oldSession, 'GET', '/api/auth/me')).status, 200, 'nothing changes until the link is used');
+    assert.equal((await app.inject({ method: 'POST', url: `/api/auth/invite/${token}`, payload: { password: 'brand-new-password-7' } })).statusCode, 200);
+    assert.equal((await call(oldSession, 'GET', '/api/auth/me')).status, 401, 'older sessions are signed out');
+    assert.equal((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'neha@fynix.test', password: 'a-better-password-9' } })).statusCode, 401);
+    assert.equal((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'neha@fynix.test', password: 'brand-new-password-7' } })).statusCode, 200);
   });
 
   it('will not deactivate someone who still owns leads, and blocks deactivated people', async () => {

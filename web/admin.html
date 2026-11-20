@@ -378,7 +378,7 @@ function vTeam(){
     var self=p.id===D.me.id;
     return '<tr><td class="muted num">'+(i+1)+'</td><td><span class="own static">'+av(p)+'<span>'+esc(p.name)+'<br><small class="muted">'+esc(p.email)+'</small></span></span></td><td class="role">'+(p.role==='superadmin'?'Superadmin':'Sales')+'</td><td>'+(p.role==='superadmin'?ct(null):ct(p.category))+'</td><td>'+wsOf(p)+'</td>'+
       '<td><span class="dotl'+(p.active&&!p.invited?'':' off')+'"><i></i>'+(!p.active?'Deactivated':p.invited?'Invited':'Active')+'</span></td>'+
-      '<td style="text-align:right;white-space:nowrap">'+(p.role==='sales'?'<button class="btn sm" data-editpeople="'+esc(p.id)+'">Services</button> ':'')+(self?'':'<button class="btn sm" data-reset="'+esc(p.id)+'">Reset password</button> <button class="btn sm" data-toggle="'+esc(p.id)+'">'+(p.active?'Deactivate':'Reactivate')+'</button>')+'</td></tr>';}).join('')+'</tbody></table></div>';
+      '<td style="text-align:right;white-space:nowrap">'+(p.role==='sales'?'<button class="btn sm" data-editpeople="'+esc(p.id)+'">Services</button> ':'')+(self?'':'<button class="btn sm" data-reset="'+esc(p.id)+'">'+(p.invited?'Invite link':'Reset password')+'</button> <button class="btn sm" data-toggle="'+esc(p.id)+'">'+(p.active?'Deactivate':'Reactivate')+'</button>')+'</td></tr>';}).join('')+'</tbody></table></div>';
   return h+'<p class="hint">A salesperson belongs to one category and can only see that category\'s data. Superadmins see both.</p>';
 }
 
@@ -450,7 +450,7 @@ function openModal(kind,extra){
   else if(kind==='list'){F.name='';F.cat=dc();F.wss=[];F.csv='';F.fileName='';}
   else if(kind==='person'){F.name='';F.email='';F.role='sales';F.cat=dc();F.wss=[];}
   else if(kind==='editpeople'){var p=person(extra);F.id=p.id;F.name=p.name;F.cat=p.category;F.wss=p.workspaceIds.slice();}
-  else if(kind==='password'){F=extra;}
+  else if(kind==='link'){F=extra;}
   S.form.m=F;
   paintModal();$('#scrim').hidden=false;$('#modal').hidden=false;
   var f=$('#modal').querySelector('input[type=text],input[type=email]');if(f)f.focus();
@@ -476,11 +476,11 @@ function paintModal(){
     h=mh('Invite member')+'<div class="mb"><label class="fl" for="f-name" style="margin-top:6px">Name</label><input class="inp" id="f-name" type="text" maxlength="80" placeholder="Full name" value="'+esc(F.name)+'">'+
       '<label class="fl" for="f-email">Email</label><input class="inp" id="f-email" type="email" maxlength="200" placeholder="name@company.com" value="'+esc(F.email)+'">'+
       '<span class="fl">Role</span><div class="seg">'+[['sales','Sales'],['superadmin','Superadmin']].map(function(r){return '<button type="button" data-rl="'+r[0]+'" aria-pressed="'+(F.role===r[0])+'">'+r[1]+'</button>';}).join('')+'</div>'+
-      (sa?'<p class="hint">Superadmins can see both categories and every workspace.</p>':'<span class="fl">Category</span>'+catSeg(F.cat)+'<span class="fl">'+esc(catName(F.cat))+' services</span>'+pickRows(wsPick(F.cat),F.wss,'wss'))+foot('Send invite','person');
+      (sa?'<p class="hint">Superadmins can see both categories and every workspace.</p>':'<span class="fl">Category</span>'+catSeg(F.cat)+'<span class="fl">'+esc(catName(F.cat))+' services</span>'+pickRows(wsPick(F.cat),F.wss,'wss'))+foot('Create invite link','person');
   } else if(k==='editpeople'){
     h=mh('Services for '+esc(F.name))+'<div class="mb"><p class="hint" style="margin-top:0">'+esc(catName(F.cat))+' services only.</p>'+pickRows(wsPick(F.cat),F.wss,'wss')+foot('Save','editpeople');
-  } else if(k==='password'){
-    h=mh(esc(F.title))+'<div class="mb"><p style="margin:6px 0 0">'+esc(F.body)+'</p><div class="pw" id="pw">'+esc(F.password)+'</div><p class="hint">They will be asked to choose their own password the first time they sign in. This is the only time it is shown.</p></div><div class="df"><button class="btn" data-copy-pw>Copy</button><button class="btn dark" data-close>Done</button></div>';
+  } else if(k==='link'){
+    h=mh(esc(F.title))+'<div class="mb"><p style="margin:6px 0 10px">'+esc(F.body)+'</p><input class="inp" id="invite-link" type="text" readonly value="'+esc(F.link)+'" onclick="this.select()" aria-label="Invite link"><p class="hint">It works once and expires in 7 days. Send it only to '+esc(F.name)+'. A new link replaces this one.</p></div><div class="df"><button class="btn" data-copy-link>Copy link</button><button class="btn dark" data-close>Done</button></div>';
   }
   $('#modal').innerHTML=h;
 }
@@ -522,8 +522,7 @@ function save(kind){
     var body={name:F.name.trim(),email:F.email.trim(),role:F.role,workspaceIds:F.role==='sales'?F.wss:[]};
     if(F.role==='sales') body.category=F.cat;
     req=api('POST','/api/admin/users',body).then(function(r){
-      if(r.temporaryPassword) return {after:function(){openModal('password',{title:'Share this password',body:'Email could not be sent, so give '+body.name+' this temporary password.',password:r.temporaryPassword});},view:'team'};
-      return {msg:'Invite emailed to '+body.email,view:'team'};});
+      return {after:function(){openModal('link',{title:'Invite link for '+body.name,body:r.emailed?'We also emailed it to '+body.email+'. You can copy it here too.':'Copy this link and send it to '+body.name+'. They open it and choose their own password.',link:r.inviteUrl,name:body.name});},view:'team'};});
   } else if(kind==='editpeople'){
     req=api('PATCH','/api/admin/users/'+F.id,{workspaceIds:F.wss}).then(function(){return {msg:'Workspaces updated',view:'team'};});
   } else return;
@@ -593,8 +592,8 @@ document.addEventListener('click',function(e){
   }
   if((c=t.closest('[data-reset]'))){
     var rp=person(c.dataset.reset);
-    api('POST','/api/admin/users/'+encodeURIComponent(rp.id)+'/reset-password').then(function(r){
-      if(r.temporaryPassword) openModal('password',{title:'Share this password',body:'Give '+rp.name+' this temporary password.',password:r.temporaryPassword}); else toast('A new temporary password was emailed to '+rp.name);
+    api('POST','/api/admin/users/'+encodeURIComponent(rp.id)+'/invite').then(function(r){
+      openModal('link',{title:(r.reset?'Password reset link for ':'Invite link for ')+rp.name,body:r.emailed?'We also emailed it to '+rp.email+'. You can copy it here too.':'Copy this link and send it to '+rp.name+'. They open it and choose a '+(r.reset?'new ':'')+'password.',link:r.inviteUrl,name:rp.name});
     }).catch(fail);return;
   }
   if((c=t.closest('[data-save-targets]'))){
@@ -605,7 +604,7 @@ document.addEventListener('click',function(e){
   }
   if((c=t.closest('[data-rmonth]'))){var d=parseInt(c.dataset.rmonth,10),m=S.report.m+d,y=S.report.y;if(m<0){m=11;y--;}else if(m>11){m=0;y++;}if(y>NOW.getFullYear()||(y===NOW.getFullYear()&&m>NOW.getMonth()))return;S.report.m=m;S.report.y=y;render();return;}
   if((c=t.closest('[data-lpage]'))){S.leads.page+=parseInt(c.dataset.lpage,10);loadLeads();return;}
-  if(t.closest('[data-copy-pw]')){var txt=S.form.m.password;try{navigator.clipboard.writeText(txt).then(function(){toast('Copied');},function(){toast('Select the password and copy it');});}catch(err){toast('Select the password and copy it');}return;}
+  if(t.closest('[data-copy-link]')){var txt=S.form.m.link,fld=document.getElementById('invite-link');if(fld)fld.select();try{navigator.clipboard.writeText(txt).then(function(){toast('Link copied');},function(){toast('Select the link and copy it');});}catch(err){toast('Select the link and copy it');}return;}
 });
 document.addEventListener('change',function(e){
   if(e.target.id!=='f-file') return;

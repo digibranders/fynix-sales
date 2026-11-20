@@ -1,7 +1,7 @@
 import { createHash, randomBytes, scrypt as scryptCb, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import type { Category, Db } from './db.js';
-import { one, run } from './db.js';
+import { newId, one, run } from './db.js';
 
 const scrypt = promisify(scryptCb) as (password: string, salt: Buffer, keylen: number) => Promise<Buffer>;
 
@@ -51,6 +51,45 @@ export function generatePassword(): string {
 
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
+}
+
+export const INVITE_DAYS = 7;
+/** Stored for people who have not chosen a password yet. It is not a valid scrypt hash, so no password can ever match it. */
+export const NO_PASSWORD = 'invite-pending';
+export const INVITE_TOKEN = /^[A-Za-z0-9_-]{20,100}$/;
+
+export interface InviteInfo {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  role: 'superadmin' | 'sales';
+  /** True when the person already has a password, so the link is a reset rather than a first sign-up. */
+  reset: boolean;
+  expiresAt: number;
+}
+
+/** Makes a fresh one-time link for a person. Any link they had not used yet stops working. */
+export async function createInvite(db: Db, userId: string, days = INVITE_DAYS): Promise<{ token: string; expiresAt: number }> {
+  const token = randomBytes(32).toString('base64url');
+  const expiresAt = Date.now() + days * DAY_MS;
+  await run(db, 'DELETE FROM invites WHERE user_id = ? AND used_at IS NULL', [userId]);
+  await run(db, 'INSERT INTO invites (id, user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)', [newId(), userId, hashToken(token), expiresAt, Date.now()]);
+  return { token, expiresAt };
+}
+
+/** The invite behind a link, or null when it is unknown, used, expired, or the person was deactivated. */
+export async function findInvite(db: Db, token: string): Promise<InviteInfo | null> {
+  if (!INVITE_TOKEN.test(token)) return null;
+  const row = await one<{ id: string; expires_at: number; user_id: string; name: string; email: string; role: 'superadmin' | 'sales'; password_hash: string }>(
+    db,
+    `SELECT i.id, i.expires_at, u.id AS user_id, u.name, u.email, u.role, u.password_hash
+       FROM invites i JOIN users u ON u.id = i.user_id
+      WHERE i.token_hash = ? AND i.used_at IS NULL AND i.expires_at > ? AND u.active = 1`,
+    [hashToken(token), Date.now()],
+  );
+  if (!row) return null;
+  return { id: row.id, userId: row.user_id, name: row.name, email: row.email, role: row.role, reset: row.password_hash !== NO_PASSWORD, expiresAt: row.expires_at };
 }
 
 export async function createSession(db: Db, userId: string, days: number): Promise<{ token: string; expiresAt: number }> {

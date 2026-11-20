@@ -27,7 +27,7 @@ async function setup(accept: boolean) {
 }
 
 describe('invite email', () => {
-  it('emails the temporary password and keeps it out of the response', async () => {
+  it('emails the invite link, and still returns it to the admin', async () => {
     const { app, db, sent, cookie } = await setup(true);
     const res = await app.inject({
       method: 'POST',
@@ -43,17 +43,16 @@ describe('invite email', () => {
     const mail = sent[0];
     assert.ok(mail);
     assert.equal(mail.to, 'neha@fynix.test');
-    assert.ok(mail.text.includes('https://leads.example.test/login'));
+    const link = /(https:\/\/leads\.example\.test\/invite\/\S+)/.exec(mail.text)?.[1];
+    assert.ok(link, 'the email carries the invite link');
+    assert.equal(link, body['inviteUrl']);
     assert.ok(mail.html.includes('Neha &lt;Rao&gt;'), 'names are escaped in the HTML body');
-    const password = /Temporary password: (\S+)/.exec(mail.text)?.[1];
-    assert.ok(password);
-    const login = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'neha@fynix.test', password } });
-    assert.equal(login.statusCode, 200);
+    assert.equal(mail.text.includes('password:'), false);
     await app.close();
     await db.close();
   });
 
-  it('shows the password on screen when the email cannot be sent', async () => {
+  it('returns the link when the email cannot be sent, so it can be copied and shared', async () => {
     const { app, db, cookie } = await setup(false);
     const res = await app.inject({
       method: 'POST',
@@ -63,7 +62,7 @@ describe('invite email', () => {
     });
     const body = JSON.parse(res.body) as Record<string, unknown>;
     assert.equal(body['emailed'], false);
-    assert.equal(typeof body['temporaryPassword'], 'string');
+    assert.match(String(body['inviteUrl']), /^https:\/\/leads\.example\.test\/invite\//);
     await app.close();
     await db.close();
   });
