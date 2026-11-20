@@ -174,7 +174,7 @@ export interface LinkInfo {
   name: string;
 }
 
-export type ModalKind = 'ws' | 'list' | 'person' | 'editpeople' | 'link';
+export type ModalKind = 'ws' | 'list' | 'person' | 'editpeople' | 'rename' | 'link';
 
 /** Everything the open dialog edits. Fields a dialog does not use stay at their defaults. */
 export interface ModalForm extends LinkInfo {

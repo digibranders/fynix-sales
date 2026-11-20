@@ -76,6 +76,7 @@ const PI: Record<string, string> = {
 const PT: Record<string, readonly [string, string, string]> = {
   today:['#4be07a','#1aa64a','<circle cx="12" cy="12" r="7.8"/><path d="M12 7.7V12l3 1.8"/>'],
   bell:['#ff6b63','#e5342d','<path style="fill:#fff;stroke:none" d="M12 3.6a5.4 5.4 0 0 0-5.4 5.4v3c0 .5-.2 1-.5 1.4l-1.2 1.6c-.5.7 0 1.8.9 1.8h12.4c.9 0 1.4-1.1.9-1.8l-1.2-1.6a2.4 2.4 0 0 1-.5-1.4V9A5.4 5.4 0 0 0 12 3.6z"/><path style="fill:#fff;stroke:none" d="M9.7 18.3a2.3 2.3 0 0 0 4.6 0z"/>'],
+  user:['#5ac8fa','#0a84c7','<circle cx="12" cy="8.6" r="3.4"/><path d="M5.2 19.4c.6-3.3 3.2-5 6.8-5s6.2 1.7 6.8 5"/>'],
   key:['#4aa3ff','#0a64e8','<circle cx="8.6" cy="14.6" r="3.7"/><path d="M11.3 11.9L19 4.2M16.3 7l2.3 2.3M13.9 9.4l1.7 1.7"/>'],
   devices:['#8a94a8','#4a5568','<rect x="3" y="5.5" width="13" height="9" rx="1.6"/><path d="M1.8 18h15.4"/><rect x="18" y="9.5" width="3.8" height="8.5" rx="1"/>'],
   note:['#ffbd4a','#fb8500','<path d="M6 4.5h12A1.5 1.5 0 0 1 19.5 6v12a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 18V6A1.5 1.5 0 0 1 6 4.5z"/><path d="M8.5 9h7M8.5 12.5h7M8.5 16h4"/>'],

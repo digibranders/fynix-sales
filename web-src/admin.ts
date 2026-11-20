@@ -369,6 +369,7 @@ function loadLeads(keepFocus?: boolean): void {
 }
 
 const ACT_ICON = {
+  pencil: '<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14.5 7.5l3 3"/>',
   services: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
   key: '<circle cx="8" cy="15" r="3.5"/><path d="M10.5 12.5L19 4M16 7l2.5 2.5M13.5 9.5L15 11"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
@@ -395,7 +396,8 @@ function vTeam(): string {
         '<td style="text-align:right;white-space:nowrap"><span class="acts">' +
         (S.userConfirm === p.id
           ? '<span class="muted">Delete ' + esc(p.name) + ' for good?</span> <button class="btn sm" data-ucancel>Keep</button> <button class="btn sm danger" data-udel="' + esc(p.id) + '">Delete</button>'
-          : (p.role === 'sales' ? iconBtn('data-editpeople', p.id, 'Services', ACT_ICON.services) : '') +
+          : iconBtn('data-rename', p.id, 'Edit name', ACT_ICON.pencil) +
+            (p.role === 'sales' ? iconBtn('data-editpeople', p.id, 'Services', ACT_ICON.services) : '') +
             (self
               ? ''
               : iconBtn('data-reset', p.id, p.invited ? 'Invite link' : 'Reset password', p.invited ? ACT_ICON.link : ACT_ICON.key) +
@@ -546,11 +548,11 @@ function newForm(): ModalForm {
   return { error: '', busy: false, id: '', name: '', email: '', role: 'sales', cat: dc(), members: [], lists: [], wss: [], csv: '', fileName: '', title: '', body: '', link: '' };
 }
 function openModal(kind: 'ws' | 'list' | 'person'): void;
-function openModal(kind: 'editpeople', personId: string): void;
+function openModal(kind: 'editpeople' | 'rename', personId: string): void;
 function openModal(kind: 'link', info: LinkInfo): void;
 function openModal(kind: ModalKind, extra?: string | LinkInfo): void {
   const F = newForm();
-  if (kind === 'editpeople') {
+  if (kind === 'editpeople' || kind === 'rename') {
     const p = typeof extra === 'string' ? person(extra) : undefined;
     if (!p) return;
     F.id = p.id;
@@ -614,6 +616,8 @@ function paintModal(): void {
           ? '<span class="fl">Category</span>' + catSeg(F.cat, true) + '<p class="hint">Managers can look at the team and every lead in their category, but cannot change anything.</p>'
           : '<span class="fl">Category</span>' + catSeg(F.cat) + '<span class="fl">' + esc(catName(cat)) + ' services</span>' + pickRows(wsPick(cat), F.wss, 'wss')) +
       foot('Create invite link', 'person');
+  } else if (k === 'rename') {
+    h = mh('Edit name') + '<div class="mb"><label class="fl" for="f-name" style="margin-top:6px">Name</label><input class="inp" id="f-name" type="text" maxlength="80" value="' + esc(F.name) + '"><p class="hint">This is how they appear to the team and in reports.</p>' + foot('Save', 'rename');
   } else if (k === 'editpeople') {
     const cat = singleCat(F.cat);
     h = mh('Services for ' + esc(F.name)) + '<div class="mb"><p class="hint" style="margin-top:0">' + esc(catName(cat)) + ' services only.</p>' + pickRows(wsPick(cat), F.wss, 'wss') + foot('Save', 'editpeople');
@@ -666,9 +670,9 @@ interface SaveOutcome {
   view: View;
   after?: () => void;
 }
-type SaveKind = 'ws' | 'list' | 'person' | 'editpeople';
+type SaveKind = 'ws' | 'list' | 'person' | 'editpeople' | 'rename';
 function isSaveKind(v: string | undefined): v is SaveKind {
-  return v === 'ws' || v === 'list' || v === 'person' || v === 'editpeople';
+  return v === 'ws' || v === 'list' || v === 'person' || v === 'editpeople' || v === 'rename';
 }
 
 function save(kind: SaveKind): void {
@@ -724,6 +728,12 @@ function save(kind: SaveKind): void {
       },
       view: 'team',
     }));
+  } else if (kind === 'rename') {
+    if (F.name.trim().length < 2) {
+      F.error = 'Enter the full name.';
+      return paintModal();
+    }
+    req = api<unknown>('PATCH', '/api/admin/users/' + F.id, { name: F.name.trim() }).then(() => ({ msg: 'Name updated', view: 'team' }));
   } else {
     req = api<unknown>('PATCH', '/api/admin/users/' + F.id, { workspaceIds: F.wss }).then(() => ({ msg: 'Workspaces updated', view: 'team' }));
   }
@@ -848,6 +858,10 @@ document.addEventListener('click', (e) => {
   if ((c = hit('[data-new]'))) {
     const kind = c.dataset['new'];
     if (kind === 'ws' || kind === 'list' || kind === 'person') openModal(kind);
+    return;
+  }
+  if ((c = hit('[data-rename]'))) {
+    openModal('rename', c.dataset['rename'] ?? '');
     return;
   }
   if ((c = hit('[data-editpeople]'))) {
