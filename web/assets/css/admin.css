@@ -121,7 +121,12 @@ tbody tr.click:hover{background:var(--hover)}
 .rep-arrow svg{width:7px;height:12px;fill:none;stroke:var(--fg);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .rep-scope{margin:0}
 .rep-dl{text-decoration:none}
-.pager{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:12px;color:var(--muted)}
+.pager{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:12px;color:var(--muted);flex-wrap:wrap}
+.pager .pg-btns{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
+.pager .pg-info{margin-right:auto}
+.pager .btn.pg{min-width:30px;padding:0 8px}
+.pager .btn[aria-current="page"]{background:var(--fg);color:#fff;border-color:var(--fg)}
+.pager .gap{color:var(--faint);padding:0 2px}
 .hint{color:var(--muted);font-size:12.5px;margin:10px 0 0}
 .empty{padding:32px 16px;text-align:center;color:var(--muted)}
 .empty b{display:block;color:var(--fg);font-weight:600;margin-bottom:2px}

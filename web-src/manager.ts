@@ -26,6 +26,8 @@ interface State {
   verifications: VerificationItem[] | null;
   loadingVerifications: boolean;
   editingClaimId: string | null;
+  /** True right after a switch to the leads view, so its first load drops in like the other sections. */
+  leadsFresh: boolean;
 }
 
 const S: State = {
@@ -39,6 +41,7 @@ const S: State = {
   verifications: null,
   loadingVerifications: false,
   editingClaimId: null,
+  leadsFresh: false,
 };
 let D: ManagerBootstrap | null = null;
 
@@ -91,12 +94,20 @@ function nav(): void {
   const d = data();
   const count: Record<'team' | 'leads', number | null> = { team: d.people.filter(inCat).length, leads: null };
   const names: Record<'team' | 'leads', string> = { team: 'Team', leads: 'All leads' };
-  el('bottom').innerHTML = (['team', 'leads', 'account'] as const)
-    .map(
-      (v) =>
-        '<button type="button" data-view="' + v + '"' + (v === S.view ? ' aria-current="page"' : '') + '>' + (v === 'account' ? ACCOUNT_ICON : ICON[v]) + '<span>' + (v === 'account' ? 'Account' : names[v]) + '</span></button>',
-    )
-    .join('');
+  const bar = el('bottom');
+  const order = ['team', 'leads', 'account'] as const;
+  /* Built once so the glass capsule can glide between tabs instead of being redrawn. */
+  if (!bar.querySelector('.pill')) {
+    bar.innerHTML =
+      '<span class="pill" aria-hidden="true"></span>' +
+      order.map((v) => '<button type="button" data-view="' + v + '">' + (v === 'account' ? ACCOUNT_ICON : ICON[v]) + '<span class="tl">' + (v === 'account' ? 'Account' : names[v]) + '</span></button>').join('');
+    window.setTimeout(() => bar.classList.add('ready'), 150);
+  }
+  bar.style.setProperty('--i', String(order.indexOf(S.view as (typeof order)[number])));
+  bar.querySelectorAll<HTMLElement>('button[data-view]').forEach((b) => {
+    if (b.dataset['view'] === S.view) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
+  });
   document.querySelectorAll<HTMLElement>('.side .nv').forEach((b) => {
     const v = b.dataset['view'];
     if (v !== 'team' && v !== 'leads') return;
@@ -128,32 +139,29 @@ function chips(p: TeamMember): string {
   const names = p.workspaceIds
     .map((id) => data().workspaces.find((w) => w.id === id))
     .filter((w): w is Workspace => w !== undefined)
-    .map((w) => '<span class="chip">' + esc(w.name) + (S.cat === 'all' && scope().length > 1 ? ' <span class="muted">· ' + esc(catName(w.category)) + '</span>' : '') + '</span>');
+    .map((w) => '<span class="chip">' + esc(w.name) + '</span>');
   return names.length ? '<div class="chips">' + names.join('') + '</div>' : '<span class="muted">None yet</span>';
 }
 
 function vTeam(): string {
   const people = data().people.filter(inCat);
+  const showCat = S.cat === 'all';
   let h = head('Team', 'Salespeople, monthly won deals, and verifications, ' + sub());
   h +=
-    '<div class="tw cards team"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th><th>Category</th><th>Services</th><th>Assigned</th><th>Contacted</th><th>Won</th><th>Status</th></tr></thead><tbody>' +
+    '<div class="tw cards team"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>' + (showCat ? '<th>Category</th>' : '') + '<th>Services</th><th>Assigned</th><th>Contacted</th><th>Won</th><th>Status</th></tr></thead><tbody>' +
     (people.length
       ? people
           .map((p, i) => {
             const state = !p.active ? 'Deactivated' : p.invited ? 'Invited' : 'Active';
             const won = p.stats.won;
-            const vWon = p.stats.verifiedWon ?? 0;
-            const closedTd = won > 0
-              ? '<td data-label="Won" data-l="closed"><div class="v-cell"><button type="button" class="btn sm v-review-btn" data-verify-user="' + p.id + '" data-verify-name="' + esc(p.name) + '" title="Verify won deals"><b class="num">' + vWon + '</b><span class="v-slash"> / ' + won + ' verified</span><span class="v-chip">Verify</span></button></div></td>'
-              : '<td data-label="Won" data-l="closed">' + num(0) + '</td>';
+            const closedTd = '<td data-label="Won" data-l="closed"><div class="v-cell"><button type="button" class="btn sm v-review-btn" data-verify-user="' + p.id + '" data-verify-name="' + esc(p.name) + '" title="Verify won deals"><span class="num">' + won + '</span><span class="v-chip">Verify</span></button></div></td>';
             return (
-              '<tr><td class="muted num" data-l="n">' + (i + 1) + '</td><td data-l="name"><span class="own static"><span class="av">' + esc(p.ini) + '</span><span>' + esc(p.name) + '</span></span></td><td data-l="cat">' +
-              (p.category ? ct(p.category) : '') + '</td><td data-label="Services" data-l="svc">' + chips(p) + '</td><td data-label="Assigned">' + num(p.stats.assigned) + '</td><td data-label="Contacted">' + num(p.stats.contacted) + '</td>' + closedTd +
+              '<tr><td class="muted num" data-l="n">' + (i + 1) + '</td><td data-l="name"><span class="own static"><span class="av">' + esc(p.ini) + '</span><span>' + esc(p.name) + '</span></span></td>' + (showCat ? '<td data-l="cat">' + (p.category ? ct(p.category) : '') + '</td>' : '') + '<td data-label="Services" data-l="svc">' + chips(p) + '</td><td data-label="Assigned">' + num(p.stats.assigned) + '</td><td data-label="Contacted">' + num(p.stats.contacted) + '</td>' + closedTd +
               '<td data-l="state"><span class="dotl' + (p.active && !p.invited ? '' : ' off') + '"><i></i>' + state + '</span></td></tr>'
             );
           })
           .join('')
-      : '<tr><td colspan="8"><div class="empty"><b>No salespeople yet</b>They appear here once a superadmin invites them.</div></td></tr>') +
+      : '<tr><td colspan="' + (showCat ? 8 : 7) + '"><div class="empty"><b>No salespeople yet</b>They appear here once a superadmin invites them.</div></td></tr>') +
     '</tbody></table></div>';
   return h + '<p class="hint">Assigned is everything a person owns. Contacted and Won count this month. Managers review claimed won deals to confirm validity.</p>';
 }
@@ -299,7 +307,20 @@ function vLeads(): string {
     (rows || '<tr><td colspan="' + (5 + cols.length) + '"><div class="empty"><b>No leads match</b>Try a different search.</div></td></tr>') +
     '</tbody></table></div>';
   const pages = Math.max(1, Math.ceil(res.total / res.pageSize));
-  h += '<div class="pager"><span>' + res.total.toLocaleString('en-IN') + ' leads</span><button class="btn sm" data-lpage="-1"' + (res.page <= 1 ? ' disabled' : '') + '>Previous</button><span class="num">' + res.page + ' / ' + pages + '</span><button class="btn sm" data-lpage="1"' + (res.page >= pages ? ' disabled' : '') + '>Next</button></div>';
+  /* Numbered pages: the first, the last, and a few around the current one. */
+  const shown = new Set<number>([1, pages, res.page - 1, res.page, res.page + 1]);
+  const nums: string[] = [];
+  let prev = 0;
+  for (const p of [...shown].filter((x) => x >= 1 && x <= pages).sort((a, b) => a - b)) {
+    if (p - prev > 1) nums.push('<span class="gap">…</span>');
+    nums.push('<button type="button" class="btn sm pg" data-lgoto="' + p + '"' + (p === res.page ? ' aria-current="page"' : '') + '>' + p + '</button>');
+    prev = p;
+  }
+  const from = res.total === 0 ? 0 : (res.page - 1) * res.pageSize + 1;
+  const to = Math.min(res.total, res.page * res.pageSize);
+  h +=
+    '<div class="pager"><span class="pg-info">' + from + '–' + to + ' of ' + res.total.toLocaleString('en-IN') + ' leads</span><span class="pg-btns"><button type="button" class="btn sm" data-lpage="-1"' + (res.page <= 1 ? ' disabled' : '') + ' aria-label="Previous page">‹</button>' +
+    nums.join('') + '<button type="button" class="btn sm" data-lpage="1"' + (res.page >= pages ? ' disabled' : '') + ' aria-label="Next page">›</button></span></div>';
   return h + '<p class="hint">A dash means the category does not offer that service. This page is view only.</p>';
 }
 
@@ -317,7 +338,27 @@ function vAccount(): string {
   );
 }
 
-function render(keepFocus?: boolean): void {
+/* Switching sections: each block drops in from above, one after another, as on the leads page. */
+const SHOWER = '.head,.sb,.acct,.hint,.pager,.acct-out,tbody tr,.empty';
+function shower(): void {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const els = el('view').querySelectorAll<HTMLElement>(SHOWER);
+  const vh = window.innerHeight;
+  for (let i = 0, n = 0; i < els.length; i++) {
+    const node = els[i];
+    if (!node || node.closest('.verify-modal')) continue;
+    if (node.getBoundingClientRect().top > vh) continue;
+    node.style.animation = 'v-fall .75s cubic-bezier(.22,.8,.3,1) ' + Math.min(n, 18) * 60 + 'ms backwards';
+    n++;
+  }
+}
+let barLock = 0;
+function settleBar(): void {
+  barLock = Date.now() + 700;
+  el('bottom').classList.remove('min');
+}
+
+function render(keepFocus?: boolean, animate?: boolean): void {
   nav();
   const view = el('view');
   const focused = keepFocus && document.activeElement instanceof HTMLInputElement ? document.activeElement : null;
@@ -330,6 +371,11 @@ function render(keepFocus?: boolean): void {
       if (caret !== null) input.setSelectionRange(caret, caret);
     }
   }
+  if (animate) {
+    window.scrollTo(0, 0);
+    settleBar();
+    shower();
+  }
 }
 
 function loadLeads(keepFocus?: boolean): void {
@@ -340,7 +386,8 @@ function loadLeads(keepFocus?: boolean): void {
     .then((res) => {
       if (q !== S.q || page !== S.page) return;
       S.leads = res;
-      if (S.view === 'leads') render(keepFocus);
+      if (S.view === 'leads') render(keepFocus, !keepFocus && page === 1 && S.leadsFresh);
+      S.leadsFresh = false;
     })
     .catch(fail);
 }
@@ -422,9 +469,11 @@ document.addEventListener('click', (e) => {
   if ((c = hit('[data-view]'))) {
     const v = c.dataset['view'];
     if (v !== 'team' && v !== 'leads' && v !== 'account') return;
+    const changed = S.view !== v;
     S.view = v;
+    S.leadsFresh = v === 'leads' && !S.leads;
     if (v === 'leads' && !S.leads) loadLeads();
-    render();
+    render(false, changed && !S.leadsFresh);
     return;
   }
   if ((c = hit('[data-cat]'))) {
@@ -433,7 +482,8 @@ document.addEventListener('click', (e) => {
     S.cat = next;
     S.page = 1;
     S.leads = null;
-    render();
+    S.leadsFresh = S.view === 'leads';
+    render(false, S.view !== 'leads');
     if (S.view === 'leads') loadLeads();
     return;
   }
@@ -452,10 +502,17 @@ document.addEventListener('click', (e) => {
     render();
     return;
   }
+  if ((c = hit('[data-lgoto]'))) {
+    S.page = Math.max(1, Number(c.dataset['lgoto']) || 1);
+    loadLeads();
+    window.scrollTo(0, 0);
+    return;
+  }
   if ((c = hit('[data-lpage]'))) {
     const step = Number(c.dataset['lpage']);
     S.page = Math.max(1, S.page + (step < 0 ? -1 : 1));
     loadLeads();
+    window.scrollTo(0, 0);
     return;
   }
 
@@ -544,11 +601,47 @@ document.addEventListener('click', (e) => {
   }
 });
 
+/* Phone bottom bar: shrinks to icons after a real scroll down, expands on scroll up; ignores bounce and section changes. */
+{
+  let lastY = 0;
+  let acc = 0;
+  let lastFlip = 0;
+  const bar = el('bottom');
+  window.addEventListener(
+    'scroll',
+    () => {
+      const now = Date.now();
+      const y = window.scrollY || 0;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      if (now < barLock || y < 0 || y > max) {
+        lastY = Math.max(0, Math.min(y, max));
+        acc = 0;
+        return;
+      }
+      const d = y - lastY;
+      lastY = y;
+      if (d * acc < 0) acc = 0;
+      acc += d;
+      const isMin = bar.classList.contains('min');
+      if (!isMin && acc > 48 && y > 140 && now - lastFlip > 450) {
+        bar.classList.add('min');
+        lastFlip = now;
+        acc = 0;
+      } else if (isMin && ((acc < -32 && now - lastFlip > 450) || y < 60)) {
+        bar.classList.remove('min');
+        lastFlip = now;
+        acc = 0;
+      }
+    },
+    { passive: true },
+  );
+}
+
 const embedded = takeEmbedded<ManagerBootstrap>();
 (embedded ? Promise.resolve(embedded) : api<ManagerBootstrap>('GET', '/api/manager/bootstrap'))
   .then((d) => {
     D = d;
-    render();
+    render(false, true);
   })
   .catch((e: unknown) => {
     el('view').innerHTML = '<div class="empty"><b>Could not load</b>' + esc(messageOf(e)) + '</div>';
