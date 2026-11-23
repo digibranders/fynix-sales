@@ -106,11 +106,12 @@ export interface GbcData {
 export interface ReportTotals {
   assigned: number;
   contacted: number;
-  interested: number;
+  didntPick: number;
+  followUp: number;
   meetings: number;
-  negotiation: number;
   won: number;
   lost: number;
+  invalid: number;
   openNow: number;
 }
 export interface ReportService extends ReportTotals {

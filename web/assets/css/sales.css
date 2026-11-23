@@ -2,7 +2,7 @@
 :root{
   --bg:#ffffff; --hover:#f6f7f9; --sel:#f0f2f5; --line:#e8eaee; --line2:#d6dae1;
   --fg:#111318; --muted:#6a7280; --faint:#9aa1ad; --ink:#111318; --ink-fg:#ffffff; --accent:#3b5bdb;
-  --d-new:#a3a9b5; --d-contacted:#3b82f6; --d-interested:#e0a100; --d-meeting:#8b5cf6; --d-negotiation:#ea7a1a; --d-won:#16a34a; --d-lost:#dc2626;
+  --d-new:#a3a9b5; --d-contacted:#3b82f6; --d-interested:#e0a100; --d-meeting:#8b5cf6; --d-negotiation:#ea7a1a; --d-won:#16a34a; --d-lost:#dc2626; --d-didnt:#3b82f6; --d-follow:#e0a100; --d-invalid:#9a3412;
   --star:#e0a100;
   --nav:#0f1b2d; --nav-fg:#ffffff; --nav-muted:#9fb0c6; --nav-hover:#1a2a42; --nav-sel:#25395a;
   --f:'Inter',system-ui,-apple-system,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
@@ -436,8 +436,8 @@ html.theme-fade *,html.theme-fade *::before,html.theme-fade *::after{transition:
 
 .st{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
 .st::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--dot,var(--d-new))}
-.st-new{--dot:var(--d-new)} .st-contacted{--dot:var(--d-contacted)} .st-interested{--dot:var(--d-interested)}
-.st-meeting{--dot:var(--d-meeting)} .st-negotiation{--dot:var(--d-negotiation)} .st-won{--dot:var(--d-won)} .st-lost{--dot:var(--d-lost)}
+.st-new{--dot:var(--d-new)} .st-didnt{--dot:var(--d-didnt)} .st-follow{--dot:var(--d-follow)} .st-invalid{--dot:var(--d-invalid)}
+.st-meeting{--dot:var(--d-meeting)} .st-won{--dot:var(--d-won)} .st-lost{--dot:var(--d-lost)}
 
 /* modal */
 @keyframes fade-in{from{opacity:0}to{opacity:1}}

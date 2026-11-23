@@ -158,24 +158,24 @@ describe('sales rules', () => {
     const claim = await call(priya, 'POST', '/api/sales/claims', { leadId: lead.id, workspaceId: 'scale-website' });
     const id = claim.body['id'] as string;
 
-    const staged = await call(priya, 'PATCH', `/api/sales/claims/${id}`, { status: 'Contacted', next: '2030-01-15' });
+    const staged = await call(priya, 'PATCH', `/api/sales/claims/${id}`, { status: 'Follow Up', next: '2030-01-15' });
     assert.equal(staged.status, 200);
-    assert.equal(staged.body['status'], 'Contacted');
+    assert.equal(staged.body['status'], 'Follow Up');
     assert.equal(staged.body['next'], '2030-01-15');
 
     assert.equal((await call(priya, 'PATCH', `/api/sales/claims/${id}`, { next: 'tomorrow' })).status, 400);
     assert.equal((await call(priya, 'PATCH', `/api/sales/claims/${id}`, { status: 'Bogus' })).status, 400);
 
-    const noted = await call(priya, 'POST', `/api/sales/claims/${id}/notes`, { text: 'Spoke to the owner.', stage: 'Contacted' });
+    const noted = await call(priya, 'POST', `/api/sales/claims/${id}/notes`, { text: 'Spoke to the owner.', stage: 'Follow Up' });
     assert.equal(noted.status, 201);
     const comments = noted.body['comments'] as { text: string; by: string }[];
     assert.ok(comments.some((c) => c.text === 'Spoke to the owner.' && c.by !== 'sys'));
-    assert.ok(comments.some((c) => c.by === 'sys' && c.text.includes('Contacted')));
-    assert.equal((await call(priya, 'POST', `/api/sales/claims/${id}/notes`, { text: '   ', stage: 'Contacted' })).status, 400);
+    assert.ok(comments.some((c) => c.by === 'sys' && c.text.includes('Follow Up')));
+    assert.equal((await call(priya, 'POST', `/api/sales/claims/${id}/notes`, { text: '   ', stage: 'Follow Up' })).status, 400);
 
     const won = await call(priya, 'PATCH', `/api/sales/claims/${id}`, { status: 'Won' });
     assert.equal(won.body['next'], '', 'closing a lead clears the follow-up');
-    assert.deepEqual((won.body['history'] as { s: string }[]).map((h) => h.s), ['New', 'Contacted', 'Won']);
+    assert.deepEqual((won.body['history'] as { s: string }[]).map((h) => h.s), ['New', 'Follow Up', 'Won']);
   });
 
   it("does not let someone change another person's lead", async () => {

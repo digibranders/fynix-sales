@@ -22,8 +22,17 @@ export function svcIcon(s: Service): string {
   return '<span class="tile-ic" style="--t1:' + s.t1 + ';--t2:' + s.t2 + ';--tile:' + s.t2 + '"><svg viewBox="0 0 24 24" aria-hidden="true">' + s.icon + '</svg></span>';
 }
 
-export const STAGES: string[] = ['New', 'Contacted', 'Interested', 'Meeting', 'Negotiation', 'Won'];
-export const ALLSTAGES: string[] = STAGES.concat(['Lost']);
+/* The path of a good lead, then the ways a lead can end without a sale. 'Won' is the sale. */
+export const STAGES: string[] = ['New', 'Didnt Pick', 'Follow Up', 'Meeting', 'Won'];
+export const OFFRAMPS: string[] = ['Lost', 'Invalid Number', 'Invalid Email'];
+export const ALLSTAGES: string[] = STAGES.concat(OFFRAMPS);
+export function isOff(s: string): boolean {
+  return OFFRAMPS.indexOf(s) > -1;
+}
+/** Ended for good: Won, Lost or invalid. */
+export function isEnded(s: string): boolean {
+  return s === 'Won' || isOff(s);
+}
 export const PAGE = 20;
 
 export const CHEV = '<svg class="chev" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg>';
@@ -46,7 +55,7 @@ export function ico(n: string): string {
   return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">' + ICO[n] + '</svg>';
 }
 
-export const GROUPS_Q: Pair[] = [['od', 'Overdue'], ['today', 'Today'], ['later', 'Later'], ['none', 'No follow-up date'], ['closed', 'Closed']];
+export const GROUPS_Q: Pair[] = [['od', 'Overdue'], ['today', 'Today'], ['later', 'Later'], ['none', 'No follow-up'], ['closed', 'Closed']];
 export const CAL_DAYS: string[] = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 export const THEMES: Pair[] = [['light', 'Light'], ['dark', 'Dark'], ['system', 'Auto']];
 export const KP_PERIODS: readonly (readonly [string, string, string])[] = [['today', 'Today', 'Today'], ['7d', '7 days', '7 days'], ['month', 'This month', 'Month']];

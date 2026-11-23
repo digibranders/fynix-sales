@@ -42,7 +42,7 @@ const NAVICON: Record<string, string> = {
 };
 const CATS: readonly Category[] = ['scale', 'reach'];
 const PLUS = '<svg viewBox="0 0 14 14"><path d="M7 2v10M2 7h10"/></svg>';
-const STAGE_LIST: readonly string[] = ['New', 'Contacted', 'Interested', 'Meeting', 'Negotiation', 'Closed', 'Lost'];
+const STAGE_LIST: readonly string[] = ['New', "Didn't Pick", 'Follow Up', 'Meeting', 'Won', 'Lost', 'Invalid Number', 'Invalid Email'];
 const MONTHS: readonly string[] = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 let D: Bootstrap | null = null; /* bootstrap data from the server */
@@ -162,7 +162,7 @@ function wsOf(p: Person): string {
 /* ---------- chrome ---------- */
 function nav(): void {
   const d = data();
-  const names: Record<string, string> = { overview: 'Overview', workspaces: 'Services', lists: 'Lists', leads: 'All leads', team: 'Team', reports: 'Reports' };
+  const names: Record<string, string> = { overview: 'Overview', workspaces: 'Services', lists: 'Data', leads: 'All leads', team: 'Team', reports: 'Reports' };
   const cnt: Record<string, number | undefined> = {
     workspaces: d.workspaces.filter(inCat).length,
     lists: d.lists.filter(inCat).length,
@@ -228,13 +228,13 @@ function vOverview(): string {
   h +=
     '<div class="blk"><h2>Salespeople this month</h2>' +
     (P.length
-      ? '<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>' + (S.cat === 'all' ? '<th>Category</th>' : '') + '<th>Services</th><th>Assigned</th><th>Contacted</th><th>Closed</th></tr></thead><tbody>' +
+      ? '<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>' + (S.cat === 'all' ? '<th>Category</th>' : '') + '<th>Services</th><th>Assigned</th><th>Contacted</th><th>Won</th></tr></thead><tbody>' +
         P.map((p, i) => '<tr><td class="muted num">' + (i + 1) + '</td><td><span class="own static">' + av(p) + esc(p.name) + '</span></td>' + (S.cat === 'all' ? '<td>' + ct(p.category) + '</td>' : '') + '<td>' + wsOf(p) + '</td><td>' + num(p.stats.assigned) + '</td><td>' + num(p.stats.contacted) + '</td><td>' + num(p.stats.won) + '</td></tr>').join('') +
         '</tbody></table></div>'
       : '<div class="muted">No salespeople yet.</div>') +
     '</div>';
   const cats: readonly Category[] = S.cat === 'all' ? CATS : [S.cat];
-  const targetLabels: Record<'contacted' | 'won', string> = { contacted: 'Contacted target', won: 'Closed target' };
+  const targetLabels: Record<'contacted' | 'won', string> = { contacted: 'Contacted target', won: 'Won target' };
   const targetMetrics: readonly ('contacted' | 'won')[] = ['contacted', 'won'];
   h +=
     '<div class="blk"><h2>Monthly targets</h2>' +
@@ -250,7 +250,7 @@ function vOverview(): string {
         );
       })
       .join('') +
-    '<p class="hint">Shown to each salesperson as "of N" under Contacted and Closed in KPIs and Profile. Assigned has no target.</p></div>';
+    '<p class="hint">Shown to each salesperson as "of N" under Contacted and Won in KPIs and Profile. Assigned has no target.</p></div>';
   return h;
 }
 
@@ -258,7 +258,7 @@ function vWorkspaces(): string {
   const W = data().workspaces.filter(inCat);
   let h = head('Services', 'What your team sells', '<button class="btn dark" data-new="ws">' + PLUS + 'Add service</button>');
   h += W.length
-    ? '<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Service</th>' + (S.cat === 'all' ? '<th>Category</th>' : '') + '<th>Lists</th><th>Salespeople</th><th>Leads</th><th>Claimed</th></tr></thead><tbody>' +
+    ? '<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Service</th>' + (S.cat === 'all' ? '<th>Category</th>' : '') + '<th>Data</th><th>Salespeople</th><th>Leads</th><th>Claimed</th></tr></thead><tbody>' +
       W.map((w, i) => {
         const m = w.memberIds.length;
         return '<tr class="click" data-ws="' + esc(w.id) + '"><td class="muted num">' + (i + 1) + '</td><td><span class="wsn">' + esc(w.name) + '</span></td>' + (S.cat === 'all' ? '<td>' + ct(w.category) + '</td>' : '') + '<td class="muted">' +
@@ -278,14 +278,14 @@ function vWorkspaces(): string {
 function vLists(): string {
   const d = data();
   const L = d.lists.filter(inCat);
-  let h = head('Lists', 'Imported lead files', '<button class="btn dark" data-new="list">' + PLUS + 'Import list</button>');
+  let h = head('Data', 'Imported lead files', '<button class="btn dark" data-new="list">' + PLUS + 'Import data</button>');
   h += L.length
-    ? '<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>List</th>' + (S.cat === 'all' ? '<th>Category</th>' : '') + '<th>File</th><th>Leads</th><th>Used in</th><th>Imported</th><th></th></tr></thead><tbody>' +
+    ? '<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Data</th>' + (S.cat === 'all' ? '<th>Category</th>' : '') + '<th>File</th><th>Leads</th><th>Used in</th><th>Imported</th><th></th></tr></thead><tbody>' +
       L.map((l, i) => {
         const used = d.workspaces.filter((w) => w.listIds.indexOf(l.id) > -1);
         const ask = S.listConfirm === l.id;
         const acts = ask
-          ? '<span class="muted">Remove this list?</span><button class="btn sm" data-lcancel>Keep</button> <button class="btn sm danger" data-ldel="' + esc(l.id) + '">Remove</button>'
+          ? '<span class="muted">Remove this data?</span><button class="btn sm" data-lcancel>Keep</button> <button class="btn sm danger" data-ldel="' + esc(l.id) + '">Remove</button>'
           : iconBtn('data-ltoggle', l.id, l.archived ? 'Activate' : 'Deactivate', l.archived ? ACT_ICON.play : ACT_ICON.pause) + iconBtn('data-lask', l.id, 'Remove', ACT_ICON.trash, true);
         return '<tr' + (l.archived ? ' style="opacity:.62"' : '') + '><td class="muted num">' + (i + 1) + '</td><td style="font-weight:500">' + esc(l.name) +
           (l.archived ? ' <span class="muted" style="font-weight:400;font-size:12px;border:1px solid var(--line2);border-radius:6px;padding:1px 6px;margin-left:6px">Inactive</span>' : '') +
@@ -294,8 +294,8 @@ function vLists(): string {
           '</div></td><td class="muted">' + when(l.createdAt) + '</td><td><div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;align-items:center;min-width:92px">' + acts + '</div></td></tr>';
       }).join('') +
       '</tbody></table></div>'
-    : '<div class="tw"><div class="empty"><b>No lists yet</b>Import a CSV to add leads.</div></div>';
-  return h + '<p class="hint">A list belongs to one category. It can only be added to that category\'s services. Deactivate stops new claims and keeps all work done; Remove deletes the list for good.</p>';
+    : '<div class="tw"><div class="empty"><b>No data yet</b>Import a CSV to add leads.</div></div>';
+  return h + '<p class="hint">Data belongs to one category. It can only be added to that category\'s services. Deactivate stops new claims and keeps all work done; Remove deletes the data for good.</p>';
 }
 
 function serviceColumns(): { key: string; name: string }[] {
@@ -433,8 +433,8 @@ function vReports(): string {
     '<div class="blk"><h2>What is in the file</h2><ul class="act">' +
     '<li><span>One row for every salesperson in every service, including people who did nothing that month.</span></li>' +
     '<li><span>Assigned: leads claimed in the month. Contacted: leads that first moved out of New in the month.</span></li>' +
-    '<li><span>Interested, Meetings, Negotiation, Closed and Lost: leads that reached that stage in the month.</span></li>' +
-    '<li><span>Open now: leads the person still owns that are not Closed or Lost.</span></li>' +
+    '<li><span>Didn\'t Pick, Follow Up, Meetings, Won, Lost and Invalid: leads that reached that stage in the month.</span></li>' +
+    '<li><span>Open now: leads the person still owns that are not Won, Lost or Invalid.</span></li>' +
     '<li><span>A Total row after each service and a final row for everything.</span></li></ul></div>';
   return h;
 }
@@ -497,7 +497,7 @@ function openDrawer(id: string): void {
   el('drawer').innerHTML =
     '<div class="dh"><h3>' + esc(w.name) + ' ' + ct(w.category) + '</h3><button class="x" data-close aria-label="Close">&times;</button></div><div class="db">' +
     '<div class="kv"><div><b>' + w.leadCount + '</b><span>Leads</span></div><div><b>' + w.claimedCount + '</b><span>Claimed</span></div><div><b>' + w.memberIds.length + '</b><span>Salespeople</span></div></div>' +
-    '<h4>' + esc(catName(w.category)) + ' lists</h4>' + pickRows(d.lists.filter((l) => l.category === w.category).map((l) => ({ id: l.id, name: l.name + ' (' + l.leadCount + ')' })), F.lists, 'dlists') +
+    '<h4>' + esc(catName(w.category)) + ' data</h4>' + pickRows(d.lists.filter((l) => l.category === w.category).map((l) => ({ id: l.id, name: l.name + ' (' + l.leadCount + ')' })), F.lists, 'dlists') +
     '<h4>' + esc(catName(w.category)) + ' salespeople</h4>' + pickRows(d.people.filter((p) => p.role === 'sales' && p.category === w.category && p.active).map((p) => ({ id: p.id, name: p.name })), F.members, 'dmembers') +
     '<h4>Pipeline stages</h4><div class="stg">' + STAGE_LIST.map((s) => '<span>' + s + '</span>').join('') + '</div>' +
     '<p class="err" id="drawer-err" role="alert">' + esc(F.error) + '</p></div>' +
@@ -603,14 +603,14 @@ function paintModal(): void {
       '<span class="fl">Category</span>' + catSeg(F.cat, true) +
       (F.cat === 'both'
         ? '<p class="hint">Creates ' + esc(F.name.trim() || 'this service') + ' in both Scale and Reach. Add lists and salespeople to each one afterwards.</p>'
-        : '<span class="fl">' + esc(catName(F.cat)) + ' lists</span>' + pickRows(listPick(F.cat), F.lists, 'lists') +
+        : '<span class="fl">' + esc(catName(F.cat)) + ' data</span>' + pickRows(listPick(F.cat), F.lists, 'lists') +
           '<span class="fl">' + esc(catName(F.cat)) + ' salespeople</span>' + pickRows(salesPick(F.cat), F.members, 'members')) +
       foot('Create service', 'ws');
   } else if (k === 'list') {
     const cat = singleCat(F.cat);
     h =
-      mh('Import list') + '<div class="mb"><label class="drop" style="margin-top:6px"><input id="f-file" type="file" accept=".csv,text/csv"><b>' + (F.fileName ? esc(F.fileName) : 'Choose a CSV file') + '</b>' + (F.fileName ? 'Choose a different file' : 'Phones, emails and areas are cleaned on import.') + '</label>' +
-      '<label class="fl" for="f-name">List name</label><input class="inp" id="f-name" type="text" maxlength="80" placeholder="e.g. Salons, Bengaluru" value="' + esc(F.name) + '">' +
+      mh('Import data') + '<div class="mb"><label class="drop" style="margin-top:6px"><input id="f-file" type="file" accept=".csv,text/csv"><b>' + (F.fileName ? esc(F.fileName) : 'Choose a CSV file') + '</b>' + (F.fileName ? 'Choose a different file' : 'Phones, emails and areas are cleaned on import.') + '</label>' +
+      '<label class="fl" for="f-name">Name</label><input class="inp" id="f-name" type="text" maxlength="80" placeholder="e.g. Salons, Bengaluru" value="' + esc(F.name) + '">' +
       '<span class="fl">Category</span>' + catSeg(F.cat) +
       '<span class="fl">Add to ' + esc(catName(cat)) + ' services</span>' + pickRows(wsPick(cat), F.wss, 'wss') + foot('Import', 'list');
   } else if (k === 'person') {
@@ -881,7 +881,7 @@ document.addEventListener('click', (e) => {
     api<unknown>('DELETE', '/api/admin/lists/' + encodeURIComponent(c.dataset['ldel'] ?? ''))
       .then(() => {
         S.listConfirm = null;
-        toast('List removed');
+        toast('Data removed');
         return reload();
       })
       .catch((err: unknown) => {
