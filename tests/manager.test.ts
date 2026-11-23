@@ -206,6 +206,16 @@ describe('manager', () => {
     assert.equal((await call(priya, 'GET', `/api/manager/people/${priyaId}/leads`)).status, 403, 'a salesperson cannot use it');
     assert.equal((await call(nisha, 'GET', '/api/manager/people/nobody/leads')).status, 404);
 
+    // The Team numbers can be limited to today, this week or this month
+    for (const period of ['today', 'week', 'month']) {
+      const res = await call(nisha, 'GET', `/api/manager/bootstrap?period=${period}`);
+      assert.equal(res.status, 200);
+      const ps = (res.body as unknown as { people: { name: string; stats: { assigned: number; won: number } }[] }).people.find((p) => p.name === 'Priya Sharma')?.stats;
+      assert.equal(ps?.assigned, 5, 'assigned is everything they own, whatever the period');
+      assert.equal(ps?.won, 5, 'all five were closed just now');
+    }
+    assert.equal((await call(nisha, 'GET', '/api/manager/bootstrap?period=year')).status, 400);
+
     // Salesperson cannot call verify API
     assert.equal((await call(priya, 'PATCH', `/api/manager/claims/${claimIds[0]}/verify`, { verified: 1 })).status, 403);
   });

@@ -1,5 +1,5 @@
 import { api, messageOf } from './admin/api.js';
-import type { Category, LeadsPage, ManagerBootstrap, ManagerView, PersonLead, PersonLeads, TeamMember, VerificationItem, Workspace } from './manager/types.js';
+import type { Category, LeadsPage, ManagerBootstrap, ManagerView, PersonLead, PersonLeads, Period, TeamMember, VerificationItem, Workspace } from './manager/types.js';
 import { takeEmbedded } from './shared/boot.js';
 import { el } from './shared/dom.js';
 import { initPwa } from './shared/pwa.js';
@@ -15,6 +15,10 @@ const SEARCH = '<svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><pat
 
 type CategoryFilter = Category | 'all';
 
+const EYE = '<svg class="cta-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const SHIELD = '<svg class="cta-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.5 3v5.5c0 4.6-3.1 8-7.5 9.5-4.4-1.5-7.5-4.9-7.5-9.5V6z"/><path d="M8.7 12.2l2.4 2.4 4.3-4.8"/></svg>';
+const PERIODS: [Period, string][] = [['today', 'Today'], ['week', 'This week'], ['month', 'This month']];
+
 interface State {
   view: ManagerView;
   cat: CategoryFilter;
@@ -26,6 +30,8 @@ interface State {
   verifications: VerificationItem[] | null;
   loadingVerifications: boolean;
   editingClaimId: string | null;
+  /** The window the Team numbers cover. */
+  period: Period;
   /** The salesperson whose leads are open in the popup, and those leads once loaded. */
   leadsUser: { id: string; name: string } | null;
   personLeads: PersonLead[] | null;
@@ -46,6 +52,7 @@ const S: State = {
   verifications: null,
   loadingVerifications: false,
   editingClaimId: null,
+  period: 'month',
   leadsUser: null,
   personLeads: null,
   openLead: {},
@@ -78,7 +85,7 @@ function inCat(x: { category: Category | null }): boolean {
   return S.cat === 'all' || x.category === S.cat;
 }
 function ct(c: Category): string {
-  return '<span class="ct"><i class="mk ' + c + '"></i>' + esc(catName(c)) + '</span>';
+  return '<span class="ct">' + esc(catName(c)) + '</span>';
 }
 function toast(message: string): void {
   const t = el('toast');
@@ -130,7 +137,7 @@ function nav(): void {
   wrap.style.gridTemplateColumns = 'repeat(' + filters.length + ',1fr)';
   wrap.hidden = filters.length === 0;
   wrap.innerHTML = filters
-    .map((c) => '<button type="button" data-cat="' + c + '" aria-pressed="' + (S.cat === c) + '">' + (c === 'all' ? '' : '<i class="mk ' + c + '"></i>') + (c === 'all' ? 'All' : esc(catName(c))) + '</button>')
+    .map((c) => '<button type="button" data-cat="' + c + '" aria-pressed="' + (S.cat === c) + '">' + (c === 'all' ? 'All' : esc(catName(c))) + '</button>')
     .join('');
   el('catnote').textContent = cats.length > 1 ? (S.cat === 'all' ? 'Showing Scale and Reach together.' : catName(S.cat) + ' only.') : 'You see ' + catName(cats[0] ?? 'scale') + ' only.';
   const top = el('mcats');
@@ -154,7 +161,11 @@ function chips(p: TeamMember): string {
 function vTeam(): string {
   const people = data().people.filter(inCat);
   const showCat = S.cat === 'all';
-  let h = head('Team', 'Salespeople, monthly won deals, and verifications, ' + sub());
+  let h = head('Team', 'Who did what, and verifications, ' + sub());
+  h +=
+    '<div class="seg per" role="group" aria-label="Period">' +
+    PERIODS.map(([k, label]) => '<button type="button" data-period="' + k + '" aria-pressed="' + (S.period === k) + '">' + label + '</button>').join('') +
+    '</div>';
   h +=
     '<div class="tw cards team"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>' + (showCat ? '<th>Category</th>' : '') + '<th>Services</th><th>Assigned</th><th>Contacted</th><th>Closed</th><th>Leads</th><th>Status</th></tr></thead><tbody>' +
     (people.length
@@ -162,17 +173,17 @@ function vTeam(): string {
           .map((p, i) => {
             const state = !p.active ? 'Deactivated' : p.invited ? 'Invited' : 'Active';
             const won = p.stats.won;
-            const closedTd = '<td data-label="Closed" data-l="closed"><div class="v-cell"><button type="button" class="btn sm v-review-btn" data-verify-user="' + p.id + '" data-verify-name="' + esc(p.name) + '" title="Verify won deals"><span class="num">' + won + '</span><span class="v-chip">Verify</span></button></div></td>';
+            const closedTd = '<td data-label="Closed" data-l="closed"><div class="v-cell"><button type="button" class="btn sm v-review-btn" data-verify-user="' + p.id + '" data-verify-name="' + esc(p.name) + '" title="Verify closed deals" aria-label="Verify closed deals, ' + won + ' closed"><span class="num">' + won + '</span><span class="v-chip">' + SHIELD + '</span></button></div></td>';
             return (
               '<tr><td class="muted num" data-l="n">' + (i + 1) + '</td><td data-l="name"><span class="own static"><span class="av">' + esc(p.ini) + '</span><span>' + esc(p.name) + '</span></span></td>' + (showCat ? '<td data-l="cat">' + (p.category ? ct(p.category) : '') + '</td>' : '') + '<td data-label="Services" data-l="svc">' + chips(p) + '</td><td data-label="Assigned">' + num(p.stats.assigned) + '</td><td data-label="Contacted">' + num(p.stats.contacted) + '</td>' + closedTd +
-              '<td data-label="Leads" data-l="leads"><button type="button" class="btn sm pl-btn" data-person-leads="' + p.id + '" data-person-name="' + esc(p.name) + '">View<span class="v-chip">' + p.stats.assigned + '</span></button></td>' +
+              '<td data-label="Leads" data-l="leads"><button type="button" class="btn sm pl-btn" data-person-leads="' + p.id + '" data-person-name="' + esc(p.name) + '" title="View leads" aria-label="View ' + esc(p.name) + '\'s leads, ' + p.stats.assigned + ' assigned"><span class="num">' + p.stats.assigned + '</span><span class="v-chip">' + EYE + '</span></button></td>' +
               '<td data-l="state"><span class="dotl' + (p.active && !p.invited ? '' : ' off') + '"><i></i>' + state + '</span></td></tr>'
             );
           })
           .join('')
       : '<tr><td colspan="' + (showCat ? 9 : 8) + '"><div class="empty"><b>No salespeople yet</b>They appear here once a superadmin invites them.</div></td></tr>') +
     '</tbody></table></div>';
-  return h + '<p class="hint">Assigned is everything a person owns. Contacted counts leads that moved out of New this month, whatever stage they went to, once each. Closed counts this month. Managers review claimed won deals to confirm validity.</p>';
+  return h;
 }
 
 function stageName(s: string): string {
@@ -609,6 +620,20 @@ document.addEventListener('click', (e) => {
     return;
   }
 
+  if ((c = hit('[data-period]'))) {
+    const p = c.dataset['period'];
+    if ((p !== 'today' && p !== 'week' && p !== 'month') || p === S.period) return;
+    S.period = p;
+    render();
+    api<ManagerBootstrap>('GET', '/api/manager/bootstrap?period=' + p)
+      .then((d) => {
+        if (S.period !== p) return;
+        data().people = d.people;
+        if (S.view === 'team') render();
+      })
+      .catch(fail);
+    return;
+  }
   if ((c = hit('[data-person-leads]'))) {
     const pid = c.dataset['personLeads'];
     if (pid) openPersonLeads(pid, c.dataset['personName'] || 'Salesperson');
