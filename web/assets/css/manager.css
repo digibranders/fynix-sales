@@ -143,3 +143,33 @@
 .vm-stage-edit .vm-stage-sel{flex:0 0 auto;width:auto!important;min-width:110px;max-width:130px;height:28px;padding:0 24px 0 8px;font-size:12px;font-weight:500;color:var(--fg);border:1px solid var(--line2);border-radius:6px;background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%236a7280' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 8px center;appearance:none;-webkit-appearance:none;cursor:pointer}
 .vm-stage-sel:hover{border-color:var(--faint)}
 .vm-stage-sel:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+/* A salesperson's leads, opened from the Team table */
+.pl-btn{display:inline-flex;align-items:center;gap:6px}
+.pl-body{padding:12px 16px!important;background:var(--sel)}
+.pl-list{display:flex;flex-direction:column;gap:10px}
+.pl-card{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.pl-top{display:flex;align-items:flex-start;gap:10px}
+.pl-n{font-family:var(--mono);font-size:12px;color:var(--muted);font-weight:600;min-width:20px;padding-top:2px}
+.pl-who{flex:1;min-width:0}
+.pl-who b{font-size:14px;margin-right:6px}
+.pl-stage{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:6px;white-space:nowrap;background:var(--sel);color:var(--fg);border:1px solid var(--line2)}
+.pl-stage.won{background:rgba(22,163,74,.1);color:#15803d;border-color:rgba(22,163,74,.3)}
+.pl-stage.off{background:rgba(220,38,38,.08);color:#b91c1c;border-color:rgba(220,38,38,.25)}
+.pl-stage.mid{background:rgba(59,91,219,.08);color:#3b5bdb;border-color:rgba(59,91,219,.25)}
+.pl-meta{display:flex;flex-wrap:wrap;gap:4px 16px;margin:8px 0 0 30px;font-size:12px;color:var(--fg)}
+.pl-meta i{font-style:normal;color:var(--muted);margin-right:4px}
+.pl-path{flex-basis:100%}
+.pl-notes-btn{margin:8px 0 0 30px;border:1px solid var(--line2);background:var(--bg);border-radius:6px;padding:3px 9px;font-size:12px;font-weight:500;cursor:pointer;color:var(--fg)}
+.pl-notes{list-style:none;margin:8px 0 0 30px;padding:0;display:flex;flex-direction:column;gap:6px}
+.pl-notes li{background:var(--sel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.pl-nh{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.pl-nh small{color:var(--muted);font-size:11px}
+.pl-none{margin:8px 0 0 30px;font-size:12px}
+@media (max-width:700px){
+  .team td[data-l="leads"]{grid-column:1/-1;padding-top:6px}
+  .team .pl-btn{width:100%;justify-content:flex-start}
+  .team .pl-btn .v-chip{margin-left:auto}
+  .pl-meta,.pl-notes-btn,.pl-notes,.pl-none{margin-left:0}
+  .pl-top{flex-wrap:wrap}
+}

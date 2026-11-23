@@ -46,4 +46,26 @@ export interface VerificationItem {
   latestNote: string | null;
 }
 
+export interface PersonLead {
+  id: string;
+  leadName: string;
+  company: string;
+  jobTitle: string;
+  area: string;
+  phone: string;
+  workspaceName: string;
+  category: Category;
+  status: string;
+  nextFollowUp: string | null;
+  lastActivityAt: number;
+  history: { status: string; at: number }[];
+  notes: { id: number; stage: string; text: string; at: number }[];
+}
+
+/** GET /api/manager/people/:id/leads */
+export interface PersonLeads {
+  person: { id: string; name: string };
+  leads: PersonLead[];
+}
+
 export type ManagerView = 'team' | 'leads' | 'account';

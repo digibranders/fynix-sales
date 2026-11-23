@@ -197,6 +197,15 @@ describe('manager', () => {
       assert.equal(claimDto?.verificationNote, 'Deal fell through');
     }
 
+    // Manager opens a salesperson's leads: every claim with its stage and journey
+    const priyaId = (bootMgr as unknown as { people: { id: string; name: string }[] }).people.find((p) => p.name === 'Priya Sharma')?.id;
+    assert.ok(priyaId);
+    const theirs = (await call(nisha, 'GET', `/api/manager/people/${priyaId}/leads`)).body as unknown as { leads: { id: string; status: string; history: { status: string }[]; notes: unknown[] }[] };
+    assert.equal(theirs.leads.length, 5);
+    assert.ok(theirs.leads.every((l) => l.status === 'Won' && l.history.some((h) => h.status === 'Won')));
+    assert.equal((await call(priya, 'GET', `/api/manager/people/${priyaId}/leads`)).status, 403, 'a salesperson cannot use it');
+    assert.equal((await call(nisha, 'GET', '/api/manager/people/nobody/leads')).status, 404);
+
     // Salesperson cannot call verify API
     assert.equal((await call(priya, 'PATCH', `/api/manager/claims/${claimIds[0]}/verify`, { verified: 1 })).status, 403);
   });
