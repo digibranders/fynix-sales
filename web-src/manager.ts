@@ -1,5 +1,5 @@
 import { api, messageOf } from './admin/api.js';
-import type { Category, LeadsPage, ManagerBootstrap, ManagerView, TeamMember, VerificationItem, Workspace } from './manager/types.js';
+import type { Category, LeadsPage, ManagerBootstrap, ManagerView, PersonLead, PersonLeads, TeamMember, VerificationItem, Workspace } from './manager/types.js';
 import { takeEmbedded } from './shared/boot.js';
 import { el } from './shared/dom.js';
 import { initPwa } from './shared/pwa.js';
@@ -26,6 +26,11 @@ interface State {
   verifications: VerificationItem[] | null;
   loadingVerifications: boolean;
   editingClaimId: string | null;
+  /** The salesperson whose leads are open in the popup, and those leads once loaded. */
+  leadsUser: { id: string; name: string } | null;
+  personLeads: PersonLead[] | null;
+  /** Which lead cards have their notes open. */
+  openLead: Record<string, boolean>;
   /** True right after a switch to the leads view, so its first load drops in like the other sections. */
   leadsFresh: boolean;
 }
@@ -41,6 +46,9 @@ const S: State = {
   verifications: null,
   loadingVerifications: false,
   editingClaimId: null,
+  leadsUser: null,
+  personLeads: null,
+  openLead: {},
   leadsFresh: false,
 };
 let D: ManagerBootstrap | null = null;
@@ -148,7 +156,7 @@ function vTeam(): string {
   const showCat = S.cat === 'all';
   let h = head('Team', 'Salespeople, monthly won deals, and verifications, ' + sub());
   h +=
-    '<div class="tw cards team"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>' + (showCat ? '<th>Category</th>' : '') + '<th>Services</th><th>Assigned</th><th>Contacted</th><th>Closed</th><th>Status</th></tr></thead><tbody>' +
+    '<div class="tw cards team"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>' + (showCat ? '<th>Category</th>' : '') + '<th>Services</th><th>Assigned</th><th>Contacted</th><th>Closed</th><th>Leads</th><th>Status</th></tr></thead><tbody>' +
     (people.length
       ? people
           .map((p, i) => {
@@ -157,13 +165,78 @@ function vTeam(): string {
             const closedTd = '<td data-label="Closed" data-l="closed"><div class="v-cell"><button type="button" class="btn sm v-review-btn" data-verify-user="' + p.id + '" data-verify-name="' + esc(p.name) + '" title="Verify won deals"><span class="num">' + won + '</span><span class="v-chip">Verify</span></button></div></td>';
             return (
               '<tr><td class="muted num" data-l="n">' + (i + 1) + '</td><td data-l="name"><span class="own static"><span class="av">' + esc(p.ini) + '</span><span>' + esc(p.name) + '</span></span></td>' + (showCat ? '<td data-l="cat">' + (p.category ? ct(p.category) : '') + '</td>' : '') + '<td data-label="Services" data-l="svc">' + chips(p) + '</td><td data-label="Assigned">' + num(p.stats.assigned) + '</td><td data-label="Contacted">' + num(p.stats.contacted) + '</td>' + closedTd +
+              '<td data-label="Leads" data-l="leads"><button type="button" class="btn sm pl-btn" data-person-leads="' + p.id + '" data-person-name="' + esc(p.name) + '">View<span class="v-chip">' + p.stats.assigned + '</span></button></td>' +
               '<td data-l="state"><span class="dotl' + (p.active && !p.invited ? '' : ' off') + '"><i></i>' + state + '</span></td></tr>'
             );
           })
           .join('')
-      : '<tr><td colspan="' + (showCat ? 8 : 7) + '"><div class="empty"><b>No salespeople yet</b>They appear here once a superadmin invites them.</div></td></tr>') +
+      : '<tr><td colspan="' + (showCat ? 9 : 8) + '"><div class="empty"><b>No salespeople yet</b>They appear here once a superadmin invites them.</div></td></tr>') +
     '</tbody></table></div>';
-  return h + '<p class="hint">Assigned is everything a person owns. Contacted and Won count this month. Managers review claimed won deals to confirm validity.</p>';
+  return h + '<p class="hint">Assigned is everything a person owns. Contacted counts leads that moved out of New this month, whatever stage they went to, once each. Closed counts this month. Managers review claimed won deals to confirm validity.</p>';
+}
+
+function stageName(s: string): string {
+  return s === 'Didnt Pick' ? "Didn't Pick" : s;
+}
+function stageDot(s: string): string {
+  const k = s === 'Won' ? 'won' : s === 'Lost' || s.startsWith('Invalid') ? 'off' : s === 'New' ? 'new' : 'mid';
+  return '<span class="pl-stage ' + k + '">' + esc(stageName(s)) + '</span>';
+}
+function fmtWhen(ms: number): string {
+  const d = new Date(ms);
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ', ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+function fmtDay(key: string): string {
+  return new Date(key + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', weekday: 'short' });
+}
+
+function vPersonModal(): string {
+  if (!S.leadsUser) return '';
+  const u = S.leadsUser;
+  const items = S.personLeads;
+  let body: string;
+  let summary = 'Loading...';
+  if (!items) {
+    body = '<div class="empty">Loading leads...</div>';
+  } else if (items.length === 0) {
+    summary = '0 leads';
+    body = '<div class="empty"><b>No leads yet</b>' + esc(u.name) + ' has not claimed any leads.</div>';
+  } else {
+    const counts = new Map<string, number>();
+    items.forEach((l) => counts.set(l.status, (counts.get(l.status) ?? 0) + 1));
+    summary = items.length + (items.length === 1 ? ' lead' : ' leads') + ' · ' + [...counts.entries()].map(([s, n]) => n + ' ' + stageName(s)).join(' · ');
+    body =
+      '<div class="pl-list">' +
+      items
+        .map((l, i) => {
+          const open = S.openLead[l.id] === true;
+          const path = l.history.length ? l.history.map((h) => esc(stageName(h.status))).join(' → ') : 'New';
+          const sub = [l.company, l.jobTitle].filter((x) => x).map(esc).join(' · ');
+          return (
+            '<div class="pl-card"><div class="pl-top"><span class="pl-n">' + (i + 1) + '</span><div class="pl-who"><b>' + esc(l.leadName) + '</b><span class="tag-chip">' + esc(l.workspaceName) + '</span>' +
+            (sub ? '<div class="lead-sub">' + sub + '</div>' : '') + '</div>' + stageDot(l.status) + '</div>' +
+            '<div class="pl-meta">' +
+            (l.nextFollowUp ? '<span><i>Next follow-up</i> ' + esc(fmtDay(l.nextFollowUp)) + '</span>' : '') +
+            '<span class="pl-path"><i>Journey</i> ' + path + '</span></div>' +
+            (l.notes.length
+              ? '<button type="button" class="pl-notes-btn" data-pl-toggle="' + l.id + '" aria-expanded="' + open + '">' + l.notes.length + (l.notes.length === 1 ? ' note' : ' notes') + (open ? ' ▴' : ' ▾') + '</button>' +
+                (open ? '<ul class="pl-notes">' + l.notes.map((n) => '<li><div class="pl-nh">' + stageDot(n.stage) + '<small>' + fmtWhen(n.at) + '</small></div><div>' + esc(n.text) + '</div></li>').join('') + '</ul>' : '')
+              : '<div class="muted pl-none">No notes</div>') +
+            '</div>'
+          );
+        })
+        .join('') +
+      '</div>';
+  }
+  return (
+    '<div class="backdrop" data-close-pl></div>' +
+    '<div class="modal verify-modal" role="dialog" aria-modal="true" aria-labelledby="pl-title">' +
+    '<div class="modal-h"><div><h2 id="pl-title">Leads · ' + esc(u.name) + '</h2><span class="sub">' + esc(summary) + '</span></div>' +
+    '<button type="button" class="modal-close-btn" data-close-pl aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4L4 12"/></svg></button></div>' +
+    '<div class="modal-b pl-body">' + body + '</div>' +
+    '<div class="modal-f"><button type="button" class="btn dark" data-close-pl>Done</button></div>' +
+    '</div>'
+  );
 }
 
 function vVerifyModal(): string {
@@ -306,6 +379,8 @@ function vLeads(): string {
     '<div class="tw cards"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th>' + leadHead + cols.map((c) => '<th>' + esc(c.name) + '</th>').join('') + '</tr></thead><tbody>' +
     (rows || '<tr><td colspan="' + (5 + cols.length) + '"><div class="empty"><b>No leads match</b>Try a different search.</div></td></tr>') +
     '</tbody></table></div>';
+  /* Nothing to page through, so no pager and no note. */
+  if (res.total === 0) return h;
   const pages = Math.max(1, Math.ceil(res.total / res.pageSize));
   /* Numbered pages: the first, the last, and a few around the current one. */
   const shown = new Set<number>([1, pages, res.page - 1, res.page, res.page + 1]);
@@ -363,7 +438,7 @@ function render(keepFocus?: boolean, animate?: boolean): void {
   const view = el('view');
   const focused = keepFocus && document.activeElement instanceof HTMLInputElement ? document.activeElement : null;
   const caret = focused ? focused.selectionStart : null;
-  view.innerHTML = (S.view === 'account' ? vAccount() : (S.view === 'team' ? vTeam() : vLeads())) + vVerifyModal();
+  view.innerHTML = (S.view === 'account' ? vAccount() : (S.view === 'team' ? vTeam() : vLeads())) + vVerifyModal() + vPersonModal();
   if (focused) {
     const input = document.getElementById('lq');
     if (input instanceof HTMLInputElement) {
@@ -390,6 +465,24 @@ function loadLeads(keepFocus?: boolean): void {
       S.leadsFresh = false;
     })
     .catch(fail);
+}
+
+function openPersonLeads(id: string, name: string): void {
+  S.leadsUser = { id, name };
+  S.personLeads = null;
+  S.openLead = {};
+  render();
+  api<PersonLeads>('GET', '/api/manager/people/' + encodeURIComponent(id) + '/leads')
+    .then((res) => {
+      if (S.leadsUser?.id !== id) return;
+      S.personLeads = res.leads;
+      render();
+    })
+    .catch((e: unknown) => {
+      S.leadsUser = null;
+      fail(e);
+      render();
+    });
 }
 
 function openVerificationModal(userId: string, name: string): void {
@@ -513,6 +606,29 @@ document.addEventListener('click', (e) => {
     S.page = Math.max(1, S.page + (step < 0 ? -1 : 1));
     loadLeads();
     window.scrollTo(0, 0);
+    return;
+  }
+
+  if ((c = hit('[data-person-leads]'))) {
+    const pid = c.dataset['personLeads'];
+    if (pid) openPersonLeads(pid, c.dataset['personName'] || 'Salesperson');
+    return;
+  }
+  if (hit('[data-close-pl]')) {
+    S.leadsUser = null;
+    S.personLeads = null;
+    render();
+    return;
+  }
+  if ((c = hit('[data-pl-toggle]'))) {
+    const id = c.dataset['plToggle'];
+    if (id) {
+      const top = document.querySelector('.pl-body')?.scrollTop ?? 0;
+      S.openLead[id] = !S.openLead[id];
+      render();
+      const again = document.querySelector('.pl-body');
+      if (again) again.scrollTop = top;
+    }
     return;
   }
 

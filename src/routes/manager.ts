@@ -77,6 +77,63 @@ export function registerManagerRoutes(app: FastifyInstance, ctx: AppContext): vo
     return loadLeads(db, leadsQuery.parse(request.query), scope, 25);
   });
 
+  /** Every lead one salesperson owns, with where it stands, how it got there, and the notes they wrote. */
+  app.get<{ Params: { id: string } }>('/api/manager/people/:id/leads', async (request) => {
+    const { scope } = manager(request);
+    const person = await one<{ id: string; name: string }>(db, `SELECT id, name FROM users WHERE id = ? AND role = 'sales' AND category IN (${inClause(scope)})`, [request.params.id, ...scope]);
+    if (!person) throw new HttpError(404, 'not_found', 'Salesperson not found.');
+    const claims = await all<{
+      id: string;
+      status: string;
+      next_follow_up: string | null;
+      last_activity_at: number;
+      lead_name: string;
+      lead_company: string;
+      lead_job_title: string;
+      lead_area: string;
+      lead_phone: string;
+      workspace_name: string;
+      workspace_category: Category;
+    }>(
+      db,
+      `SELECT c.id, c.status, c.next_follow_up, c.last_activity_at,
+              l.name AS lead_name, l.company AS lead_company, l.job_title AS lead_job_title, l.area AS lead_area, l.phone AS lead_phone,
+              w.name AS workspace_name, w.category AS workspace_category
+         FROM claims c JOIN leads l ON l.id = c.lead_id JOIN workspaces w ON w.id = c.workspace_id
+        WHERE c.owner_id = ? ORDER BY c.last_activity_at DESC, c.id`,
+      [person.id],
+    );
+    const ids = claims.map((c) => c.id);
+    const noteRows = ids.length
+      ? await all<{ id: number; claim_id: string; stage: string; text: string; at: number }>(
+          db,
+          `SELECT id, claim_id, stage, text, at FROM notes WHERE system = 0 AND claim_id IN (${inClause(ids)}) ORDER BY at DESC, id DESC`,
+          ids,
+        )
+      : [];
+    const eventRows = ids.length
+      ? await all<{ claim_id: string; status: string; at: number }>(db, `SELECT claim_id, status, at FROM claim_events WHERE claim_id IN (${inClause(ids)}) ORDER BY at, id`, ids)
+      : [];
+    return {
+      person: { id: person.id, name: person.name },
+      leads: claims.map((c) => ({
+        id: c.id,
+        leadName: c.lead_name,
+        company: c.lead_company,
+        jobTitle: c.lead_job_title,
+        area: c.lead_area,
+        phone: c.lead_phone,
+        workspaceName: c.workspace_name,
+        category: c.workspace_category,
+        status: c.status,
+        nextFollowUp: c.status === 'Follow Up' ? c.next_follow_up : null,
+        lastActivityAt: c.last_activity_at,
+        history: eventRows.filter((e) => e.claim_id === c.id).map((e) => ({ status: e.status, at: e.at })),
+        notes: noteRows.filter((n) => n.claim_id === c.id).map((n) => ({ id: n.id, stage: n.stage, text: n.text, at: n.at })),
+      })),
+    };
+  });
+
   app.get<{ Querystring: { userId?: string; category?: Category } }>('/api/manager/verifications', async (request) => {
     const { scope } = manager(request);
     const qCat = request.query.category;

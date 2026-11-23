@@ -228,7 +228,7 @@ function vOverview(): string {
   h +=
     '<div class="blk"><h2>Salespeople this month</h2>' +
     (P.length
-      ? '<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>' + (S.cat === 'all' ? '<th>Category</th>' : '') + '<th>Services</th><th>Assigned</th><th>Contacted</th><th>Won</th></tr></thead><tbody>' +
+      ? '<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>' + (S.cat === 'all' ? '<th>Category</th>' : '') + '<th>Services</th><th>Assigned</th><th>Contacted</th><th>Closed</th></tr></thead><tbody>' +
         P.map((p, i) => '<tr><td class="muted num">' + (i + 1) + '</td><td><span class="own static">' + av(p) + esc(p.name) + '</span></td>' + (S.cat === 'all' ? '<td>' + ct(p.category) + '</td>' : '') + '<td>' + wsOf(p) + '</td><td>' + num(p.stats.assigned) + '</td><td>' + num(p.stats.contacted) + '</td><td>' + num(p.stats.won) + '</td></tr>').join('') +
         '</tbody></table></div>'
       : '<div class="muted">No salespeople yet.</div>') +
