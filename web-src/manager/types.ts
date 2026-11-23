@@ -15,7 +15,10 @@ export interface TeamMember {
 }
 
 /** GET /api/manager/bootstrap */
+export type Period = 'today' | 'week' | 'month';
+
 export interface ManagerBootstrap {
+  period?: Period;
   me: { id: string; name: string; ini: string; email: string };
   /** Only the categories this manager may look at. */
   categories: Partial<Record<Category, { name: string; sub: string }>>;

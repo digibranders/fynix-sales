@@ -139,8 +139,8 @@ async function claimCount(db: Db, sql: string, params: (string | number)[]): Pro
 }
 
 /** Everyone who can sign in with this month's numbers. `scope` limits it to the salespeople of those categories (what a manager may see). */
-export async function loadPeople(db: Db, scope: Category[] | null) {
-  const month = monthStartMs();
+export async function loadPeople(db: Db, scope: Category[] | null, since: number = monthStartMs()) {
+  const month = since;
   const users = scope
     ? await all<UserRow>(
         db,

@@ -173,3 +173,14 @@
   .pl-meta,.pl-notes-btn,.pl-notes,.pl-none{margin-left:0}
   .pl-top{flex-wrap:wrap}
 }
+
+/* Team period filter and the two row buttons */
+.per{margin:0 0 12px}
+.cta-ic{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:block}
+.v-review-btn .v-chip,.pl-btn .v-chip{display:inline-flex;align-items:center;justify-content:center;padding:3px 6px}
+.v-review-btn .v-chip{color:#16a34a}
+.pl-btn .num{font-weight:600}
+@media (max-width:700px){
+  .per{display:flex;width:100%}
+  .per button{flex:1;padding:0 6px}
+}

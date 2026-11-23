@@ -4,7 +4,7 @@ import type { AppContext } from '../app.js';
 import type { SessionUser } from '../auth.js';
 import { CATEGORIES, all, inClause, one, run, tx } from '../db.js';
 import type { Category, Params } from '../db.js';
-import { CATEGORY_INFO, HttpError, STAGES, initials, logActivity } from '../domain.js';
+import { CATEGORY_INFO, HttpError, STAGES, initials, logActivity, monthStartMs } from '../domain.js';
 import { leadsQuery, loadLeads, loadPeople } from './admin.js';
 
 interface WorkspaceRow {
@@ -39,6 +39,16 @@ interface VerificationRow {
   latest_note: string | null;
 }
 
+const periodQuery = z.object({ period: z.enum(['today', 'week', 'month']).default('month') });
+
+/** When a period begins: midnight today, midnight on Monday, or the first of the month. */
+function periodStartMs(period: 'today' | 'week' | 'month', now = new Date()): number {
+  if (period === 'month') return monthStartMs(now);
+  const day = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (period === 'week') day.setDate(day.getDate() - ((day.getDay() + 6) % 7));
+  return day.getTime();
+}
+
 const verifyBody = z.object({
   verified: z.union([z.literal(0), z.literal(1), z.literal(2)]),
   note: z.string().max(500).optional(),
@@ -60,11 +70,13 @@ export function registerManagerRoutes(app: FastifyInstance, ctx: AppContext): vo
 
   app.get('/api/manager/bootstrap', async (request) => {
     const { user, scope } = manager(request);
+    const { period } = periodQuery.parse(request.query);
     const workspaces = (await all<WorkspaceRow>(db, 'SELECT id, category, key, name, icon, color FROM workspaces ORDER BY category, position, name')).filter((w) =>
       scope.includes(w.category),
     );
-    const people = await loadPeople(db, scope);
+    const people = await loadPeople(db, scope, periodStartMs(period));
     return {
+      period,
       me: { id: user.id, name: user.name, ini: initials(user.name), email: user.email },
       categories: Object.fromEntries(scope.map((c) => [c, CATEGORY_INFO[c]])),
       workspaces,
