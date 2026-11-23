@@ -43,6 +43,13 @@
       "when": 1795170687867,
       "tag": "0005_claim_verification",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795250000000,
+      "tag": "0006_new_stages",
+      "breakpoints": true
     }
   ]
 }

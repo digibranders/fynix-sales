@@ -179,7 +179,7 @@ export function registerManagerRoutes(app: FastifyInstance, ctx: AppContext): vo
       }
 
       const stateDesc = body.verified === 1 ? 'Verified (True)' : body.verified === 2 ? 'Rejected (False)' : 'Pending verification';
-      const noteText = `Manager ${user.name} marked closed claim as ${stateDesc}${body.note ? ': ' + body.note : '.'}`;
+      const noteText = `Manager ${user.name} marked won claim as ${stateDesc}${body.note ? ': ' + body.note : '.'}`;
       await run(txDb, 'INSERT INTO notes (claim_id, author_id, system, stage, text, at) VALUES (?, NULL, 1, ?, ?, ?)', [
         claimId,
         nextStatus,

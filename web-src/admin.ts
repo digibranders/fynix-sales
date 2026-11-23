@@ -42,7 +42,7 @@ const NAVICON: Record<string, string> = {
 };
 const CATS: readonly Category[] = ['scale', 'reach'];
 const PLUS = '<svg viewBox="0 0 14 14"><path d="M7 2v10M2 7h10"/></svg>';
-const STAGE_LIST: readonly string[] = ['New', 'Contacted', 'Interested', 'Meeting', 'Negotiation', 'Closed', 'Lost'];
+const STAGE_LIST: readonly string[] = ['New', "Didn't Pick", 'Follow Up', 'Meeting', 'Won', 'Lost', 'Invalid Number', 'Invalid Email'];
 const MONTHS: readonly string[] = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 let D: Bootstrap | null = null; /* bootstrap data from the server */
@@ -228,13 +228,13 @@ function vOverview(): string {
   h +=
     '<div class="blk"><h2>Salespeople this month</h2>' +
     (P.length
-      ? '<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>' + (S.cat === 'all' ? '<th>Category</th>' : '') + '<th>Services</th><th>Assigned</th><th>Contacted</th><th>Closed</th></tr></thead><tbody>' +
+      ? '<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>' + (S.cat === 'all' ? '<th>Category</th>' : '') + '<th>Services</th><th>Assigned</th><th>Contacted</th><th>Won</th></tr></thead><tbody>' +
         P.map((p, i) => '<tr><td class="muted num">' + (i + 1) + '</td><td><span class="own static">' + av(p) + esc(p.name) + '</span></td>' + (S.cat === 'all' ? '<td>' + ct(p.category) + '</td>' : '') + '<td>' + wsOf(p) + '</td><td>' + num(p.stats.assigned) + '</td><td>' + num(p.stats.contacted) + '</td><td>' + num(p.stats.won) + '</td></tr>').join('') +
         '</tbody></table></div>'
       : '<div class="muted">No salespeople yet.</div>') +
     '</div>';
   const cats: readonly Category[] = S.cat === 'all' ? CATS : [S.cat];
-  const targetLabels: Record<'contacted' | 'won', string> = { contacted: 'Contacted target', won: 'Closed target' };
+  const targetLabels: Record<'contacted' | 'won', string> = { contacted: 'Contacted target', won: 'Won target' };
   const targetMetrics: readonly ('contacted' | 'won')[] = ['contacted', 'won'];
   h +=
     '<div class="blk"><h2>Monthly targets</h2>' +
@@ -250,7 +250,7 @@ function vOverview(): string {
         );
       })
       .join('') +
-    '<p class="hint">Shown to each salesperson as "of N" under Contacted and Closed in KPIs and Profile. Assigned has no target.</p></div>';
+    '<p class="hint">Shown to each salesperson as "of N" under Contacted and Won in KPIs and Profile. Assigned has no target.</p></div>';
   return h;
 }
 
@@ -433,8 +433,8 @@ function vReports(): string {
     '<div class="blk"><h2>What is in the file</h2><ul class="act">' +
     '<li><span>One row for every salesperson in every service, including people who did nothing that month.</span></li>' +
     '<li><span>Assigned: leads claimed in the month. Contacted: leads that first moved out of New in the month.</span></li>' +
-    '<li><span>Interested, Meetings, Negotiation, Closed and Lost: leads that reached that stage in the month.</span></li>' +
-    '<li><span>Open now: leads the person still owns that are not Closed or Lost.</span></li>' +
+    '<li><span>Didn\'t Pick, Follow Up, Meetings, Won, Lost and Invalid: leads that reached that stage in the month.</span></li>' +
+    '<li><span>Open now: leads the person still owns that are not Won, Lost or Invalid.</span></li>' +
     '<li><span>A Total row after each service and a final row for everything.</span></li></ul></div>';
   return h;
 }

@@ -5,7 +5,7 @@ import { api, messageOf, statusOf } from './sales/api.js';
 
 initPwa();
 import {
-  ALLSTAGES, BELL, CAL_DAYS, CHECK, CHEV, GROUPS_Q, KP_PERIODS, NEEDS, NEED_ICON, PAGE, STAGES, THEMES,
+  ALLSTAGES, isEnded, isOff, BELL, CAL_DAYS, CHECK, CHEV, GROUPS_Q, KP_PERIODS, NEEDS, NEED_ICON, PAGE, STAGES, THEMES,
   ico, pi, ptile, svcIcon, tileOf, toService,
 } from './sales/consts.js';
 import { closestOf, ds, maybeEl, media, prefersReducedMotion, qs } from './sales/dom.js';
@@ -847,7 +847,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     LEADS.forEach((l) => {
       Object.keys(l.work).forEach((sid) => {
         const w = l.work[sid];
-        if (w.owner !== state.user || !w.next || w.status === 'Won' || w.status === 'Lost') return;
+        if (w.owner !== state.user || !w.next || w.status !== 'Follow Up') return;
         const d = diffDays(w.next);
         if (d < 0) out.push({ id: 'od:' + l.id + ':' + sid + ':' + w.next, kind: 'od', rank: 0, late: -d, title: l.name, sub: 'Follow-up', tag: (-d) + 'd late', svc: sid, lead: l.id, unread: false });
         else if (d === 0) out.push({ id: 'td:' + l.id + ':' + sid + ':' + w.next, kind: 'td', rank: 1, late: 0, title: l.name, sub: 'Follow-up', tag: 'Today', svc: sid, lead: l.id, unread: false });
@@ -1104,8 +1104,8 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
 
   function groupOf(l: Lead): string {
     const w = claim(l);
-    if (w.status === 'Won' || w.status === 'Lost') return 'closed';
-    if (!w.next) return 'none';
+    if (isEnded(w.status)) return 'closed';
+    if (w.status !== 'Follow Up' || !w.next) return 'none';
     const d = diffDays(w.next);
     return d < 0 ? 'od' : (d === 0 ? 'today' : 'later');
   }
@@ -1178,7 +1178,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       return head + g.items.map((l) => {
         const w = claim(l);
         n++;
-        const fu = '<span class="fu ' + (closed ? '' : g.key) + '">' + (closed || !w.next ? '' : esc(fuText(w.next))) + '</span>';
+        const fu = '<span class="fu ' + (closed ? '' : g.key) + '">' + (closed || !w.next || w.status !== 'Follow Up' ? '' : esc(fuText(w.next))) + '</span>';
         const hasAct = (g.key === 'od' || g.key === 'today');
         const pNum = isScale() ? (l.personalNumber || l.phone) : l.phone;
         const dg = pNum ? pNum.replace(/\D/g, '') : '';
@@ -1225,8 +1225,8 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   /* Activity is kept per stage: every stage the lead has reached gets its own block with optional notes. */
   function stageBlocks(w: Claim): string[] {
     const idx = STAGES.indexOf(w.status);
-    const lost = w.status === 'Lost';
-    const reached = lost ? STAGES.slice(0, 1).concat(STAGES.filter((s) => w.comments.some((c) => c.stage === s))).filter((s, i, a) => a.indexOf(s) === i).concat(['Lost']) : STAGES.slice(0, idx + 1);
+    const lost = isOff(w.status);
+    const reached = lost ? STAGES.slice(0, 1).concat(STAGES.filter((s) => w.comments.some((c) => c.stage === s))).filter((s, i, a) => a.indexOf(s) === i).concat([w.status]) : STAGES.slice(0, idx + 1);
     return reached.reverse();
   }
   function reachedAt(w: Claim, s: string): number {
@@ -1310,7 +1310,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   /* classes for the six steps of the stage line: d = done, c = current */
   function stepClsFor(status: string, w: Claim): string[] {
     const idx = STAGES.indexOf(status);
-    const lost = status === 'Lost';
+    const lost = isOff(status);
     const won = status === 'Won';
     const reached = stageBlocks(w);
     return STAGES.map((s, i) => {
@@ -1367,14 +1367,14 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   }
   function phoneStage(w: Claim, stageOpts: string): string {
     const idx = STAGES.indexOf(w.status);
-    const lost = w.status === 'Lost';
+    const lost = isOff(w.status);
     const won = w.status === 'Won';
     const steps = stepsHtml(stepClsFor(w.status, w));
     const next = (!won && !lost && idx < STAGES.length - 1) ? STAGES[idx + 1] : '';
     const chg = '<div class="combo mst-chg"><button type="button" class="chg" data-stagebtn aria-haspopup="listbox" aria-expanded="' + (state.open === 'stage') + '">Change' + CHEV + '</button>' +
       (state.open === 'stage' ? '<div class="pop pop-r"><div class="opts" role="listbox">' + stageOpts + '</div></div>' : '') + '</div>';
     return '<div class="mstage"><div class="k">Stage</div><div class="stp" aria-hidden="true">' + steps + '</div>' +
-      '<div class="mst-row"><span class="st mst-cur ' + sclass(w.status) + '">' + esc(SL(w.status)) + '</span><span class="sm">' + (lost ? 'Closed' : (idx + 1) + ' of ' + STAGES.length) + '</span>' + chg + '</div>' +
+      '<div class="mst-row"><span class="st mst-cur ' + sclass(w.status) + '">' + esc(SL(w.status)) + '</span><span class="sm">' + (lost ? 'Ended' : (idx + 1) + ' of ' + STAGES.length) + '</span>' + chg + '</div>' +
       (next ? '<button type="button" class="btn assign mnext" data-stageopt="' + next + '">Move to ' + SL(next) + ' →</button>' : '') + '</div>';
   }
   /* One entry per stage move, newest first. Notes hang off the stage move they were written in. */
@@ -1533,7 +1533,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   function detail(l: Lead): string {
     const w = claim(l);
     const idx = STAGES.indexOf(w.status);
-    const lost = w.status === 'Lost';
+    const lost = isOff(w.status);
     const won = w.status === 'Won';
     if (state.stgLead !== l.id) {
       state.stgLead = l.id;
@@ -1550,14 +1550,16 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     const stageOpts = ALLSTAGES.map((s) => optHtml('data-stageopt', s, SL(s), '', s === w.status, false, '<span class="sd ' + sclass(s) + '"></span>')).join('');
     const stageBox = '<div class="combo"><button type="button" class="field combo-btn" data-stagebtn aria-haspopup="listbox" aria-expanded="' + (state.open === 'stage') + '"><span><span class="sd ' + sclass(w.status) + '"></span>' + esc(SL(w.status)) + '</span>' + CHEV + '</button>' +
       (state.open === 'stage' ? '<div class="pop"><div class="opts" role="listbox">' + stageOpts + '</div></div>' : '') + '</div>';
-    const fuBox = (won || lost) ? '<span class="sm">Closed</span>' :
+    const fuBox =
       '<div class="fuw"><div class="combo"><button type="button" class="field combo-btn fu-btn" data-fubtn aria-haspopup="dialog" aria-expanded="' + (state.open === 'fu') + '"><span class="' + (w.next ? '' : 'ph') + '">' + (w.next ? esc(fuFull(w.next)) : 'Pick a date') + '</span>' + ico('cal') + '</button>' + (state.open === 'fu' ? '<div class="pop cal">' + calHtml(w.next) + '</div>' : '') + '</div><div class="fq"><button type="button" data-fu="1">Tomorrow</button><button type="button" data-fu="3">In 3 days</button><button type="button" data-fu="7">Next week</button>' + (w.next ? '<button type="button" data-fu="clear">Clear</button>' : '') + '</div></div>';
+    /* The next follow-up date only shows while the lead is in Follow Up. */
+    const fuCol = w.status === 'Follow Up' ? '<div><div class="k">Next follow-up</div>' + fuBox + '</div>' : '';
     const detailSub = isScale() ? (esc([jobTitleOf(l), l.company].filter(Boolean).join(' · ') || l.city)) : esc(l.area || l.city);
     const vBanner = w.status === 'Won' ? (
       w.verified === 1
         ? '<div class="v-status-card v-status-true">' +
           '<div class="v-sc-head">' +
-            '<span class="v-sc-badge"><svg viewBox="0 0 10 8" class="v-sc-ic" aria-hidden="true"><path d="M1 4l2.5 2.5L9 1"/></svg>Verified Closed Deal</span>' +
+            '<span class="v-sc-badge"><svg viewBox="0 0 10 8" class="v-sc-ic" aria-hidden="true"><path d="M1 4l2.5 2.5L9 1"/></svg>Verified Won Deal</span>' +
             '<span class="v-sc-by">by manager</span>' +
           '</div>' +
           (w.verificationNote ? '<div class="v-sc-note">' + esc(w.verificationNote) + '</div>' : '') +
@@ -1574,7 +1576,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
             '<div class="v-sc-head">' +
               '<span class="v-sc-badge"><svg viewBox="0 0 8 8" class="v-sc-ic" aria-hidden="true"><circle cx="4" cy="4" r="3"/></svg>Pending Manager Verification</span>' +
             '</div>' +
-            '<div class="v-sc-note">Claimed as closed · awaiting review</div>' +
+            '<div class="v-sc-note">Claimed as won · awaiting review</div>' +
             '</div>'
     ) : '';
     return '<div class="detail">' +
@@ -1582,8 +1584,8 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       '<div class="d-head"><div><h1>' + (isPhone() ? '<button type="button" class="d-back" data-back aria-label="Back to the Assigned list"><svg viewBox="0 0 8 14" aria-hidden="true"><path d="M7 1L1 7l6 6"/></svg></button>' : '') + esc(toTitleCase(l.name)) + '<button type="button" class="info-i" data-info="' + l.id + '" aria-label="' + (isScale() ? 'Lead info' : 'Store info') + '" title="' + (l.email.length ? esc(l.email.join(', ')) : (pNum || '')) + '">' + tileOf('info') + '</button></h1><div class="sm">' + detailSub + ' · Last touched ' + esc(agoText(w.last)) + '</div></div></div>' +
       acts + vBanner +
       (isPhone()
-        ? phoneStage(w, stageOpts) + '<div class="sf"><div><div class="k">Next follow-up</div>' + fuBox + '</div></div>' + phoneActivity(w) + '</div>'
-        : '<div class="sf"><div><div class="k">Stage</div>' + stageBox + prog + '</div><div><div class="k">Next follow-up</div>' + fuBox + '</div></div>' +
+        ? phoneStage(w, stageOpts) + (fuCol ? '<div class="sf">' + fuCol + '</div>' : '') + phoneActivity(w) + '</div>'
+        : '<div class="sf"><div><div class="k">Stage</div>' + stageBox + prog + '</div>' + fuCol + '</div>' +
           '<div class="d-sec"><h3>Activity by stage</h3>' + stageBlocks(w).map((s) => stageBlock(w, s)).join('') + '</div></div>');
   }
 
@@ -1693,14 +1695,14 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       const body =
         '<div class="rp-month" role="group" aria-label="Month"><button type="button" class="rep-arrow" data-rpm="-1" aria-label="Previous month"><svg viewBox="0 0 8 14" aria-hidden="true"><path d="M7 1L1 7l6 6"/></svg></button><b>' + esc(r.label) + '</b>' +
         '<button type="button" class="rep-arrow" data-rpm="1" aria-label="Next month"' + (reportM >= cur ? ' disabled' : '') + '><svg viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6"/></svg></button></div>' +
-        '<div class="pf-stats four"><div><b class="num">' + tot.assigned + '</b><span>Assigned</span></div><div><b class="num">' + tot.contacted + '</b><span>Contacted</span></div><div><b class="num">' + tot.meetings + '</b><span>Meetings</span></div><div><b class="num">' + tot.won + '</b><span>Closed</span></div></div>' +
-        '<p class="pf-cap">Interested ' + tot.interested + ' · Negotiation ' + tot.negotiation + ' · Lost ' + tot.lost + ' · Open now ' + tot.openNow + '</p>' +
+        '<div class="pf-stats four"><div><b class="num">' + tot.assigned + '</b><span>Assigned</span></div><div><b class="num">' + tot.contacted + '</b><span>Contacted</span></div><div><b class="num">' + tot.meetings + '</b><span>Meetings</span></div><div><b class="num">' + tot.won + '</b><span>Won</span></div></div>' +
+        '<p class="pf-cap">Follow Up ' + tot.followUp + ' · Didn\'t Pick ' + tot.didntPick + ' · Lost ' + tot.lost + ' · Invalid ' + tot.invalid + ' · Open now ' + tot.openNow + '</p>' +
         '<h3 class="rp-h">By service</h3>' + (r.services.length ? r.services.map((s) => {
           const sv = SERVICES.find((x) => x.name === s.service);
-          return '<div class="rp-row">' + (sv ? svcIcon(sv) : '') + '<span class="rp-l"><b>' + esc(s.service) + '</b><span class="sm">Assigned ' + s.assigned + ' · Contacted ' + s.contacted + ' · Meetings ' + s.meetings + ' · Closed ' + s.won + '</span></span></div>';
+          return '<div class="rp-row">' + (sv ? svcIcon(sv) : '') + '<span class="rp-l"><b>' + esc(s.service) + '</b><span class="sm">Assigned ' + s.assigned + ' · Contacted ' + s.contacted + ' · Meetings ' + s.meetings + ' · Won ' + s.won + '</span></span></div>';
         }).join('') : '<p class="sm">No services yet.</p>') +
         '<h3 class="rp-h">Last 6 months</h3>' + r.history.map((h) => {
-          return '<button type="button" class="rp-hist' + (h.month === r.month ? ' on' : '') + '" data-rpmonth="' + esc(h.month) + '"><b>' + esc(h.label) + '</b><span class="sm">' + h.assigned + ' assigned · ' + h.contacted + ' contacted · ' + h.meetings + ' meetings · ' + h.won + ' closed</span></button>';
+          return '<button type="button" class="rp-hist' + (h.month === r.month ? ' on' : '') + '" data-rpmonth="' + esc(h.month) + '"><b>' + esc(h.label) + '</b><span class="sm">' + h.assigned + ' assigned · ' + h.contacted + ' contacted · ' + h.meetings + ' meetings · ' + h.won + ' won</span></button>';
         }).join('');
       const box = document.getElementById('rp-body');
       if (!box) return;
@@ -1838,7 +1840,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   /* Targets are demo numbers; the admin panel will set the real ones. They only apply to the monthly view. */
   const TARGETS: Targets = { contacted: DATA.targets.contacted || 0, meetings: DATA.targets.meetings || 0, won: DATA.targets.won || 0 };
   function kindOf(stage: string): string {
-    return stage === 'Won' ? 'green' : (stage === 'Lost' ? 'red' : 'black');
+    return stage === 'Won' ? 'green' : (isOff(stage) ? 'red' : 'black');
   }
   function periodStart(p: string): number {
     const d = new Date();
@@ -1867,7 +1869,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     const h = claim(l).history || [];
     return h.length > 0 && h[0].t >= start;
   }
-  /* Three boxes: Assigned (just the number), then Contacted and Closed, each the number big with "of <monthly target>" small under it. */
+  /* Three boxes: Assigned (just the number), then Contacted and Won, each the number big with "of <monthly target>" small under it. */
   function statStrip(assigned: number, contacted: number, closed: number, showTarget: boolean, aria: string, verifiedClosed?: number): string {
     function box(n: number, label: string, target: number, sub?: string): string {
       return '<div><b class="num">' + n + '</b><small class="pf-of">' + (sub !== undefined ? sub : (showTarget && target ? 'of ' + target : '&nbsp;')) + '</small><span>' + label + '</span></div>';
@@ -1878,14 +1880,14 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     return '<div class="pf-stats" role="group" aria-label="' + esc(aria) + '">' +
       box(assigned, 'Assigned', 0) +
       box(contacted, 'Contacted', TARGETS.contacted) +
-      box(verifiedClosed !== undefined ? verifiedClosed : closed, 'Closed', TARGETS.won, closedSub) +
+      box(verifiedClosed !== undefined ? verifiedClosed : closed, 'Won', TARGETS.won, closedSub) +
       '</div>';
   }
 
   function renderKpi(): void {
     const m = mine();
     const by: Record<string, number> = {};
-    STAGES.concat(['Lost']).forEach((s) => {
+    ALLSTAGES.forEach((s) => {
       by[s] = 0;
     });
     m.forEach((l) => {
@@ -1898,12 +1900,9 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     const wonLeads = m.filter((l) => enteredIn(l, 'Won', start));
     const won = wonLeads.length;
     const verifiedWon = wonLeads.filter((l) => claim(l).verified === 1).length;
-    const openL = m.filter((l) => {
-      const s = claim(l).status;
-      return s !== 'Won' && s !== 'Lost';
-    });
+    const openL = m.filter((l) => !isEnded(claim(l).status));
     const overdue = openL.filter((l) => groupOf(l) === 'od').length;
-    const nodate = openL.filter((l) => groupOf(l) === 'none').length;
+    const nodate = openL.filter((l) => claim(l).status === 'Follow Up' && !claim(l).next).length;
     const max = Math.max(...Object.keys(by).map((s) => by[s]), 1);
     const found: { lead: Lead; c: ClaimComment }[] = [];
     m.forEach((l) => {
@@ -1923,13 +1922,13 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       if (overdue) bits.push('<li><span class="num r">' + overdue + '</span>' + (overdue === 1 ? 'follow-up overdue' : 'follow-ups overdue') + '</li>');
       if (nodate) bits.push('<li><span class="num">' + nodate + '</span>' + (nodate === 1 ? 'lead has no follow-up date' : 'leads have no follow-up date') + '</li>');
       att = '<div class="katt ' + (overdue ? 'hot' : 'warn') + '"><div><div class="katt-t"><svg class="katt-i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.2M12 16.3v.2"/></svg>Needs attention</div><ul class="katt-l">' + bits.join('') + '</ul></div><button type="button" class="btn assign" data-kgo="' + (overdue ? 'od' : 'later') + '">View in Assigned</button></div>';
-    } else att = '<div class="katt calm"><span class="sm">Nothing overdue, and every open lead has a follow-up date.</span></div>';
+    } else att = '<div class="katt calm"><span class="sm">Nothing overdue, and every Follow Up lead has a date.</span></div>';
     h += '<h3 class="kp-sh">' + (month ? 'Monthly target' : (p === 'today' ? 'Today' : 'Last 7 days')) + '</h3>' +
       statStrip(m.filter((l) => assignedIn(l, start)).length, contacted, won, month, month ? 'Monthly target' : 'Counts for the period', verifiedWon) +
       (month ? '<p class="sm kpnote">This month · ' + Math.round(monthElapsed() * 100) + '% of the month gone</p>' : '<p class="sm kpnote">Counts for ' + (p === 'today' ? 'today' : 'the last 7 days') + ' · targets show on This month</p>') +
       att +
       '<div class="kcols"><section class="ksec"><h3>Pipeline now</h3>' +
-        STAGES.concat(['Lost']).map((s) => {
+        ALLSTAGES.map((s) => {
           return '<div class="frow kc-' + kindOf(s) + '"><span class="st">' + SL(s) + '</span><span class="ftrack"><i style="width:' + Math.round(by[s] / max * 100) + '%"></i></span><span class="num">' + by[s] + '</span></div>';
         }).join('') + '</section>' +
       '<section class="ksec"><h3>Latest updates</h3>' + (acts.length ? acts.map((a) => {
@@ -2238,7 +2237,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
         renderAssigned();
         return;
       }
-      if (isPhone() && document.querySelector('.stp') && ns !== 'Lost' && w.status !== 'Lost') {
+      if (isPhone() && document.querySelector('.stp') && !isOff(ns) && !isOff(w.status)) {
         if (movingStage) return;
         movingStage = true;
         const prev = w.status;
@@ -2253,6 +2252,12 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
               renderAssigned();
               chrome();
             }, Math.max(1, STAGES.indexOf(ns) - STAGES.indexOf(prev)) * 300 + 700);
+            return;
+          }
+          if (ns === 'Follow Up' || prev === 'Follow Up') {
+            /* the follow-up date box comes and goes with this stage, so draw the detail again */
+            renderAssigned();
+            chrome();
             return;
           }
           const ul = document.querySelector('.detail .d-sec .tl2');

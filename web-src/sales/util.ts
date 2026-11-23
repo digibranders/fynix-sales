@@ -20,12 +20,12 @@ export function plural(n: number): string {
 export function sclass(s: string): string {
   return 'st-' + (s.split(' ')[0] ?? '').toLowerCase();
 }
-/** The last stage is called Won in the data and Closed on screen. */
+/** Stage names as they show on screen. */
 export function SL(s: string): string {
-  return s === 'Won' ? 'Closed' : s;
+  return s === 'Didnt Pick' ? "Didn't Pick" : s;
 }
 export function sysText(t: string): string {
-  return String(t).replace(/\bWon\b/g, 'Closed');
+  return String(t).replace(/\bDidnt Pick\b/g, "Didn't Pick");
 }
 
 export function safeUrl(u: string): string {
