@@ -193,8 +193,7 @@ export async function loadPeople(db: Db, scope: Category[] | null) {
 export type LeadsQuery = z.infer<typeof leadsQuery>;
 
 /** One page of leads with their owners per service. `scope` limits it to those categories (what a manager may see). */
-export async function loadLeads(db: Db, query: LeadsQuery, scope: Category[] | null) {
-  const pageSize = 50;
+export async function loadLeads(db: Db, query: LeadsQuery, scope: Category[] | null, pageSize = 50) {
   const filters: string[] = [];
   const params: (string | number)[] = [];
   const categories = scope ? (query.category ? scope.filter((c) => c === query.category) : scope) : query.category ? [query.category] : null;

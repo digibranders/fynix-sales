@@ -74,7 +74,7 @@ export function registerManagerRoutes(app: FastifyInstance, ctx: AppContext): vo
 
   app.get('/api/manager/leads', async (request) => {
     const { scope } = manager(request);
-    return loadLeads(db, leadsQuery.parse(request.query), scope);
+    return loadLeads(db, leadsQuery.parse(request.query), scope, 25);
   });
 
   app.get<{ Querystring: { userId?: string; category?: Category } }>('/api/manager/verifications', async (request) => {
