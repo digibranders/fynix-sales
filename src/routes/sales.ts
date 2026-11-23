@@ -283,7 +283,8 @@ export function registerSalesRoutes(app: FastifyInstance, ctx: AppContext): void
           `Stage changed to ${body.status}.`,
           now,
         ]);
-        if (body.status === 'Won' || body.status === 'Lost') next = null;
+        /* A follow-up date belongs to the Follow Up stage only. */
+        if (body.status !== 'Follow Up') next = null;
         if (body.status === 'Meeting' || body.status === 'Won') {
           const info = await one<{ category: Category; name: string; lead_name: string }>(
             db,

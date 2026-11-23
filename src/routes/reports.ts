@@ -18,11 +18,12 @@ const query = z.object({
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 const STAGE_COLUMNS = [
-  ['Interested', 'Interested'],
+  ['Didnt Pick', 'Didnt Pick'],
+  ['Follow Up', 'Follow Up'],
   ['Meetings', 'Meeting'],
-  ['Negotiation', 'Negotiation'],
-  ['Closed', 'Won'],
+  ['Won', 'Won'],
   ['Lost', 'Lost'],
+  ['Invalid', 'Invalid'],
 ] as const;
 
 export interface ReportRow {
@@ -31,11 +32,12 @@ export interface ReportRow {
   person: string;
   assigned: number;
   contacted: number;
-  interested: number;
+  didntPick: number;
+  followUp: number;
   meetings: number;
-  negotiation: number;
   won: number;
   lost: number;
+  invalid: number;
   openNow: number;
 }
 
@@ -45,11 +47,12 @@ interface DbRow {
   person: string;
   assigned: number;
   contacted: number;
-  interested: number;
+  didnt_pick: number;
+  follow_up: number;
   meetings: number;
-  negotiation: number;
   won: number;
   lost: number;
+  invalid: number;
   open_now: number;
 }
 
@@ -70,19 +73,21 @@ export function currentMonth(now = new Date()): string {
 export async function buildReport(db: Db, start: number, end: number, category?: Category, userId?: string): Promise<ReportRow[]> {
   const params: Params = [];
   const entered = (stage: string): string => {
-    params.push(stage, start, end);
-    return `SUM(CASE WHEN EXISTS (SELECT 1 FROM claim_events e WHERE e.claim_id = c.id AND e.status = ? AND e.at >= ? AND e.at < ?) THEN 1 ELSE 0 END)`;
+    const list = stage === 'Invalid' ? ['Invalid Number', 'Invalid Email'] : [stage];
+    params.push(...list, start, end);
+    return `SUM(CASE WHEN EXISTS (SELECT 1 FROM claim_events e WHERE e.claim_id = c.id AND e.status IN (${list.map(() => '?').join(', ')}) AND e.at >= ? AND e.at < ?) THEN 1 ELSE 0 END)`;
   };
   params.push(start, end);
   const assigned = 'SUM(CASE WHEN c.created_at >= ? AND c.created_at < ? THEN 1 ELSE 0 END)';
   params.push(start, end);
   const contacted = `SUM(CASE WHEN (SELECT MIN(e.at) FROM claim_events e WHERE e.claim_id = c.id AND e.status <> 'New') >= ?
                               AND (SELECT MIN(e.at) FROM claim_events e WHERE e.claim_id = c.id AND e.status <> 'New') < ? THEN 1 ELSE 0 END)`;
-  const interested = entered('Interested');
+  const didntPick = entered('Didnt Pick');
+  const followUp = entered('Follow Up');
   const meetings = entered('Meeting');
-  const negotiation = entered('Negotiation');
   const won = entered('Won');
   const lost = entered('Lost');
+  const invalid = entered('Invalid');
   const filter = `${category ? 'AND w.category = ?' : ''} ${userId ? 'AND u.id = ?' : ''}`;
   if (category) params.push(category);
   if (userId) params.push(userId);
@@ -91,12 +96,13 @@ export async function buildReport(db: Db, start: number, end: number, category?:
     SELECT w.category AS category, w.name AS service, u.name AS person,
            ${assigned} AS assigned,
            ${contacted} AS contacted,
-           ${interested} AS interested,
+           ${didntPick} AS didnt_pick,
+           ${followUp} AS follow_up,
            ${meetings} AS meetings,
-           ${negotiation} AS negotiation,
            ${won} AS won,
            ${lost} AS lost,
-           SUM(CASE WHEN c.id IS NOT NULL AND c.status NOT IN ('Won', 'Lost') THEN 1 ELSE 0 END) AS open_now
+           ${invalid} AS invalid,
+           SUM(CASE WHEN c.id IS NOT NULL AND c.status NOT IN ('Won', 'Lost', 'Invalid Number', 'Invalid Email') THEN 1 ELSE 0 END) AS open_now
       FROM workspace_members m
       JOIN users u ON u.id = m.user_id AND u.role = 'sales' AND u.active = 1
       JOIN workspaces w ON w.id = m.workspace_id
@@ -110,20 +116,21 @@ export async function buildReport(db: Db, start: number, end: number, category?:
     person: r.person,
     assigned: r.assigned ?? 0,
     contacted: r.contacted ?? 0,
-    interested: r.interested ?? 0,
+    didntPick: r.didnt_pick ?? 0,
+    followUp: r.follow_up ?? 0,
     meetings: r.meetings ?? 0,
-    negotiation: r.negotiation ?? 0,
     won: r.won ?? 0,
     lost: r.lost ?? 0,
+    invalid: r.invalid ?? 0,
     openNow: r.open_now ?? 0,
   }));
 }
 
-export const NUMBERS = ['assigned', 'contacted', 'interested', 'meetings', 'negotiation', 'won', 'lost', 'openNow'] as const;
+export const NUMBERS = ['assigned', 'contacted', 'didntPick', 'followUp', 'meetings', 'won', 'lost', 'invalid', 'openNow'] as const;
 export type Totals = Record<(typeof NUMBERS)[number], number>;
 
 export function totalsOf(rows: ReportRow[]): Totals {
-  const totals = { assigned: 0, contacted: 0, interested: 0, meetings: 0, negotiation: 0, won: 0, lost: 0, openNow: 0 };
+  const totals = { assigned: 0, contacted: 0, didntPick: 0, followUp: 0, meetings: 0, won: 0, lost: 0, invalid: 0, openNow: 0 };
   for (const row of rows) for (const key of NUMBERS) totals[key] += row[key];
   return totals;
 }

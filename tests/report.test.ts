@@ -78,7 +78,7 @@ describe('monthly report', () => {
     assert.ok(first && second);
     const claimA = (await json(priya, 'POST', '/api/sales/claims', { leadId: first.id, workspaceId: 'scale-website' })) as { id: string };
     const claimB = (await json(priya, 'POST', '/api/sales/claims', { leadId: second.id, workspaceId: 'scale-website' })) as { id: string };
-    await json(priya, 'PATCH', `/api/sales/claims/${claimA.id}`, { status: 'Contacted' });
+    await json(priya, 'PATCH', `/api/sales/claims/${claimA.id}`, { status: 'Follow Up' });
     await json(priya, 'PATCH', `/api/sales/claims/${claimA.id}`, { status: 'Won' });
     await json(priya, 'PATCH', `/api/sales/claims/${claimB.id}`, { status: 'Lost' });
 
@@ -90,14 +90,14 @@ describe('monthly report', () => {
     assert.match(String(res.headers['content-disposition']), new RegExp(`fynix-sales-report-${month}-scale\\.csv`));
 
     const rows = parseCsv(res.body);
-    assert.deepEqual(rows[0], ['Month', 'Category', 'Service', 'Salesperson', 'Assigned', 'Contacted', 'Interested', 'Meetings', 'Negotiation', 'Closed', 'Lost', 'Open now']);
+    assert.deepEqual(rows[0], ['Month', 'Category', 'Service', 'Salesperson', 'Assigned', 'Contacted', 'Didnt Pick', 'Follow Up', 'Meetings', 'Won', 'Lost', 'Invalid', 'Open now']);
     const priyaWebsite = rows.find((r) => r[2] === 'Website' && r[3] === 'Priya Sharma');
     // assigned 2, contacted 2 (A left New, B went straight to Lost), won 1, lost 1, nothing left open
-    assert.deepEqual(priyaWebsite?.slice(4), ['2', '2', '0', '0', '0', '1', '1', '0']);
+    assert.deepEqual(priyaWebsite?.slice(4), ['2', '2', '0', '1', '0', '1', '1', '0', '0']);
     const rohanWebsite = rows.find((r) => r[2] === 'Website' && r[3] === 'Rohan Mehta');
-    assert.deepEqual(rohanWebsite?.slice(4), ['0', '0', '0', '0', '0', '0', '0', '0'], 'people with no activity still appear');
+    assert.deepEqual(rohanWebsite?.slice(4), ['0', '0', '0', '0', '0', '0', '0', '0', '0'], 'people with no activity still appear');
     const websiteTotal = rows.find((r) => r[2] === 'Website' && r[3] === 'Total');
-    assert.deepEqual(websiteTotal?.slice(4), ['2', '2', '0', '0', '0', '1', '1', '0']);
+    assert.deepEqual(websiteTotal?.slice(4), ['2', '2', '0', '1', '0', '1', '1', '0', '0']);
     assert.equal(rows.some((r) => r[1] === 'Reach'), false, 'the category filter keeps Reach out');
     const last = rows[rows.length - 1];
     assert.equal(last?.[3], 'Total');
@@ -110,7 +110,7 @@ describe('monthly report', () => {
     const rows = parseCsv(res.body);
     assert.ok(rows.some((r) => r[1] === 'Reach'));
     assert.ok(rows.some((r) => r[1] === 'Scale'));
-    for (const row of rows.slice(1)) assert.deepEqual(row.slice(4), ['0', '0', '0', '0', '0', '0', '0', row[11] ?? '0']);
+    for (const row of rows.slice(1)) assert.deepEqual(row.slice(4), ['0', '0', '0', '0', '0', '0', '0', '0', '0']);
   });
 });
 
@@ -122,7 +122,7 @@ describe('my monthly report (salesperson)', () => {
     const lead = boot.leads.find((l) => l.open.includes('scale-social-media'));
     assert.ok(lead);
     const claim = (await json(rohan, 'POST', '/api/sales/claims', { leadId: lead.id, workspaceId: 'scale-social-media' })) as { id: string };
-    await json(rohan, 'PATCH', `/api/sales/claims/${claim.id}`, { status: 'Contacted' });
+    await json(rohan, 'PATCH', `/api/sales/claims/${claim.id}`, { status: 'Follow Up' });
     await json(rohan, 'PATCH', `/api/sales/claims/${claim.id}`, { status: 'Meeting' });
 
     const mine = (await json(rohan, 'GET', '/api/sales/report')) as {

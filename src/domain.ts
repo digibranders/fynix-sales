@@ -2,7 +2,8 @@ import type { Category, Db, Params } from './db.js';
 import { all, inClause, one, run } from './db.js';
 import type { ParsedLead } from './importer.js';
 
-export const STAGES = ['New', 'Contacted', 'Interested', 'Meeting', 'Negotiation', 'Won', 'Lost'] as const;
+/** Lost and the two Invalid stages end a lead without a sale. */
+export const STAGES = ['New', 'Didnt Pick', 'Follow Up', 'Meeting', 'Won', 'Lost', 'Invalid Number', 'Invalid Email'] as const;
 export type Stage = (typeof STAGES)[number];
 
 export const CATEGORY_INFO: Record<Category, { name: string; sub: string }> = {
