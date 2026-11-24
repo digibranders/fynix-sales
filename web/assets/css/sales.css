@@ -515,7 +515,7 @@ button.qsec:hover{opacity:.85}
 button.qsec .chev{display:block;margin:0;stroke:currentColor;transition:transform .18s ease}
 button.qsec[aria-expanded="true"] .chev{transform:rotate(180deg)}
 .list:not(.closed-open) .closed-item{display:none}
-.place{display:none}
+.place,.comp-m{display:none}
 .needs{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .need{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit;font-size:13px;font-weight:500;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .need:hover{background:var(--hover)}
@@ -823,7 +823,8 @@ textarea:hover{border-color:var(--faint)}
   /* Scale rows stack the person, company, job title and phone in one column with Assign on the right */
   tbody tr.scale-row{grid-template-areas:"sr name act";align-items:center}
   tr.scale-row .c-comp,tr.scale-row .c-title,tr.scale-row .c-phone,tr.scale-row .em{display:none}
-  tr.scale-row .place{display:block}
+  tr.scale-row .place,tr.scale-row .comp-m{display:block}
+  tr.scale-row .c-name:has(.comp-m) .place{display:none}
   tr.scale-row .c-act{align-self:center}
   tr.scale-row .c-name .name{overflow-wrap:anywhere}
   tr.scale-row .c-comp,tr.scale-row .c-title,tr.scale-row .c-phone{overflow-wrap:anywhere}
