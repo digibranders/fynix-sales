@@ -19,6 +19,7 @@ import {
 import { LEAD_COLUMNS, leadValues } from '../domain.js';
 import type { ParsedLead } from '../importer.js';
 import { parseLeadsCsv } from '../importer.js';
+import { xlsxToCsv } from '../xlsx.js';
 import { inviteEmail } from '../mailer.js';
 import { loadPersonCoupons } from '../coupons.js';
 
@@ -40,9 +41,11 @@ const listCreate = z.object({
   name: z.string().trim().min(2, 'Give the list a name.').max(80),
   category,
   fileName: z.string().trim().max(200).default('import.csv'),
-  csv: z.string().min(1, 'Choose a CSV file.'),
+  csv: z.string().default(''),
+  /** An Excel file, base64 encoded, sent instead of csv. */
+  xlsx: z.string().max(30 * 1024 * 1024).optional(),
   workspaceIds: z.array(z.string().max(80)).min(1, 'Pick at least one service for this list.').max(50),
-});
+}).refine((v) => v.csv.length > 0 || Boolean(v.xlsx), { message: 'Choose a CSV or Excel file.', path: ['csv'] });
 const userCreate = z.object({
   name: z.string().trim().min(2, 'Enter the full name.').max(80),
   email: z.string().trim().toLowerCase().email('Enter a valid email address.').max(200),
@@ -421,7 +424,7 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const body = listCreate.parse(request.body);
     let parsed;
     try {
-      parsed = parseLeadsCsv(body.csv);
+      parsed = parseLeadsCsv(body.xlsx ? xlsxToCsv(Buffer.from(body.xlsx, 'base64')) : body.csv);
     } catch (error) {
       throw new HttpError(400, 'invalid_csv', error instanceof Error ? error.message : 'The file could not be read.');
     }

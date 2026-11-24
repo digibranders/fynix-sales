@@ -587,7 +587,7 @@ function inviteBody(name: string, email: string, canEmail: boolean, reset: boole
     : 'Copy this link and send it to ' + name + '. They open it and choose ' + what + '. Email is not set up yet.';
 }
 function newForm(): ModalForm {
-  return { error: '', busy: false, id: '', name: '', email: '', role: 'sales', cat: dc(), members: [], lists: [], wss: [], csv: '', fileName: '', title: '', body: '', link: '', userId: '', canEmail: false, sent: false, coupon: { code: '', kind: 'percent', value: '', months: '', expiry: '', max: '', calOpen: false, calY: new Date().getFullYear(), calM: new Date().getMonth() } };
+  return { error: '', busy: false, id: '', name: '', email: '', role: 'sales', cat: dc(), members: [], lists: [], wss: [], csv: '', xlsx: '', fileName: '', title: '', body: '', link: '', userId: '', canEmail: false, sent: false, coupon: { code: '', kind: 'percent', value: '', months: '', expiry: '', max: '', calOpen: false, calY: new Date().getFullYear(), calM: new Date().getMonth() } };
 }
 function openModal(kind: 'ws' | 'list' | 'person'): void;
 function openModal(kind: 'editpeople' | 'rename' | 'category' | 'clients', personId: string): void;
@@ -663,7 +663,7 @@ function paintModal(): void {
   } else if (k === 'list') {
     const cat = singleCat(F.cat);
     h =
-      mh('Import data') + '<div class="mb"><label class="drop" style="margin-top:6px"><input id="f-file" type="file" accept=".csv,text/csv"><b>' + (F.fileName ? esc(F.fileName) : 'Choose a CSV file') + '</b>' + (F.fileName ? 'Choose a different file' : 'Phones, emails and areas are cleaned on import.') + '</label>' +
+      mh('Import data') + '<div class="mb"><label class="drop" style="margin-top:6px"><input id="f-file" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"><b>' + (F.fileName ? esc(F.fileName) : 'Choose a CSV or Excel file') + '</b>' + (F.fileName ? 'Choose a different file' : 'Phones, emails and areas are cleaned on import.') + '</label>' +
       '<label class="fl" for="f-name">Name</label><input class="inp" id="f-name" type="text" maxlength="80" placeholder="e.g. Salons, Bengaluru" value="' + esc(F.name) + '">' +
       '<span class="fl">Category</span>' + catSeg(F.cat) +
       '<span class="fl">Add to ' + esc(catName(cat)) + ' services</span>' + pickRows(wsPick(cat), F.wss, 'wss') + foot('Import', 'list');
@@ -788,15 +788,15 @@ function save(kind: SaveKind): void {
       view: 'workspaces',
     }));
   } else if (kind === 'list') {
-    if (!F.csv) {
-      F.error = 'Choose a CSV file.';
+    if (!F.csv && !F.xlsx) {
+      F.error = 'Choose a CSV or Excel file.';
       return paintModal();
     }
     if (F.name.trim().length < 2) {
       F.error = 'Give the list a name.';
       return paintModal();
     }
-    const body: ListCreateBody = { name: F.name.trim(), category: singleCat(F.cat), fileName: F.fileName || 'import.csv', csv: F.csv, workspaceIds: F.wss };
+    const body: ListCreateBody = { name: F.name.trim(), category: singleCat(F.cat), fileName: F.fileName || 'import.csv', csv: F.csv, ...(F.xlsx ? { xlsx: F.xlsx } : {}), workspaceIds: F.wss };
     req = api<ListImportResult>('POST', '/api/admin/lists', body).then((r) => ({
       msg: 'Imported ' + r.added + ' stores' + (r.duplicates ? ' (' + r.duplicates + ' already existed)' : ''),
       view: 'lists',
@@ -1285,15 +1285,22 @@ document.addEventListener('change', (e) => {
     form.error = 'That file is over 20 MB.';
     return paintModal();
   }
+  const isXlsx = /\.xlsx$/i.test(file.name);
+  if (!isXlsx && !/\.csv$/i.test(file.name) && file.type !== 'text/csv') {
+    form.error = 'Choose a .csv or .xlsx file.';
+    return paintModal();
+  }
   const reader = new FileReader();
   reader.onload = () => {
     syncFields();
     const F = S.form.m;
     if (!F) return;
-    F.csv = String(reader.result);
+    const result = String(reader.result);
+    F.csv = isXlsx ? '' : result;
+    F.xlsx = isXlsx ? result.slice(result.indexOf(',') + 1) : '';
     F.fileName = file.name;
     F.error = '';
-    if (!F.name.trim()) F.name = file.name.replace(/\.csv$/i, '').replace(/[_-]+/g, ' ').trim();
+    if (!F.name.trim()) F.name = file.name.replace(/\.(csv|xlsx)$/i, '').replace(/[_-]+/g, ' ').trim();
     paintModal();
   };
   reader.onerror = () => {
@@ -1302,7 +1309,8 @@ document.addEventListener('change', (e) => {
     F.error = 'That file could not be read.';
     paintModal();
   };
-  reader.readAsText(file);
+  if (isXlsx) reader.readAsDataURL(file);
+  else reader.readAsText(file);
 });
 
 let searchTimer: number | undefined;
