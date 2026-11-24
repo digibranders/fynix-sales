@@ -198,6 +198,9 @@
 
 /* Paying clients column */
 @media (max-width:700px){
-  .team td[data-l="paying"]{grid-column:1/-1;padding-top:6px}
-  .team td[data-l="paying"] .pl-btn{width:100%;justify-content:flex-start}
 }
+
+/* Team table: no outline around the table or the Contacted number */
+.tw.team{border:0;border-radius:0}
+.team .pl-btn{border:0;background:transparent;box-shadow:none;padding:2px 0}
+.team .pl-btn:hover{background:transparent}

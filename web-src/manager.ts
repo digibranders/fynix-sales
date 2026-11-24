@@ -1,5 +1,4 @@
 import { api, messageOf } from './admin/api.js';
-import { RUPEE, clientCards } from './shared/coupons.js';
 import type { Category, LeadsPage, ManagerBootstrap, ManagerView, PersonLead, PersonLeads, Period, TeamMember, VerificationItem, Workspace } from './manager/types.js';
 import { takeEmbedded } from './shared/boot.js';
 import { el } from './shared/dom.js';
@@ -38,8 +37,6 @@ interface State {
   date: string;
   /** The salesperson whose leads are open in the popup, and those leads once loaded. */
   leadsUser: { id: string; name: string } | null;
-  /** The salesperson whose paying clients are open in the popup. */
-  clientsUser: string | null;
   personLeads: PersonLead[] | null;
   /** Which lead cards have their notes open. */
   openLead: Record<string, boolean>;
@@ -61,7 +58,6 @@ const S: State = {
   period: 'month',
   date: '',
   leadsUser: null,
-  clientsUser: null,
   personLeads: null,
   openLead: {},
   leadsFresh: false,
@@ -178,7 +174,7 @@ function vTeam(): string {
     '<input type="date" id="pday" aria-label="Pick a date" max="' + todayKey() + '" value="' + esc(S.date) + '"></label>';
   h = h.replace('<div class="seg per"', '<div class="perrow"><div class="seg per"').replace('</label>', '</label></div>');
   h +=
-    '<div class="tw cards team"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>' + (showCat ? '<th>Category</th>' : '') + '<th>Services</th><th>Assigned</th><th>Contacted</th><th>Paid</th><th>Paying</th><th>Status</th></tr></thead><tbody>' +
+    '<div class="tw cards team"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>' + (showCat ? '<th>Category</th>' : '') + '<th>Services</th><th>Assigned</th><th>Contacted</th><th>Paid</th><th>Status</th></tr></thead><tbody>' +
     (people.length
       ? people
           .map((p, i) => {
@@ -187,12 +183,11 @@ function vTeam(): string {
             const closedTd = '<td data-label="Paid" data-l="closed"><div class="v-cell"><button type="button" class="btn sm v-review-btn" data-verify-user="' + p.id + '" data-verify-name="' + esc(p.name) + '" title="Verify paid deals" aria-label="Verify paid deals, ' + won + ' paid"><span class="num">' + won + '</span><span class="v-chip">' + SHIELD + '</span></button></div></td>';
             return (
               '<tr><td class="muted num" data-l="n">' + (i + 1) + '</td><td data-l="name"><span class="own static"><span class="av">' + esc(p.ini) + '</span><span>' + esc(p.name) + '</span></span></td>' + (showCat ? '<td data-l="cat">' + (p.category ? ct(p.category) : '') + '</td>' : '') + '<td data-label="Services" data-l="svc">' + chips(p) + '</td><td data-label="Assigned">' + num(p.stats.assigned) + '</td><td data-label="Contacted" data-l="leads"><button type="button" class="btn sm pl-btn" data-person-leads="' + p.id + '" data-person-name="' + esc(p.name) + '" title="View leads" aria-label="View ' + esc(p.name) + '\'s leads, ' + p.stats.contacted + ' contacted"><span class="num">' + p.stats.contacted + '</span><span class="v-chip">' + EYE + '</span></button></td>' + closedTd +
-              '<td data-label="Paying" data-l="paying"><button type="button" class="btn sm pl-btn" data-person-clients="' + p.id + '" title="Paying clients" aria-label="' + esc(p.name) + ', ' + p.coupons.clients.length + ' paying clients"><span class="num">' + p.coupons.clients.length + '</span><span class="v-chip">' + RUPEE + '</span></button></td>' +
               '<td data-l="state"><span class="dotl' + (p.active && !p.invited ? '' : ' off') + '"><i></i>' + state + '</span></td></tr>'
             );
           })
           .join('')
-      : '<tr><td colspan="' + (showCat ? 9 : 8) + '"><div class="empty"><b>No salespeople yet</b>They appear here once a superadmin invites them.</div></td></tr>') +
+      : '<tr><td colspan="' + (showCat ? 8 : 7) + '"><div class="empty"><b>No salespeople yet</b>They appear here once a superadmin invites them.</div></td></tr>') +
     '</tbody></table></div>';
   return h;
 }
@@ -228,21 +223,6 @@ function loadPeopleFor(): void {
       if (S.view === 'team') render();
     })
     .catch(fail);
-}
-
-function vClientsModal(): string {
-  const p = S.clientsUser ? data().people.find((x) => x.id === S.clientsUser) : undefined;
-  if (!p) return '';
-  const codes = p.coupons.codes;
-  return (
-    '<div class="backdrop" data-close-cl></div>' +
-    '<div class="modal verify-modal" role="dialog" aria-modal="true" aria-labelledby="cl-title">' +
-    '<div class="modal-h"><div><h2 id="cl-title">Paying clients · ' + esc(p.name) + '</h2><span class="sub">' + p.coupons.clients.length + (p.coupons.clients.length === 1 ? ' client' : ' clients') + (codes.length ? ' · ' + codes.map(esc).join(', ') : ' · no coupon yet') + '</span></div>' +
-    '<button type="button" class="modal-close-btn" data-close-cl aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4L4 12"/></svg></button></div>' +
-    '<div class="modal-b pl-body">' + clientCards(p.coupons.clients, esc) + '</div>' +
-    '<div class="modal-f"><button type="button" class="btn dark" data-close-cl>Done</button></div>' +
-    '</div>'
-  );
 }
 
 function vPersonModal(): string {
@@ -493,7 +473,7 @@ function render(keepFocus?: boolean, animate?: boolean): void {
   const view = el('view');
   const focused = keepFocus && document.activeElement instanceof HTMLInputElement ? document.activeElement : null;
   const caret = focused ? focused.selectionStart : null;
-  view.innerHTML = (S.view === 'account' ? vAccount() : (S.view === 'team' ? vTeam() : vLeads())) + vVerifyModal() + vPersonModal() + vClientsModal();
+  view.innerHTML = (S.view === 'account' ? vAccount() : (S.view === 'team' ? vTeam() : vLeads())) + vVerifyModal() + vPersonModal();
   if (focused) {
     const input = document.getElementById('lq');
     if (input instanceof HTMLInputElement) {
@@ -690,16 +670,6 @@ document.addEventListener('click', (e) => {
         inp.focus();
       }
     }
-    return;
-  }
-  if ((c = hit('[data-person-clients]'))) {
-    S.clientsUser = c.dataset['personClients'] ?? null;
-    render();
-    return;
-  }
-  if (hit('[data-close-cl]')) {
-    S.clientsUser = null;
-    render();
     return;
   }
   if ((c = hit('[data-person-leads]'))) {
