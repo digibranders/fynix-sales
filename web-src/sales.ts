@@ -945,13 +945,6 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     return l.wa ? '<span class="num">+' + esc(l.wa.replace(/^(\d{2})(\d{5})(\d+)$/, '$1 $2 $3')) + '</span>' : '<span class="dash">Not listed</span>';
   }
 
-  function keywordsHtml(l: Lead): string {
-    if (!l.keywords) return '<span class="dash">—</span>';
-    const parts = l.keywords.split(',').map((s) => s.trim()).filter(Boolean);
-    if (!parts.length) return '<span class="dash">—</span>';
-    return '<div class="kw-tags">' + parts.map((k) => '<span class="kw-tag">' + esc(k) + '</span>').join('') + '</div>';
-  }
-
   /* ---------- Modal ---------- */
   function kv(k: string, v: string): string {
     return '<div class="kv"><dt>' + k + '</dt><dd>' + v + '</dd></div>';
@@ -973,7 +966,6 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
         kv('Job Title', l.title ? esc(toTitleCase(l.title)) : '<span class="dash">—</span>') +
         kv('Email', emailsHtml(l)) +
         kv('Personal Number', pNum ? '<span class="num">' + esc(pNum) + '</span>' + copyBtn(pNum) : '<span class="dash">Not listed</span>') +
-        kv('Keywords', keywordsHtml(l)) +
         (li ? kv('LinkedIn', '<a class="ext" href="' + esc(li) + '" target="_blank" rel="noopener noreferrer"><span>View LinkedIn Profile</span><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1h6v6M9 1L1 9"/></svg></a>') : '') +
         (loc ? kv('Location', esc(loc)) : '') +
         '</dl>' +
@@ -1031,7 +1023,6 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
         kv('Job Title', l.title ? esc(toTitleCase(l.title)) : '<span class="dash">—</span>') +
         kv('Email', emailsHtml(l)) +
         kv('Personal Number', pNum ? '<span class="num">' + esc(pNum) + '</span>' + copyBtn(pNum) : '<span class="dash">Not listed</span>') +
-        kv('Keywords', keywordsHtml(l)) +
         (li ? kv('LinkedIn', '<a class="ext" href="' + esc(li) + '" target="_blank" rel="noopener noreferrer"><span>View LinkedIn Profile</span><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1h6v6M9 1L1 9"/></svg></a>') : '') +
         (loc ? kv('Location', esc(loc)) : '') +
         '</dl></div></div>';
