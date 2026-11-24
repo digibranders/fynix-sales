@@ -178,13 +178,13 @@ function vTeam(): string {
     '<input type="date" id="pday" aria-label="Pick a date" max="' + todayKey() + '" value="' + esc(S.date) + '"></label>';
   h = h.replace('<div class="seg per"', '<div class="perrow"><div class="seg per"').replace('</label>', '</label></div>');
   h +=
-    '<div class="tw cards team"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>' + (showCat ? '<th>Category</th>' : '') + '<th>Services</th><th>Assigned</th><th>Contacted</th><th>Closed</th><th>Leads</th><th>Paying</th><th>Status</th></tr></thead><tbody>' +
+    '<div class="tw cards team"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>' + (showCat ? '<th>Category</th>' : '') + '<th>Services</th><th>Assigned</th><th>Contacted</th><th>Paid</th><th>Leads</th><th>Paying</th><th>Status</th></tr></thead><tbody>' +
     (people.length
       ? people
           .map((p, i) => {
             const state = !p.active ? 'Deactivated' : p.invited ? 'Invited' : 'Active';
             const won = p.stats.won;
-            const closedTd = '<td data-label="Closed" data-l="closed"><div class="v-cell"><button type="button" class="btn sm v-review-btn" data-verify-user="' + p.id + '" data-verify-name="' + esc(p.name) + '" title="Verify closed deals" aria-label="Verify closed deals, ' + won + ' closed"><span class="num">' + won + '</span><span class="v-chip">' + SHIELD + '</span></button></div></td>';
+            const closedTd = '<td data-label="Paid" data-l="closed"><div class="v-cell"><button type="button" class="btn sm v-review-btn" data-verify-user="' + p.id + '" data-verify-name="' + esc(p.name) + '" title="Verify paid deals" aria-label="Verify paid deals, ' + won + ' paid"><span class="num">' + won + '</span><span class="v-chip">' + SHIELD + '</span></button></div></td>';
             return (
               '<tr><td class="muted num" data-l="n">' + (i + 1) + '</td><td data-l="name"><span class="own static"><span class="av">' + esc(p.ini) + '</span><span>' + esc(p.name) + '</span></span></td>' + (showCat ? '<td data-l="cat">' + (p.category ? ct(p.category) : '') + '</td>' : '') + '<td data-label="Services" data-l="svc">' + chips(p) + '</td><td data-label="Assigned">' + num(p.stats.assigned) + '</td><td data-label="Contacted">' + num(p.stats.contacted) + '</td>' + closedTd +
               '<td data-label="Leads" data-l="leads"><button type="button" class="btn sm pl-btn" data-person-leads="' + p.id + '" data-person-name="' + esc(p.name) + '" title="View leads" aria-label="View ' + esc(p.name) + '\'s leads, ' + p.stats.assigned + ' assigned"><span class="num">' + p.stats.assigned + '</span><span class="v-chip">' + EYE + '</span></button></td>' +
@@ -199,7 +199,7 @@ function vTeam(): string {
 }
 
 function stageName(s: string): string {
-  return s === 'Didnt Pick' ? "Didn't Pick" : s;
+  return s === 'Didnt Pick' ? "Didn't Pick" : s === 'Won' ? 'Paid' : s;
 }
 function stageDot(s: string): string {
   const k = s === 'Won' ? 'won' : s === 'Lost' || s.startsWith('Invalid') ? 'off' : s === 'New' ? 'new' : 'mid';
@@ -306,9 +306,9 @@ function vVerifyModal(): string {
 
   let body: string;
   if (S.loadingVerifications) {
-    body = '<div class="empty">Loading claimed won leads...</div>';
+    body = '<div class="empty">Loading claimed paid leads...</div>';
   } else if (!items || items.length === 0) {
-    body = '<div class="empty"><b>No won claims found</b>' + esc(u.name) + ' has no claimed won leads to verify this month.</div>';
+    body = '<div class="empty"><b>No paid claims found</b>' + esc(u.name) + ' has no claimed paid leads to verify this month.</div>';
   } else {
     body =
       '<table class="vtable">' +
@@ -334,12 +334,12 @@ function vVerifyModal(): string {
         const stageControl = isEditingStage
           ? '<div class="vm-stage-edit">' +
             '<select class="inp sm vm-stage-sel" data-stage-sel="' + item.id + '">' +
-            ['Won', 'Meeting', 'Follow Up', 'Didnt Pick', 'Lost', 'Invalid Number', 'Invalid Email'].map((st) => '<option value="' + st + '"' + (st === item.status ? ' selected' : '') + '>' + (st === 'Didnt Pick' ? "Didn't Pick" : st) + '</option>').join('') +
+            ['Won', 'Meeting', 'Follow Up', 'Didnt Pick', 'Lost', 'Invalid Number', 'Invalid Email'].map((st) => '<option value="' + st + '"' + (st === item.status ? ' selected' : '') + '>' + (st === 'Didnt Pick' ? "Didn't Pick" : st === 'Won' ? 'Paid' : st) + '</option>').join('') +
             '</select>' +
             '<button type="button" class="btn sm dark" data-save-stage="' + item.id + '">Save</button>' +
             '<button type="button" class="btn sm" data-cancel-stage aria-label="Cancel">✕</button>' +
             '</div>'
-          : '<button type="button" class="stage-pill-btn" data-toggle-stage="' + item.id + '">Stage: ' + esc(item.status === 'Didnt Pick' ? "Didn't Pick" : item.status) + ' ▾</button>';
+          : '<button type="button" class="stage-pill-btn" data-toggle-stage="' + item.id + '">Stage: ' + esc(stageName(item.status)) + ' ▾</button>';
 
         return (
           '<tr class="' + rowClass + '" data-card-cid="' + item.id + '">' +
@@ -372,7 +372,7 @@ function vVerifyModal(): string {
     '<div class="backdrop" data-close-verify></div>' +
     '<div class="modal verify-modal" role="dialog" aria-modal="true" aria-labelledby="vm-title">' +
     '<div class="modal-h">' +
-    '<div><h2 id="vm-title">Verify Won Claims · ' + esc(u.name) + '</h2>' +
+    '<div><h2 id="vm-title">Verify Paid Claims · ' + esc(u.name) + '</h2>' +
     '<span class="sub">' + (items ? '<b class="c-true">' + verified + ' verified</b> · <span class="c-false">' + rejected + ' rejected</span> · <span class="c-pending">' + pending + ' pending</span> (Total: ' + total + ' claimed)' : 'Checking records...') + '</span>' +
     '</div>' +
     '<button type="button" class="modal-close-btn" data-close-verify aria-label="Close modal">' +
@@ -464,7 +464,7 @@ function vAccount(): string {
   return (
     head('Account', 'Manager') +
     who +
-    '<p class="hint">You can look at the team and every lead in ' + esc(seeing) + '. Managers can also review and verify won leads.</p>' +
+    '<p class="hint">You can look at the team and every lead in ' + esc(seeing) + '. Managers can also review and verify paid leads.</p>' +
     '<button type="button" class="btn dark acct-out" data-signout>Sign out</button>'
   );
 }
