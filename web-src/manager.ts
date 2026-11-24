@@ -178,7 +178,7 @@ function vTeam(): string {
     '<input type="date" id="pday" aria-label="Pick a date" max="' + todayKey() + '" value="' + esc(S.date) + '"></label>';
   h = h.replace('<div class="seg per"', '<div class="perrow"><div class="seg per"').replace('</label>', '</label></div>');
   h +=
-    '<div class="tw cards team"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>' + (showCat ? '<th>Category</th>' : '') + '<th>Services</th><th>Assigned</th><th>Contacted</th><th>Paid</th><th>Leads</th><th>Paying</th><th>Status</th></tr></thead><tbody>' +
+    '<div class="tw cards team"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>' + (showCat ? '<th>Category</th>' : '') + '<th>Services</th><th>Assigned</th><th>Contacted</th><th>Paid</th><th>Paying</th><th>Status</th></tr></thead><tbody>' +
     (people.length
       ? people
           .map((p, i) => {
@@ -186,14 +186,13 @@ function vTeam(): string {
             const won = p.stats.won;
             const closedTd = '<td data-label="Paid" data-l="closed"><div class="v-cell"><button type="button" class="btn sm v-review-btn" data-verify-user="' + p.id + '" data-verify-name="' + esc(p.name) + '" title="Verify paid deals" aria-label="Verify paid deals, ' + won + ' paid"><span class="num">' + won + '</span><span class="v-chip">' + SHIELD + '</span></button></div></td>';
             return (
-              '<tr><td class="muted num" data-l="n">' + (i + 1) + '</td><td data-l="name"><span class="own static"><span class="av">' + esc(p.ini) + '</span><span>' + esc(p.name) + '</span></span></td>' + (showCat ? '<td data-l="cat">' + (p.category ? ct(p.category) : '') + '</td>' : '') + '<td data-label="Services" data-l="svc">' + chips(p) + '</td><td data-label="Assigned">' + num(p.stats.assigned) + '</td><td data-label="Contacted">' + num(p.stats.contacted) + '</td>' + closedTd +
-              '<td data-label="Leads" data-l="leads"><button type="button" class="btn sm pl-btn" data-person-leads="' + p.id + '" data-person-name="' + esc(p.name) + '" title="View leads" aria-label="View ' + esc(p.name) + '\'s leads, ' + p.stats.assigned + ' assigned"><span class="num">' + p.stats.assigned + '</span><span class="v-chip">' + EYE + '</span></button></td>' +
+              '<tr><td class="muted num" data-l="n">' + (i + 1) + '</td><td data-l="name"><span class="own static"><span class="av">' + esc(p.ini) + '</span><span>' + esc(p.name) + '</span></span></td>' + (showCat ? '<td data-l="cat">' + (p.category ? ct(p.category) : '') + '</td>' : '') + '<td data-label="Services" data-l="svc">' + chips(p) + '</td><td data-label="Assigned">' + num(p.stats.assigned) + '</td><td data-label="Contacted" data-l="leads"><button type="button" class="btn sm pl-btn" data-person-leads="' + p.id + '" data-person-name="' + esc(p.name) + '" title="View leads" aria-label="View ' + esc(p.name) + '\'s leads, ' + p.stats.contacted + ' contacted"><span class="num">' + p.stats.contacted + '</span><span class="v-chip">' + EYE + '</span></button></td>' + closedTd +
               '<td data-label="Paying" data-l="paying"><button type="button" class="btn sm pl-btn" data-person-clients="' + p.id + '" title="Paying clients" aria-label="' + esc(p.name) + ', ' + p.coupons.clients.length + ' paying clients"><span class="num">' + p.coupons.clients.length + '</span><span class="v-chip">' + RUPEE + '</span></button></td>' +
               '<td data-l="state"><span class="dotl' + (p.active && !p.invited ? '' : ' off') + '"><i></i>' + state + '</span></td></tr>'
             );
           })
           .join('')
-      : '<tr><td colspan="' + (showCat ? 10 : 9) + '"><div class="empty"><b>No salespeople yet</b>They appear here once a superadmin invites them.</div></td></tr>') +
+      : '<tr><td colspan="' + (showCat ? 9 : 8) + '"><div class="empty"><b>No salespeople yet</b>They appear here once a superadmin invites them.</div></td></tr>') +
     '</tbody></table></div>';
   return h;
 }
@@ -256,7 +255,7 @@ function vPersonModal(): string {
     body = '<div class="empty">Loading leads...</div>';
   } else if (items.length === 0) {
     summary = '0 leads';
-    body = '<div class="empty"><b>No leads yet</b>' + esc(u.name) + ' has not claimed any leads.</div>';
+    body = '<div class="empty"><b>No contacted leads</b>' + esc(u.name) + ' has not contacted any leads in this period.</div>';
   } else {
     const counts = new Map<string, number>();
     items.forEach((l) => counts.set(l.status, (counts.get(l.status) ?? 0) + 1));
@@ -528,7 +527,7 @@ function openPersonLeads(id: string, name: string): void {
   S.personLeads = null;
   S.openLead = {};
   render();
-  api<PersonLeads>('GET', '/api/manager/people/' + encodeURIComponent(id) + '/leads')
+  api<PersonLeads>('GET', '/api/manager/people/' + encodeURIComponent(id) + '/leads?period=' + S.period + (S.period === 'date' ? '&date=' + S.date : ''))
     .then((res) => {
       if (S.leadsUser?.id !== id) return;
       S.personLeads = res.leads;

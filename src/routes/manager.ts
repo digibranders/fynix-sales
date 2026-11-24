@@ -104,6 +104,8 @@ export function registerManagerRoutes(app: FastifyInstance, ctx: AppContext): vo
   /** Every lead one salesperson owns, with where it stands, how it got there, and the notes they wrote. */
   app.get<{ Params: { id: string } }>('/api/manager/people/:id/leads', async (request) => {
     const { scope } = manager(request);
+    const { period, date } = periodQuery.parse(request.query);
+    const range = periodRange(period, date);
     const person = await one<{ id: string; name: string }>(db, `SELECT id, name FROM users WHERE id = ? AND role = 'sales' AND category IN (${inClause(scope)})`, [request.params.id, ...scope]);
     if (!person) throw new HttpError(404, 'not_found', 'Salesperson not found.');
     const claims = await all<{
@@ -124,8 +126,10 @@ export function registerManagerRoutes(app: FastifyInstance, ctx: AppContext): vo
               l.name AS lead_name, l.company AS lead_company, l.job_title AS lead_job_title, l.area AS lead_area, l.phone AS lead_phone,
               w.name AS workspace_name, w.category AS workspace_category
          FROM claims c JOIN leads l ON l.id = c.lead_id JOIN workspaces w ON w.id = c.workspace_id
-        WHERE c.owner_id = ? ORDER BY c.last_activity_at DESC, c.id`,
-      [person.id],
+        WHERE c.owner_id = ?
+          AND c.id IN (SELECT e.claim_id FROM claim_events e WHERE e.status <> 'New' GROUP BY e.claim_id HAVING MIN(e.at) >= ? AND MIN(e.at) < ?)
+        ORDER BY c.last_activity_at DESC, c.id`,
+      [person.id, range.since, range.until],
     );
     const ids = claims.map((c) => c.id);
     const noteRows = ids.length

@@ -185,6 +185,8 @@ export interface ListCreateBody {
   category: Category;
   fileName: string;
   csv: string;
+  /** An Excel file, base64 encoded, sent in place of csv. */
+  xlsx?: string;
   workspaceIds: string[];
 }
 
@@ -236,6 +238,8 @@ export interface ModalForm extends LinkInfo {
   lists: string[];
   wss: string[];
   csv: string;
+  /** The chosen Excel file, base64 encoded. */
+  xlsx: string;
   fileName: string;
   coupon: CouponForm;
 }
