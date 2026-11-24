@@ -176,13 +176,13 @@ export function parseLeadsCsv(text: string): ParseResult {
       continue;
     }
 
-    const company = field(row, 'Company', 'company_name', 'Company Name', 'company');
-    const jobTitle = field(row, 'Job Title', 'job_title', 'JobTitle', 'title', 'designation');
-    const personalNumberRaw = field(row, 'Personal Number', 'personal_number', 'Personal Phone', 'mobile');
+    const company = field(row, 'Company', 'company_name', 'Company Name', 'Current Company', 'Organization', 'company');
+    const jobTitle = field(row, 'Job Title', 'job_title', 'JobTitle', 'Current Job Title', 'Current Job', 'Current Title', 'Position', 'Role', 'designation', 'title');
+    const personalNumberRaw = field(row, 'Personal Number', 'personal_number', 'Personal Phone', 'Mobile Phone', 'Mobile Number', 'mobile');
     const personalNumber = personalNumberRaw ? cleanPhone(personalNumberRaw) : '';
     const phone = personalNumber || cleanPhone(field(row, 'phone', 'Phone', 'Phone Number', 'contact_number'));
     const keywords = field(row, 'Keywords', 'keywords', 'Keyword', 'keyword');
-    const linkedinUrl = field(row, 'Linkedin Url', 'linkedin_url', 'LinkedIn Url', 'Linkedin', 'LinkedIn');
+    const linkedinUrl = field(row, 'Linkedin Url', 'linkedin_url', 'LinkedIn Url', 'Linkedin URL Public', 'Linkedin', 'LinkedIn');
     const country = field(row, 'Country', 'country');
     const stateVal = field(row, 'State', 'state');
     const complete = asRecord(json(field(row, 'complete_address')));
@@ -193,8 +193,8 @@ export function parseLeadsCsv(text: string): ParseResult {
     const area = borough.length >= 3 && borough.toLowerCase() !== city.toLowerCase()
       ? borough
       : (field(row, 'area', 'Area') || [city, stateVal].filter(Boolean).join(', ') || city);
-    const website = field(row, 'website', 'Company Website', 'Company Url', 'Website', 'company_website');
-    const emailsRaw = field(row, 'emails', 'email', 'Email', 'Emails');
+    const website = field(row, 'website', 'Company Website', 'Company Url', 'Company Domain', 'Website', 'company_website');
+    const emailsRaw = field(row, 'emails', 'email', 'Email', 'Emails', 'Work Email', 'Business Email');
     const emails = cleanEmails(emailsRaw);
     const googleCategory = field(row, 'category', 'Industry', 'industry', 'Category');
     const externalId = field(row, 'place_id', 'id', 'input_id', 'Email', 'email', 'Linkedin Url') || fallbackId(name, phone || company, address || city);
