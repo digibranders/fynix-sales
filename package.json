@@ -17,7 +17,8 @@
     "seed": "tsx --env-file-if-exists=.env src/seed.ts",
     "db:generate": "drizzle-kit generate",
     "create-admin": "tsx --env-file-if-exists=.env src/create-admin.ts",
-    "build:web": "tsc -p tsconfig.web.json"
+    "build:web": "tsc -p tsconfig.web.json",
+    "release:local": "bash scripts/release-local.sh"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.5",
