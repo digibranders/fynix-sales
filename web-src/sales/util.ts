@@ -22,10 +22,10 @@ export function sclass(s: string): string {
 }
 /** Stage names as they show on screen. */
 export function SL(s: string): string {
-  return s === 'Didnt Pick' ? "Didn't Pick" : s;
+  return s === 'Didnt Pick' ? "Didn't Pick" : s === 'Won' ? 'Paid' : s;
 }
 export function sysText(t: string): string {
-  return String(t).replace(/\bDidnt Pick\b/g, "Didn't Pick");
+  return String(t).replace(/\bDidnt Pick\b/g, "Didn't Pick").replace(/\bWon\b/g, 'Paid');
 }
 
 export function safeUrl(u: string): string {

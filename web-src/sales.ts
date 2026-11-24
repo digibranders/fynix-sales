@@ -1174,7 +1174,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       const closed = g.key === 'closed';
       if (closed) n = 0; /* closed leads are numbered from 1 on their own */
       const verifiedInGroup = closed ? g.items.filter((x) => claim(x).verified === 1).length : 0;
-      const head = closed ? '<button type="button" class="qsec closed-t" data-closedtoggle aria-expanded="' + state.closedOpen + '">Closed · ' + g.items.length + (g.items.length > 0 ? ' (' + verifiedInGroup + ' verified)' : '') + CHEV + '</button>' : '<div class="qsec' + (g.key === 'od' ? ' od' : '') + '">' + g.title + ' · ' + g.items.length + '</div>';
+      const head = closed ? '<button type="button" class="qsec closed-t" data-closedtoggle aria-expanded="' + state.closedOpen + '">Paid · ' + g.items.length + (g.items.length > 0 ? ' (' + verifiedInGroup + ' verified)' : '') + CHEV + '</button>' : '<div class="qsec' + (g.key === 'od' ? ' od' : '') + '">' + g.title + ' · ' + g.items.length + '</div>';
       return head + g.items.map((l) => {
         const w = claim(l);
         n++;
@@ -1559,7 +1559,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       w.verified === 1
         ? '<div class="v-status-card v-status-true">' +
           '<div class="v-sc-head">' +
-            '<span class="v-sc-badge"><svg viewBox="0 0 10 8" class="v-sc-ic" aria-hidden="true"><path d="M1 4l2.5 2.5L9 1"/></svg>Verified Won Deal</span>' +
+            '<span class="v-sc-badge"><svg viewBox="0 0 10 8" class="v-sc-ic" aria-hidden="true"><path d="M1 4l2.5 2.5L9 1"/></svg>Verified Paid Deal</span>' +
             '<span class="v-sc-by">by manager</span>' +
           '</div>' +
           (w.verificationNote ? '<div class="v-sc-note">' + esc(w.verificationNote) + '</div>' : '') +
@@ -1576,7 +1576,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
             '<div class="v-sc-head">' +
               '<span class="v-sc-badge"><svg viewBox="0 0 8 8" class="v-sc-ic" aria-hidden="true"><circle cx="4" cy="4" r="3"/></svg>Pending Manager Verification</span>' +
             '</div>' +
-            '<div class="v-sc-note">Claimed as won · awaiting review</div>' +
+            '<div class="v-sc-note">Claimed as paid · awaiting review</div>' +
             '</div>'
     ) : '';
     return '<div class="detail">' +
@@ -1695,14 +1695,14 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       const body =
         '<div class="rp-month" role="group" aria-label="Month"><button type="button" class="rep-arrow" data-rpm="-1" aria-label="Previous month"><svg viewBox="0 0 8 14" aria-hidden="true"><path d="M7 1L1 7l6 6"/></svg></button><b>' + esc(r.label) + '</b>' +
         '<button type="button" class="rep-arrow" data-rpm="1" aria-label="Next month"' + (reportM >= cur ? ' disabled' : '') + '><svg viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6"/></svg></button></div>' +
-        '<div class="pf-stats four"><div><b class="num">' + tot.assigned + '</b><span>Assigned</span></div><div><b class="num">' + tot.contacted + '</b><span>Contacted</span></div><div><b class="num">' + tot.meetings + '</b><span>Meetings</span></div><div><b class="num">' + tot.won + '</b><span>Won</span></div></div>' +
+        '<div class="pf-stats four"><div><b class="num">' + tot.assigned + '</b><span>Assigned</span></div><div><b class="num">' + tot.contacted + '</b><span>Contacted</span></div><div><b class="num">' + tot.meetings + '</b><span>Meetings</span></div><div><b class="num">' + tot.won + '</b><span>Paid</span></div></div>' +
         '<p class="pf-cap">Follow Up ' + tot.followUp + ' · Didn\'t Pick ' + tot.didntPick + ' · Lost ' + tot.lost + ' · Invalid ' + tot.invalid + ' · Open now ' + tot.openNow + '</p>' +
         '<h3 class="rp-h">By service</h3>' + (r.services.length ? r.services.map((s) => {
           const sv = SERVICES.find((x) => x.name === s.service);
-          return '<div class="rp-row">' + (sv ? svcIcon(sv) : '') + '<span class="rp-l"><b>' + esc(s.service) + '</b><span class="sm">Assigned ' + s.assigned + ' · Contacted ' + s.contacted + ' · Meetings ' + s.meetings + ' · Won ' + s.won + '</span></span></div>';
+          return '<div class="rp-row">' + (sv ? svcIcon(sv) : '') + '<span class="rp-l"><b>' + esc(s.service) + '</b><span class="sm">Assigned ' + s.assigned + ' · Contacted ' + s.contacted + ' · Meetings ' + s.meetings + ' · Paid ' + s.won + '</span></span></div>';
         }).join('') : '<p class="sm">No services yet.</p>') +
         '<h3 class="rp-h">Last 6 months</h3>' + r.history.map((h) => {
-          return '<button type="button" class="rp-hist' + (h.month === r.month ? ' on' : '') + '" data-rpmonth="' + esc(h.month) + '"><b>' + esc(h.label) + '</b><span class="sm">' + h.assigned + ' assigned · ' + h.contacted + ' contacted · ' + h.meetings + ' meetings · ' + h.won + ' won</span></button>';
+          return '<button type="button" class="rp-hist' + (h.month === r.month ? ' on' : '') + '" data-rpmonth="' + esc(h.month) + '"><b>' + esc(h.label) + '</b><span class="sm">' + h.assigned + ' assigned · ' + h.contacted + ' contacted · ' + h.meetings + ' meetings · ' + h.won + ' paid</span></button>';
         }).join('');
       const box = document.getElementById('rp-body');
       if (!box) return;
@@ -1880,7 +1880,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     return '<div class="pf-stats" role="group" aria-label="' + esc(aria) + '">' +
       box(assigned, 'Assigned', 0) +
       box(contacted, 'Contacted', TARGETS.contacted) +
-      box(verifiedClosed !== undefined ? verifiedClosed : closed, 'Won', TARGETS.won, closedSub) +
+      box(verifiedClosed !== undefined ? verifiedClosed : closed, 'Paid', TARGETS.won, closedSub) +
       '</div>';
   }
 
