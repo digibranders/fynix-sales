@@ -360,7 +360,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
           const w = safeUrl(l.web);
           return '<tr class="lead-row scale-row" data-assign="' + l.id + '" style="cursor:pointer">' +
             '<td class="sr num c-sr">' + (state.page * PAGE + n + 1) + '</td>' +
-            '<td class="c-name"><div class="name">' + esc(toTitleCase(l.name)) + '</div>' + ((l.area || l.city) ? '<div class="sm muted place">' + esc(toTitleCase(l.area || l.city)) + '</div>' : '') + (l.email.length ? '<div class="sm muted em">' + esc(l.email[0]) + '</div>' : '') + alsoHtml(l) + '</td>' +
+            '<td class="c-name"><div class="name">' + esc(toTitleCase(l.name)) + '</div>' + (l.company ? '<div class="sm muted comp-m">' + esc(toTitleCase(l.company)) + '</div>' : '') + ((l.area || l.city) ? '<div class="sm muted place">' + esc(toTitleCase(l.area || l.city)) + '</div>' : '') + (l.email.length ? '<div class="sm muted em">' + esc(l.email[0]) + '</div>' : '') + alsoHtml(l) + '</td>' +
             '<td class="c-comp">' + compCell(l, w) + '</td>' +
             '<td class="c-title">' + (jobTitleOf(l) ? esc(toTitleCase(jobTitleOf(l))) : '<span class="dash">—</span>') + '</td>' +
             '<td class="num c-phone">' + (pNum ? '<span class="num">' + esc(pNum) + '</span>' : '<span class="dash">—</span>') + '</td>' +
