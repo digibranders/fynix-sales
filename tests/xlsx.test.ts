@@ -23,4 +23,23 @@ describe('xlsx import', () => {
   it('rejects a file that is not a workbook', () => {
     assert.throws(() => xlsxToCsv(Buffer.from('just,some,csv\n1,2,3')), /xlsx/i);
   });
+
+  it('finds the job title and company under their other common column names', () => {
+    const csv = ['Full Name,Current Job Title,Current Company,Email', 'Asha Rao,Head of Growth,Orbit Labs,asha@orbit.test'].join('\n');
+    const lead = parseLeadsCsv(csv).leads[0];
+    assert.equal(lead?.jobTitle, 'Head of Growth');
+    assert.equal(lead?.company, 'Orbit Labs');
+  });
+  it('reads the column names used in the Scale spreadsheet', () => {
+    const csv = [
+      'First Name,Last Name,Current Job,Work Email,Mobile Phone,Linkedin URL Public,Company Name,Company Domain',
+      'Saju,Mathew,Manager Sales,saju@cyberoam.test,+91 98331 90194,https://linkedin.com/in/saju,Cyberoam,cyberoam.com',
+    ].join('\n');
+    const lead = parseLeadsCsv(csv).leads[0];
+    assert.equal(lead?.name, 'Saju Mathew');
+    assert.equal(lead?.jobTitle, 'Manager Sales');
+    assert.equal(lead?.company, 'Cyberoam');
+    assert.ok(lead?.phone);
+    assert.deepEqual(lead?.emails, ['saju@cyberoam.test']);
+  });
 });
