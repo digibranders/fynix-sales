@@ -1,10 +1,10 @@
 name: Uptime
 
-# Checks https://sales.fynix.digital/health every 5 minutes. When it is down this opens an issue (GitHub emails the
+# Checks https://sales.fynix.digital/health every hour (a check every 5 minutes used up GitHub's free Actions minutes). When it is down this opens an issue (GitHub emails the
 # repository's watchers); when it recovers the issue is commented on and closed.
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '17 * * * *'
   workflow_dispatch:
 
 permissions:
