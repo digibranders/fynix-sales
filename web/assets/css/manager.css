@@ -184,3 +184,20 @@
   .per{display:flex;width:100%}
   .per button{flex:1;padding:0 6px}
 }
+
+/* Team date picker */
+.perrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}
+.perrow .per{margin:0}
+.datepick{position:relative;display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 12px;border:1px solid var(--line2);border-radius:9px;color:var(--muted);font-weight:500;cursor:pointer;background:var(--bg)}
+.datepick.on{background:var(--sel);color:var(--fg);border-color:var(--fg)}
+.datepick input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0;font-size:16px}
+@media (max-width:700px){
+  .perrow .per{flex:1 1 100%}
+  .datepick{flex:1 1 100%;justify-content:center}
+}
+
+/* Paying clients column */
+@media (max-width:700px){
+  .team td[data-l="paying"]{grid-column:1/-1;padding-top:6px}
+  .team td[data-l="paying"] .pl-btn{width:100%;justify-content:flex-start}
+}

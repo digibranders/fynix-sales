@@ -39,14 +39,24 @@ interface VerificationRow {
   latest_note: string | null;
 }
 
-const periodQuery = z.object({ period: z.enum(['today', 'week', 'month']).default('month') });
+const periodQuery = z.object({
+  period: z.enum(['today', 'week', 'month', 'date']).default('month'),
+  /** The day to look at when the period is "date", as YYYY-MM-DD. */
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
 
-/** When a period begins: midnight today, midnight on Monday, or the first of the month. */
-function periodStartMs(period: 'today' | 'week' | 'month', now = new Date()): number {
-  if (period === 'month') return monthStartMs(now);
+/** The window a period covers: midnight today, midnight on Monday, the first of the month, or one chosen day. */
+function periodRange(period: 'today' | 'week' | 'month' | 'date', date: string | undefined, now = new Date()): { since: number; until: number } {
+  if (period === 'date') {
+    const [y, m, d] = (date ?? '').split('-').map(Number);
+    const day = new Date(y ?? 0, (m ?? 1) - 1, d ?? 1);
+    if (!date || Number.isNaN(day.getTime())) throw new HttpError(400, 'invalid_request', 'Pick a valid date.');
+    return { since: day.getTime(), until: new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime() };
+  }
+  if (period === 'month') return { since: monthStartMs(now), until: 8.64e15 };
   const day = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   if (period === 'week') day.setDate(day.getDate() - ((day.getDay() + 6) % 7));
-  return day.getTime();
+  return { since: day.getTime(), until: 8.64e15 };
 }
 
 const verifyBody = z.object({
@@ -70,13 +80,15 @@ export function registerManagerRoutes(app: FastifyInstance, ctx: AppContext): vo
 
   app.get('/api/manager/bootstrap', async (request) => {
     const { user, scope } = manager(request);
-    const { period } = periodQuery.parse(request.query);
+    const { period, date } = periodQuery.parse(request.query);
+    const range = periodRange(period, date);
     const workspaces = (await all<WorkspaceRow>(db, 'SELECT id, category, key, name, icon, color FROM workspaces ORDER BY category, position, name')).filter((w) =>
       scope.includes(w.category),
     );
-    const people = await loadPeople(db, scope, periodStartMs(period));
+    const people = await loadPeople(db, scope, range.since, range.until);
     return {
       period,
+      date: period === 'date' ? date : undefined,
       me: { id: user.id, name: user.name, ini: initials(user.name), email: user.email },
       categories: Object.fromEntries(scope.map((c) => [c, CATEGORY_INFO[c]])),
       workspaces,

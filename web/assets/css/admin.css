@@ -192,3 +192,38 @@ tbody tr.click:hover{background:var(--hover)}
   .tgt .btn{grid-column:1/-1}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* Coupons: the new-coupon form and the paying-clients list */
+.cp-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cl-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.cl-card{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff}
+.cl-n{font-family:var(--mono);font-size:12px;color:var(--muted);font-weight:600;min-width:18px;padding-top:2px}
+.cl-who{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
+.cl-who .muted{overflow-wrap:anywhere;font-size:12.5px}
+.cl-who .tag-chip{align-self:flex-start;margin-top:2px}
+.cl-pay{display:flex;flex-direction:column;align-items:flex-end;text-align:right;white-space:nowrap}
+.cl-pay small{font-size:11.5px}
+.pl-btn .muted{font-size:12px}
+
+/* While a dialog is open the page behind it stays put */
+html:has(#scrim:not([hidden])),
+html:has(.backdrop){overflow:hidden}
+
+/* Rupee icon on the paying-clients buttons */
+.pl-btn .v-chip{display:inline-flex;align-items:center;justify-content:center;padding:3px 6px}
+.cta-ic{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:block}
+
+/* Coupon expiry: our own date picker instead of the browser's */
+.dp-row{display:flex;gap:8px;align-items:center}
+.dp-btn{text-align:left;cursor:pointer;color:var(--fg);flex:1}
+.dp{margin-top:8px;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}
+.dp-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.dp-nav{width:30px;height:30px;border:1px solid var(--line2);border-radius:8px;background:#fff;font-size:18px;line-height:1;cursor:pointer}
+.dp-nav:disabled{opacity:.35;cursor:default}
+.dp-w,.dp-g{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.dp-w span{font-size:11px;color:var(--muted);padding:4px 0}
+.dp-d{height:32px;border:0;border-radius:8px;background:transparent;font:inherit;cursor:pointer;color:var(--fg)}
+.dp-d:hover:not(:disabled){background:var(--sel)}
+.dp-d.now{box-shadow:inset 0 0 0 1px var(--line2)}
+.dp-d.sel{background:var(--fg);color:#fff}
+.dp-d:disabled{color:var(--faint);cursor:default}

@@ -50,6 +50,13 @@
       "when": 1795250000000,
       "tag": "0006_new_stages",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795260000000,
+      "tag": "0007_coupons",
+      "breakpoints": true
     }
   ]
 }

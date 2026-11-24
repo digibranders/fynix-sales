@@ -11,6 +11,10 @@ export interface Config {
   resendApiKey: string | null;
   mailFrom: string | null;
   webDir: string;
+  /** BrandBasket coupon link: where its API lives, the key we send it, and the secret its webhooks are signed with. */
+  bbApiUrl: string;
+  integrationKey: string | null;
+  webhookSecret: string | null;
 }
 
 const WEB_DIR = path.resolve(import.meta.dirname, '..', 'web');
@@ -37,5 +41,8 @@ export function loadConfig(): Config {
     resendApiKey: process.env['RESEND_API_KEY'] || null,
     mailFrom: process.env['MAIL_FROM'] || null,
     webDir: WEB_DIR,
+    bbApiUrl: (process.env['BB_API_URL'] || 'http://console.brandbasket.localhost:3199').replace(/\/+$/, ''),
+    integrationKey: process.env['FYNIX_INTEGRATION_KEY'] || null,
+    webhookSecret: process.env['FYNIX_WEBHOOK_SECRET'] || null,
   };
 }

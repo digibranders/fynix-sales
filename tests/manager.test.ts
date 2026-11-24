@@ -215,6 +215,15 @@ describe('manager', () => {
       assert.equal(ps?.won, 5, 'all five were closed just now');
     }
     assert.equal((await call(nisha, 'GET', '/api/manager/bootstrap?period=year')).status, 400);
+    // A chosen day: today shows the work, an earlier day shows none, a bad date is refused
+    const d = new Date();
+    const key = (x: Date): string => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+    const statsOn = async (day: string) =>
+      ((await call(nisha, 'GET', `/api/manager/bootstrap?period=date&date=${day}`)).body as unknown as { people: { name: string; stats: { won: number } }[] }).people.find((p) => p.name === 'Priya Sharma')?.stats;
+    assert.equal((await statsOn(key(d)))?.won, 5);
+    assert.equal((await statsOn(key(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 3))))?.won, 0);
+    assert.equal((await call(nisha, 'GET', '/api/manager/bootstrap?period=date')).status, 400);
+    assert.equal((await call(nisha, 'GET', '/api/manager/bootstrap?period=date&date=nope')).status, 400);
 
     // Salesperson cannot call verify API
     assert.equal((await call(priya, 'PATCH', `/api/manager/claims/${claimIds[0]}/verify`, { verified: 1 })).status, 403);

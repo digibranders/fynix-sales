@@ -3,6 +3,8 @@ import type {
   Bootstrap,
   Category,
   CategoryFilter,
+  CouponCreateBody,
+  CouponForm,
   DrawerForm,
   FormCat,
   InviteResult,
@@ -26,6 +28,7 @@ import type {
   WorkspaceCreateBody,
 } from './admin/types.js';
 import { takeEmbedded } from './shared/boot.js';
+import { RUPEE, clientCards } from './shared/coupons.js';
 import { el } from './shared/dom.js';
 import { initPwa } from './shared/pwa.js';
 
@@ -387,13 +390,14 @@ function iconBtn(attr: string, id: string, label: string, paths: string, danger?
 function vTeam(): string {
   const d = data();
   const P = d.people.filter(pInCat);
-  let h = head('Team', 'Everyone who can sign in', '<button class="btn dark" data-new="person">' + PLUS + 'Invite member</button>');
+  let h = head('Team', 'Everyone who can sign in', '<button class="btn" data-new="coupon">' + PLUS + 'New coupon</button> <button class="btn dark" data-new="person">' + PLUS + 'Invite member</button>');
   h +=
-    '<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th><th>Role</th><th>Category</th><th>Services</th><th>Status</th><th></th></tr></thead><tbody>' +
+    '<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th><th>Role</th><th>Category</th><th>Services</th><th>Coupons</th><th>Status</th><th></th></tr></thead><tbody>' +
     P.map((p, i) => {
       const self = p.id === d.me.id;
       return (
         '<tr><td class="muted num">' + (i + 1) + '</td><td><span class="own static">' + av(p) + '<span>' + esc(p.name) + '<br><small class="muted">' + esc(p.email) + '</small></span></span></td><td class="role">' + ROLE_NAME[p.role] + '</td><td>' + (p.role === 'superadmin' ? ct(null) : ct(p.category)) + '</td><td>' + wsOf(p) + '</td>' +
+        '<td>' + (p.role === 'sales' ? '<button type="button" class="btn sm pl-btn" data-clients="' + esc(p.id) + '" title="Paying clients" aria-label="' + esc(p.name) + ', ' + p.coupons.clients.length + ' paying clients"><span class="num">' + p.coupons.clients.length + '</span><span class="v-chip">' + RUPEE + '</span></button>' + (p.coupons.codes.length ? '<div><small class="muted">' + p.coupons.codes.map(esc).join(', ') + '</small></div>' : '') : '<span class="muted">-</span>') + '</td>' +
         '<td><span class="dotl' + (p.active && !p.invited ? '' : ' off') + '"><i></i>' + (!p.active ? 'Deactivated' : p.invited ? 'Invited' : 'Active') + '</span></td>' +
         '<td style="text-align:right;white-space:nowrap"><span class="acts">' +
         (S.userConfirm === p.id
@@ -526,6 +530,34 @@ function catSeg(cur: FormCat, withBoth?: boolean): string {
   const options: FormCat[] = withBoth ? [...CATS, 'both'] : [...CATS];
   return '<div class="seg">' + options.map((c) => '<button type="button" data-fc="' + c + '" aria-pressed="' + (cur === c) + '">' + (c === 'both' ? 'Both' : esc(catName(c))) + '</button>').join('') + '</div>';
 }
+function dayKey(d: Date): string {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+/** A month grid for choosing the coupon's last day. Days before today cannot be picked. */
+function calHtml(c: CouponForm): string {
+  const todayKey = dayKey(new Date());
+  const lead = (new Date(c.calY, c.calM, 1).getDay() + 6) % 7;
+  const days = new Date(c.calY, c.calM + 1, 0).getDate();
+  const nowY = new Date().getFullYear();
+  const nowM = new Date().getMonth();
+  const atStart = c.calY < nowY || (c.calY === nowY && c.calM <= nowM);
+  let cells = '';
+  for (let i = 0; i < lead; i++) cells += '<span></span>';
+  for (let d = 1; d <= days; d++) {
+    const key = dayKey(new Date(c.calY, c.calM, d));
+    const past = key < todayKey;
+    cells += '<button type="button" class="dp-d' + (key === c.expiry ? ' sel' : '') + (key === todayKey ? ' now' : '') + '" data-cp-day="' + key + '"' + (past ? ' disabled' : '') + '>' + d + '</button>';
+  }
+  return (
+    '<div class="dp"><div class="dp-h"><button type="button" class="dp-nav" data-cp-nav="-1" aria-label="Previous month"' + (atStart ? ' disabled' : '') + '>&#8249;</button>' +
+    '<b>' + MONTHS[c.calM] + ' ' + c.calY + '</b><button type="button" class="dp-nav" data-cp-nav="1" aria-label="Next month">&#8250;</button></div>' +
+    '<div class="dp-w"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><div class="dp-g">' + cells + '</div></div>'
+  );
+}
+function expiryLabel(key: string): string {
+  return new Date(key + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 function mh(x: string): string {
   return '<div class="dh" style="border:0;padding-bottom:6px"><h3>' + x + '</h3><button class="x" data-close aria-label="Close">&times;</button></div>';
 }
@@ -555,10 +587,11 @@ function inviteBody(name: string, email: string, canEmail: boolean, reset: boole
     : 'Copy this link and send it to ' + name + '. They open it and choose ' + what + '. Email is not set up yet.';
 }
 function newForm(): ModalForm {
-  return { error: '', busy: false, id: '', name: '', email: '', role: 'sales', cat: dc(), members: [], lists: [], wss: [], csv: '', fileName: '', title: '', body: '', link: '', userId: '', canEmail: false, sent: false };
+  return { error: '', busy: false, id: '', name: '', email: '', role: 'sales', cat: dc(), members: [], lists: [], wss: [], csv: '', fileName: '', title: '', body: '', link: '', userId: '', canEmail: false, sent: false, coupon: { code: '', kind: 'percent', value: '', months: '', expiry: '', max: '', calOpen: false, calY: new Date().getFullYear(), calM: new Date().getMonth() } };
 }
 function openModal(kind: 'ws' | 'list' | 'person'): void;
-function openModal(kind: 'editpeople' | 'rename' | 'category', personId: string): void;
+function openModal(kind: 'editpeople' | 'rename' | 'category' | 'clients', personId: string): void;
+function openModal(kind: 'coupon', personId?: string): void;
 function openModal(kind: 'link', info: LinkInfo): void;
 function openModal(kind: ModalKind, extra?: string | LinkInfo): void {
   const F = newForm();
@@ -573,6 +606,13 @@ function openModal(kind: ModalKind, extra?: string | LinkInfo): void {
   } else if (kind === 'link') {
     if (typeof extra !== 'object') return;
     Object.assign(F, extra);
+  } else if (kind === 'clients') {
+    const p = typeof extra === 'string' ? person(extra) : undefined;
+    if (!p) return;
+    F.id = p.id;
+    F.name = p.name;
+  } else if (kind === 'coupon') {
+    F.userId = typeof extra === 'string' ? extra : '';
   }
   S.modal = kind;
   S.form.m = F;
@@ -589,6 +629,20 @@ function syncFields(): void {
   if (name instanceof HTMLInputElement) F.name = name.value;
   const email = document.getElementById('f-email');
   if (email instanceof HTMLInputElement) F.email = email.value;
+  const field = (id: string): string | null => {
+    const n = document.getElementById(id);
+    return n instanceof HTMLInputElement || n instanceof HTMLSelectElement ? n.value : null;
+  };
+  if (S.modal === 'coupon') {
+    F.userId = field('cp-user') ?? F.userId;
+    F.coupon.code = field('cp-code') ?? F.coupon.code;
+    const kind = field('cp-kind');
+    if (kind === 'percent' || kind === 'amount') F.coupon.kind = kind;
+    F.coupon.value = field('cp-value') ?? F.coupon.value;
+    F.coupon.months = field('cp-months') ?? F.coupon.months;
+    F.coupon.expiry = field('cp-expiry') ?? F.coupon.expiry;
+    F.coupon.max = field('cp-max') ?? F.coupon.max;
+  }
 }
 function paintModal(): void {
   const F = S.form.m;
@@ -641,6 +695,28 @@ function paintModal(): void {
   } else if (k === 'editpeople') {
     const cat = singleCat(F.cat);
     h = mh('Services for ' + esc(F.name)) + '<div class="mb"><p class="hint" style="margin-top:0">' + esc(catName(cat)) + ' services only.</p>' + pickRows(wsPick(cat), F.wss, 'wss') + foot('Save', 'editpeople');
+  } else if (k === 'clients') {
+    const p = person(F.id);
+    const clients = p ? p.coupons.clients : [];
+    h =
+      mh('Paying clients: ' + esc(F.name)) +
+      '<div class="mb"><p class="hint" style="margin-top:0">' + (p && p.coupons.codes.length ? 'Coupons: ' + p.coupons.codes.map(esc).join(', ') + '. ' : 'No coupon yet. ') + 'Each client is counted once, from paid coupon payments only.</p>' + clientCards(clients, esc) + '</div><div class="df"><button class="btn dark" data-close>Done</button></div>';
+  } else if (k === 'coupon') {
+    const sellers = data().people.filter((p) => p.role === 'sales' && p.active && !p.invited);
+    const c = F.coupon;
+    h =
+      mh('New coupon') +
+      '<div class="mb"><label class="fl" for="cp-user" style="margin-top:6px">Give it to</label><select class="inp" id="cp-user"><option value="">Choose a salesperson</option>' +
+      sellers.map((p) => '<option value="' + esc(p.id) + '"' + (F.userId === p.id ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') +
+      '</select>' +
+      '<label class="fl" for="cp-code">Coupon code</label><input class="inp" id="cp-code" type="text" maxlength="32" placeholder="PRIYA10" autocapitalize="characters" value="' + esc(c.code) + '">' +
+      '<div class="cp-row"><div><label class="fl" for="cp-kind">Discount</label><select class="inp" id="cp-kind"><option value="percent"' + (c.kind === 'percent' ? ' selected' : '') + '>Percent off</option><option value="amount"' + (c.kind === 'amount' ? ' selected' : '') + '>Amount off (INR)</option></select></div>' +
+      '<div><label class="fl" for="cp-value">Value</label><input class="inp" id="cp-value" type="text" inputmode="decimal" placeholder="' + (c.kind === 'percent' ? '10' : '500') + '" value="' + esc(c.value) + '"></div></div>' +
+      '<div class="cp-row"><div><label class="fl" for="cp-months">For how many months</label><input class="inp" id="cp-months" type="text" inputmode="numeric" placeholder="Optional" value="' + esc(c.months) + '"></div>' +
+      '<div><label class="fl" for="cp-max">Max uses</label><input class="inp" id="cp-max" type="text" inputmode="numeric" placeholder="Optional" value="' + esc(c.max) + '"></div></div>' +
+      '<span class="fl">Expires on</span><div class="dp-row"><button type="button" class="inp dp-btn" data-cp-cal aria-expanded="' + c.calOpen + '">' + (c.expiry ? esc(expiryLabel(c.expiry)) : 'No expiry') + '</button>' + (c.expiry ? '<button type="button" class="btn sm" data-cp-clear>Clear</button>' : '') + '</div>' + (c.calOpen ? calHtml(c) : '') +
+      '<p class="hint">Created in BrandBasket and credited to the salesperson. Their dashboard counts each client who pays with it.</p>' +
+      foot('Create coupon', 'coupon');
   } else if (k === 'link') {
     h =
       mh(esc(F.title)) + '<div class="mb"><p style="margin:6px 0 10px">' + esc(F.body) + '</p><input class="inp" id="invite-link" type="text" readonly value="' + esc(F.link) + '" onclick="this.select()" aria-label="Invite link"><p class="hint">It works once and expires in 7 days. Send it only to ' + esc(F.name) + '. A new link replaces this one.</p></div><div class="df"><button class="btn" data-copy-link>Copy link</button>' + (F.canEmail ? '<button class="btn" data-send-link' + (F.sent || F.busy ? ' disabled' : '') + '>' + (F.sent ? 'Email sent' : F.busy ? 'Sending' : 'Send email') + '</button>' : '') + '<button class="btn dark" data-close>Done</button></div>';
@@ -690,9 +766,9 @@ interface SaveOutcome {
   view: View;
   after?: () => void;
 }
-type SaveKind = 'ws' | 'list' | 'person' | 'editpeople' | 'rename' | 'category';
+type SaveKind = 'ws' | 'list' | 'person' | 'editpeople' | 'rename' | 'category' | 'coupon';
 function isSaveKind(v: string | undefined): v is SaveKind {
-  return v === 'ws' || v === 'list' || v === 'person' || v === 'editpeople' || v === 'rename' || v === 'category';
+  return v === 'ws' || v === 'list' || v === 'person' || v === 'editpeople' || v === 'rename' || v === 'category' || v === 'coupon';
 }
 
 function save(kind: SaveKind): void {
@@ -770,6 +846,34 @@ function save(kind: SaveKind): void {
       return paintModal();
     }
     req = api<unknown>('PATCH', '/api/admin/users/' + F.id, { name: F.name.trim() }).then(() => ({ msg: 'Name updated', view: 'team' }));
+  } else if (kind === 'coupon') {
+    const c = F.coupon;
+    const code = c.code.trim().toUpperCase();
+    const value = Number(c.value);
+    const whole = (v: string): number | undefined => (v.trim() ? Number(v) : undefined);
+    if (!F.userId) {
+      F.error = 'Choose a salesperson.';
+      return paintModal();
+    }
+    if (!/^[A-Z0-9_-]{3,32}$/.test(code)) {
+      F.error = 'Use 3 to 32 letters, numbers, dashes or underscores for the code.';
+      return paintModal();
+    }
+    if (!(value > 0) || (c.kind === 'percent' && value > 100)) {
+      F.error = c.kind === 'percent' ? 'Enter a percentage between 1 and 100.' : 'Enter an amount greater than zero.';
+      return paintModal();
+    }
+    const months = whole(c.months);
+    const max = whole(c.max);
+    if ((months !== undefined && !Number.isInteger(months)) || (max !== undefined && !Number.isInteger(max))) {
+      F.error = 'Months and max uses must be whole numbers.';
+      return paintModal();
+    }
+    const body: CouponCreateBody = { code, userId: F.userId, currency: 'INR', discountKind: c.kind, discountValue: value };
+    if (months !== undefined) body.discountMonths = months;
+    if (max !== undefined) body.maxRedemptions = max;
+    if (c.expiry) body.expiresAt = c.expiry;
+    req = api<unknown>('POST', '/api/admin/coupons', body).then(() => ({ msg: 'Coupon ' + code + ' created', view: 'team' }));
   } else {
     req = api<unknown>('PATCH', '/api/admin/users/' + F.id, { workspaceIds: F.wss }).then(() => ({ msg: 'Workspaces updated', view: 'team' }));
   }
@@ -894,6 +998,38 @@ document.addEventListener('click', (e) => {
   if ((c = hit('[data-new]'))) {
     const kind = c.dataset['new'];
     if (kind === 'ws' || kind === 'list' || kind === 'person') openModal(kind);
+    else if (kind === 'coupon') openModal('coupon');
+    return;
+  }
+  if (S.modal === 'coupon' && S.form.m) {
+    const F = S.form.m;
+    let hitCal = true;
+    if (hit('[data-cp-cal]')) {
+      syncFields();
+      F.coupon.calOpen = !F.coupon.calOpen;
+    } else if ((c = hit('[data-cp-nav]'))) {
+      syncFields();
+      const to = new Date(F.coupon.calY, F.coupon.calM + Number(c.dataset['cpNav']), 1);
+      F.coupon.calY = to.getFullYear();
+      F.coupon.calM = to.getMonth();
+    } else if ((c = hit('[data-cp-day]'))) {
+      syncFields();
+      F.coupon.expiry = c.dataset['cpDay'] ?? '';
+      F.coupon.calOpen = false;
+    } else if (hit('[data-cp-clear]')) {
+      syncFields();
+      F.coupon.expiry = '';
+      F.coupon.calOpen = false;
+    } else {
+      hitCal = false;
+    }
+    if (hitCal) {
+      paintModal();
+      return;
+    }
+  }
+  if ((c = hit('[data-clients]'))) {
+    openModal('clients', c.dataset['clients'] ?? '');
     return;
   }
   if ((c = hit('[data-chcat]'))) {

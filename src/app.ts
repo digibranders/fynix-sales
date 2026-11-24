@@ -17,6 +17,7 @@ import { registerSalesRoutes } from './routes/sales.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerManagerRoutes } from './routes/manager.js';
 import { registerReportRoutes } from './routes/reports.js';
+import { registerCouponRoutes } from './routes/coupons.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -221,6 +222,7 @@ export async function buildApp(db: Db, config: Config, mailer: Mailer = createMa
   registerAdminRoutes(app, ctx);
   registerManagerRoutes(app, ctx);
   registerReportRoutes(app, ctx);
+  registerCouponRoutes(app, ctx);
 
   return app;
 }
