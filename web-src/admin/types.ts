@@ -45,6 +45,46 @@ export interface PersonStats {
   verifiedWon?: number;
 }
 
+/** One client who paid with a salesperson's coupon (a client who paid more than once is one row per currency). */
+export interface PayingClient {
+  businessId: string;
+  name: string;
+  email: string;
+  code: string;
+  amountCents: number;
+  currency: string;
+  paidAt: number;
+}
+
+export interface PersonCoupons {
+  codes: string[];
+  clients: PayingClient[];
+}
+
+export interface CouponCreateBody {
+  code: string;
+  userId: string;
+  currency: string;
+  discountKind: 'percent' | 'amount';
+  discountValue: number;
+  discountMonths?: number;
+  expiresAt?: string;
+  maxRedemptions?: number;
+}
+
+export interface CouponForm {
+  code: string;
+  kind: 'percent' | 'amount';
+  value: string;
+  months: string;
+  expiry: string;
+  /** Whether the date picker is open, and the month it shows. */
+  calOpen: boolean;
+  calY: number;
+  calM: number;
+  max: string;
+}
+
 export interface Person {
   id: string;
   name: string;
@@ -56,6 +96,7 @@ export interface Person {
   invited: boolean;
   workspaceIds: string[];
   stats: PersonStats;
+  coupons: PersonCoupons;
 }
 
 export interface Activity {
@@ -180,7 +221,7 @@ export interface LinkInfo {
   canEmail: boolean;
 }
 
-export type ModalKind = 'ws' | 'list' | 'person' | 'editpeople' | 'rename' | 'category' | 'link';
+export type ModalKind = 'ws' | 'list' | 'person' | 'editpeople' | 'rename' | 'category' | 'link' | 'coupon' | 'clients';
 
 /** Everything the open dialog edits. Fields a dialog does not use stay at their defaults. */
 export interface ModalForm extends LinkInfo {
@@ -196,6 +237,7 @@ export interface ModalForm extends LinkInfo {
   wss: string[];
   csv: string;
   fileName: string;
+  coupon: CouponForm;
 }
 
 /** The service drawer's unsaved choices. */

@@ -20,6 +20,7 @@ import { LEAD_COLUMNS, leadValues } from '../domain.js';
 import type { ParsedLead } from '../importer.js';
 import { parseLeadsCsv } from '../importer.js';
 import { inviteEmail } from '../mailer.js';
+import { loadPersonCoupons } from '../coupons.js';
 
 const category = z.enum(CATEGORIES);
 
@@ -139,7 +140,7 @@ async function claimCount(db: Db, sql: string, params: (string | number)[]): Pro
 }
 
 /** Everyone who can sign in with this month's numbers. `scope` limits it to the salespeople of those categories (what a manager may see). */
-export async function loadPeople(db: Db, scope: Category[] | null, since: number = monthStartMs()) {
+export async function loadPeople(db: Db, scope: Category[] | null, since: number = monthStartMs(), until: number = 8.64e15) {
   const month = since;
   const users = scope
     ? await all<UserRow>(
@@ -148,6 +149,7 @@ export async function loadPeople(db: Db, scope: Category[] | null, since: number
         scope,
       )
     : await all<UserRow>(db, 'SELECT id, name, email, role, category, active, last_login_at FROM users ORDER BY role DESC, name');
+  const coupons = await loadPersonCoupons(db, users.filter((u) => u.role === 'sales').map((u) => u.id), since, until);
   return Promise.all(users.map(async (u) => {
     const stats = { assigned: 0, contacted: 0, meetings: 0, won: 0, verifiedWon: 0 };
     if (u.role === 'sales') {
@@ -157,22 +159,22 @@ export async function loadPeople(db: Db, scope: Category[] | null, since: number
         `SELECT COUNT(*) AS n FROM (
            SELECT c.id, MIN(e.at) AS first_at FROM claims c
              JOIN claim_events e ON e.claim_id = c.id AND e.status <> 'New'
-            WHERE c.owner_id = ? GROUP BY c.id) AS firsts WHERE first_at >= ?`,
-        [u.id, month],
+            WHERE c.owner_id = ? GROUP BY c.id) AS firsts WHERE first_at >= ? AND first_at < ?`,
+        [u.id, month, until],
       );
       for (const [key, stage] of [['meetings', 'Meeting'], ['won', 'Won']] as const) {
         stats[key] = await claimCount(
           db,
           `SELECT COUNT(DISTINCT c.id) AS n FROM claims c JOIN claim_events e ON e.claim_id = c.id
-            WHERE c.owner_id = ? AND e.status = ? AND e.at >= ?`,
-          [u.id, stage, month],
+            WHERE c.owner_id = ? AND e.status = ? AND e.at >= ? AND e.at < ?`,
+          [u.id, stage, month, until],
         );
       }
       stats.verifiedWon = await claimCount(
         db,
         `SELECT COUNT(DISTINCT c.id) AS n FROM claims c JOIN claim_events e ON e.claim_id = c.id
-          WHERE c.owner_id = ? AND e.status = 'Won' AND e.at >= ? AND c.verified = 1`,
-        [u.id, month],
+          WHERE c.owner_id = ? AND e.status = 'Won' AND e.at >= ? AND e.at < ? AND c.verified = 1`,
+        [u.id, month, until],
       );
     }
     return {
@@ -186,6 +188,7 @@ export async function loadPeople(db: Db, scope: Category[] | null, since: number
       invited: u.last_login_at === null,
       workspaceIds: (await all<{ workspace_id: string }>(db, 'SELECT workspace_id FROM workspace_members WHERE user_id = ?', [u.id])).map((r) => r.workspace_id),
       stats,
+      coupons: coupons.get(u.id) ?? { codes: [], clients: [] },
     };
   }));
 }
@@ -301,6 +304,7 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     })));
 
     const people = await loadPeople(db, null);
+    const couponList = await all<{ id: string; code: string; user_id: string; user_name: string }>(db, 'SELECT c.id, c.code, c.user_id, u.name AS user_name FROM coupons c JOIN users u ON u.id = c.user_id ORDER BY c.created_at DESC');
 
     const activity = await all<{ id: number; at: number; category: Category | null; text: string; sub: string }>(
       db,
@@ -317,6 +321,7 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       workspaces,
       lists,
       people,
+      coupons: couponList.map((c) => ({ id: c.id, code: c.code, userId: c.user_id, userName: c.user_name })),
       activity,
       targets,
     };

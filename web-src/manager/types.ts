@@ -1,4 +1,4 @@
-import type { Category, LeadsPage, PersonStats, Workspace } from '../admin/types.js';
+import type { Category, LeadsPage, PersonCoupons, PersonStats, Workspace } from '../admin/types.js';
 
 export type { Category, LeadsPage, Workspace };
 
@@ -12,10 +12,11 @@ export interface TeamMember {
   invited: boolean;
   workspaceIds: string[];
   stats: PersonStats;
+  coupons: PersonCoupons;
 }
 
 /** GET /api/manager/bootstrap */
-export type Period = 'today' | 'week' | 'month';
+export type Period = 'today' | 'week' | 'month' | 'date';
 
 export interface ManagerBootstrap {
   period?: Period;

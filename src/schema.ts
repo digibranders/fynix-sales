@@ -254,3 +254,45 @@ export const invites = pgTable(
   },
   (t) => [index('idx_invites_user').on(t.userId)],
 );
+
+/** A discount code made in Fynix, created in BrandBasket too, and credited to the salesperson it was given to. */
+export const coupons = pgTable(
+  'coupons',
+  {
+    id: text('id').primaryKey(),
+    code: text('code').notNull().unique(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    bbCouponId: text('bb_coupon_id').notNull(),
+    currency: text('currency').notNull(),
+    discountKind: text('discount_kind').notNull(),
+    discountValue: text('discount_value').notNull(),
+    discountMonths: integer('discount_months'),
+    expiresAt: text('expires_at'),
+    maxRedemptions: integer('max_redemptions'),
+    createdAt: ms('created_at').notNull(),
+  },
+  (t) => [index('idx_coupons_user').on(t.userId), check('coupons_kind_check', sql`${t.discountKind} IN ('percent', 'amount')`)],
+);
+
+/** One verified coupon.paid event from BrandBasket. The event id is the primary key, so a retried delivery cannot count twice. */
+export const couponPayments = pgTable(
+  'coupon_payments',
+  {
+    eventId: text('event_id').primaryKey(),
+    couponId: text('coupon_id')
+      .notNull()
+      .references(() => coupons.id, { onDelete: 'cascade' }),
+    businessId: text('business_id').notNull(),
+    clientName: text('client_name').notNull(),
+    clientEmail: text('client_email').notNull(),
+    paymentId: text('payment_id').notNull(),
+    kind: text('kind').notNull(),
+    amountCents: ms('amount_cents').notNull(),
+    currency: text('currency').notNull(),
+    paidAt: ms('paid_at').notNull(),
+    receivedAt: ms('received_at').notNull(),
+  },
+  (t) => [index('idx_coupon_payments_coupon').on(t.couponId)],
+);
