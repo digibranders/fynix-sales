@@ -218,3 +218,7 @@
 .pl-modal{height:min(720px,calc(100% - 48px))}
 .pl-modal .pl-body{flex:1 1 auto;overflow-y:auto}
 .pl-fbtn{transition:background-color .2s ease,color .2s ease,border-color .2s ease}
+
+/* Team numbers: larger, in the page font so a zero is a plain 0 (the mono font draws it with a slash). */
+.team .num,.team .pl-btn .num,.team .v-review-btn .num{font-family:var(--f);font-size:16px;font-variant-numeric:tabular-nums;font-feature-settings:"zero" 0,"slashed-zero" 0}
+.team .v-review-btn .num,.team .pl-btn .num{font-weight:600}
