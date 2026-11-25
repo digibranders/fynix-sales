@@ -228,6 +228,30 @@ function loadPeopleFor(): void {
     .catch(fail);
 }
 
+function plCards(shown: PersonLead[]): string {
+  return (
+    shown
+        .map((l, i) => {
+          const open = S.openLead[l.id] === true;
+          const path = l.history.length ? l.history.map((h) => esc(stageName(h.status)) + ' <small class="muted">' + shortDay(h.at) + '</small>').join(' → ') : 'New';
+          const sub = [l.company, l.jobTitle].filter((x) => x).map(esc).join(' · ');
+          return (
+            '<div class="pl-card"><div class="pl-top"><span class="pl-n">' + (i + 1) + '</span><div class="pl-who"><b>' + esc(l.leadName) + '</b><span class="tag-chip">' + esc(l.workspaceName) + '</span>' +
+            (sub ? '<div class="lead-sub">' + sub + '</div>' : '') + '</div>' + stageDot(l.status) + '</div>' +
+            '<div class="pl-meta">' +
+            (l.nextFollowUp ? '<span><i>Next follow-up</i> ' + esc(fmtDay(l.nextFollowUp)) + '</span>' : '') +
+            '<span class="pl-path"><i>Journey</i> ' + path + '</span></div>' +
+            (l.notes.length
+              ? '<button type="button" class="pl-notes-btn" data-pl-toggle="' + l.id + '" aria-expanded="' + open + '">' + l.notes.length + (l.notes.length === 1 ? ' note' : ' notes') + (open ? ' ▴' : ' ▾') + '</button>' +
+                (open ? '<ul class="pl-notes">' + l.notes.map((n) => '<li><div class="pl-nh">' + stageDot(n.stage) + '<small>' + fmtWhen(n.at) + '</small></div><div>' + esc(n.text) + '</div></li>').join('') + '</ul>' : '')
+              : '<div class="muted pl-none">No notes</div>') +
+            '</div>'
+          );
+        })
+        .join('')
+  );
+}
+
 function vPersonModal(): string {
   if (!S.leadsUser) return '';
   const u = S.leadsUser;
@@ -252,31 +276,12 @@ function vPersonModal(): string {
       chip('all', 'All', items.length) +
       [...counts.entries()].map(([s, n]) => chip(s, stageName(s), n)).join('') +
       '</div>' +
-      '<div class="pl-list">' +
-      shown
-        .map((l, i) => {
-          const open = S.openLead[l.id] === true;
-          const path = l.history.length ? l.history.map((h) => esc(stageName(h.status)) + ' <small class="muted">' + shortDay(h.at) + '</small>').join(' → ') : 'New';
-          const sub = [l.company, l.jobTitle].filter((x) => x).map(esc).join(' · ');
-          return (
-            '<div class="pl-card"><div class="pl-top"><span class="pl-n">' + (i + 1) + '</span><div class="pl-who"><b>' + esc(l.leadName) + '</b><span class="tag-chip">' + esc(l.workspaceName) + '</span>' +
-            (sub ? '<div class="lead-sub">' + sub + '</div>' : '') + '</div>' + stageDot(l.status) + '</div>' +
-            '<div class="pl-meta">' +
-            (l.nextFollowUp ? '<span><i>Next follow-up</i> ' + esc(fmtDay(l.nextFollowUp)) + '</span>' : '') +
-            '<span class="pl-path"><i>Journey</i> ' + path + '</span></div>' +
-            (l.notes.length
-              ? '<button type="button" class="pl-notes-btn" data-pl-toggle="' + l.id + '" aria-expanded="' + open + '">' + l.notes.length + (l.notes.length === 1 ? ' note' : ' notes') + (open ? ' ▴' : ' ▾') + '</button>' +
-                (open ? '<ul class="pl-notes">' + l.notes.map((n) => '<li><div class="pl-nh">' + stageDot(n.stage) + '<small>' + fmtWhen(n.at) + '</small></div><div>' + esc(n.text) + '</div></li>').join('') + '</ul>' : '')
-              : '<div class="muted pl-none">No notes</div>') +
-            '</div>'
-          );
-        })
-        .join('') +
+      '<div class="pl-list" id="pl-list">' + plCards(shown) +
       '</div>';
   }
   return (
     '<div class="backdrop" data-close-pl></div>' +
-    '<div class="modal verify-modal" role="dialog" aria-modal="true" aria-labelledby="pl-title">' +
+    '<div class="modal verify-modal pl-modal" role="dialog" aria-modal="true" aria-labelledby="pl-title">' +
     '<div class="modal-h"><div><h2 id="pl-title">Leads · ' + esc(u.name) + '</h2><span class="sub">' + esc(summary) + '</span></div>' +
     '<button type="button" class="modal-close-btn" data-close-pl aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4L4 12"/></svg></button></div>' +
     '<div class="modal-b pl-body">' + body + '</div>' +
@@ -697,9 +702,19 @@ document.addEventListener('click', (e) => {
   }
   if ((c = hit('[data-pl-stage]'))) {
     S.leadStage = c.dataset['plStage'] || 'all';
-    render();
+    const all = S.personLeads ?? [];
+    const list = document.getElementById('pl-list');
+    if (!list) return;
+    // Only the list changes, so the popup keeps its size and the chips don't flicker; the cards drop in one after another.
+    document.querySelectorAll<HTMLElement>('[data-pl-stage]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset['plStage'] === S.leadStage)));
+    list.innerHTML = plCards(S.leadStage === 'all' ? all : all.filter((l) => l.status === S.leadStage));
     const body = document.querySelector('.pl-body');
     if (body) body.scrollTop = 0;
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      list.querySelectorAll<HTMLElement>('.pl-card').forEach((card, i) => {
+        card.style.animation = 'v-fall .75s cubic-bezier(.22,.8,.3,1) ' + Math.min(i, 12) * 60 + 'ms backwards';
+      });
+    }
     return;
   }
   if ((c = hit('[data-pl-toggle]'))) {
