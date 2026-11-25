@@ -80,6 +80,8 @@ export interface CouponForm {
   expiry: string;
   /** Whether the date picker is open, and the month it shows. */
   calOpen: boolean;
+  /** Which dropdown in the coupon form is open. */
+  dd: '' | 'user' | 'kind';
   calY: number;
   calM: number;
   max: string;

@@ -1719,14 +1719,38 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   function openForgotPw(): void {
     state.modal = 'forgotpw';
     lockScroll();
+    const email = DATA.me.email;
     layer.innerHTML = '<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">' +
       '<div class="m-head"><div><h2 id="m-title">Forgot password</h2><div class="sm">Password reset</div></div><button class="x" id="m-x" aria-label="Close">×</button></div>' +
-      '<div class="pw-body" style="padding:18px 20px 8px"><p style="margin:0;font-size:14px;color:var(--fg);line-height:1.5">Contact the superadmin for link.</p></div>' +
-      '<div class="m-foot"><button class="btn assign" id="m-ok">OK</button></div></div></div>';
+      '<div class="pw-body" style="padding:18px 20px 8px"><p id="fp-msg" style="margin:0;font-size:14px;color:var(--fg);line-height:1.5">We will email a link to <b>' + esc(email) + '</b> so you can choose a new password. It works once and expires in 7 days.</p><p class="pw-err" id="fp-err" role="alert"></p></div>' +
+      '<div class="m-foot"><button class="btn" id="m-ok">Close</button><button class="btn assign" id="fp-send">Send link</button></div></div></div>';
     const ok = el('m-ok');
     const x = el('m-x');
+    const send = el<HTMLButtonElement>('fp-send');
     if (ok) ok.onclick = closeModal;
     if (x) x.onclick = closeModal;
+    if (send) {
+      send.onclick = () => {
+        const msg = el('fp-msg');
+        const err = el('fp-err');
+        err.textContent = '';
+        send.disabled = true;
+        api<{ ok: boolean; emailed: boolean }>('POST', '/api/auth/forgot', { email })
+          .then((res) => {
+            if (res.emailed) {
+              msg.innerHTML = 'If <b>' + esc(email) + '</b> has an account, a link to choose a new password is on its way. Check your spam folder too.';
+              send.textContent = 'Send again';
+            } else {
+              msg.textContent = 'Email is not set up yet, so a link cannot be sent. Ask your superadmin to send you a reset link.';
+            }
+            send.disabled = false;
+          })
+          .catch((e: unknown) => {
+            err.textContent = messageOf(e, 'The link could not be sent. Please try again.');
+            send.disabled = false;
+          });
+      };
+    }
     wireScrim();
   }
 

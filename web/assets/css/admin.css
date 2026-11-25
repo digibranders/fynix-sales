@@ -227,3 +227,17 @@ html:has(.backdrop){overflow:hidden}
 .dp-d.now{box-shadow:inset 0 0 0 1px var(--line2)}
 .dp-d.sel{background:var(--fg);color:#fff}
 .dp-d:disabled{color:var(--faint);cursor:default}
+
+/* In-page dropdown (replaces the browser's own list in forms) */
+.dd{position:relative}
+.dd-btn{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;cursor:pointer;color:var(--fg)}
+.dd-btn.ph{color:var(--muted)}
+.dd-btn svg{width:10px;height:6px;flex:none;fill:none;stroke:var(--muted);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;transition:transform .18s ease}
+.dd.open .dd-btn{border-color:var(--fg)}
+.dd.open .dd-btn svg{transform:rotate(180deg)}
+.dd-list{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:20;max-height:224px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:4px;background:#fff;box-shadow:0 8px 24px rgba(15,27,45,.12);animation:dd-in .16s ease}
+.dd-o{display:flex;align-items:center;justify-content:space-between;width:100%;height:36px;padding:0 10px;border:0;border-radius:8px;background:transparent;font:inherit;text-align:left;cursor:pointer;color:var(--fg)}
+.dd-o:hover{background:var(--sel)}
+.dd-o.sel{font-weight:600}
+.dd-o.sel::after{content:"";width:10px;height:6px;border-left:2px solid var(--fg);border-bottom:2px solid var(--fg);transform:rotate(-45deg) translate(1px,-1px)}
+@keyframes dd-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}

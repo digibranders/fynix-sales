@@ -587,7 +587,7 @@ function inviteBody(name: string, email: string, canEmail: boolean, reset: boole
     : 'Copy this link and send it to ' + name + '. They open it and choose ' + what + '. Email is not set up yet.';
 }
 function newForm(): ModalForm {
-  return { error: '', busy: false, id: '', name: '', email: '', role: 'sales', cat: dc(), members: [], lists: [], wss: [], csv: '', xlsx: '', fileName: '', title: '', body: '', link: '', userId: '', canEmail: false, sent: false, coupon: { code: '', kind: 'percent', value: '', months: '', expiry: '', max: '', calOpen: false, calY: new Date().getFullYear(), calM: new Date().getMonth() } };
+  return { error: '', busy: false, id: '', name: '', email: '', role: 'sales', cat: dc(), members: [], lists: [], wss: [], csv: '', xlsx: '', fileName: '', title: '', body: '', link: '', userId: '', canEmail: false, sent: false, coupon: { code: '', kind: 'percent', value: '', months: '', expiry: '', max: '', calOpen: false, dd: '', calY: new Date().getFullYear(), calM: new Date().getMonth() } };
 }
 function openModal(kind: 'ws' | 'list' | 'person'): void;
 function openModal(kind: 'editpeople' | 'rename' | 'category' | 'clients', personId: string): void;
@@ -622,6 +622,20 @@ function openModal(kind: ModalKind, extra?: string | LinkInfo): void {
   const f = el('modal').querySelector<HTMLInputElement>('input[type=text],input[type=email]');
   if (f) f.focus();
 }
+/** A dropdown that matches the rest of the page, in place of the browser's own list. */
+function ddHtml(id: string, current: string, options: [string, string][], open: boolean, placeholder: string): string {
+  const label = options.find(([v]) => v === current)?.[1] ?? placeholder;
+  return (
+    '<div class="dd' + (open ? ' open' : '') + '"><button type="button" class="inp dd-btn' + (current ? '' : ' ph') + '" data-dd="' + id + '" aria-haspopup="listbox" aria-expanded="' + open + '"><span>' + esc(label) + '</span><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg></button>' +
+    (open
+      ? '<div class="dd-list" role="listbox">' +
+        options.map(([v, l]) => '<button type="button" role="option" class="dd-o' + (v === current ? ' sel' : '') + '" data-dd-pick="' + id + '" data-v="' + esc(v) + '" aria-selected="' + (v === current) + '">' + esc(l) + '</button>').join('') +
+        '</div>'
+      : '') +
+    '</div>'
+  );
+}
+
 function syncFields(): void {
   const F = S.form.m;
   if (!F) return;
@@ -706,11 +720,9 @@ function paintModal(): void {
     const c = F.coupon;
     h =
       mh('New coupon') +
-      '<div class="mb"><label class="fl" for="cp-user" style="margin-top:6px">Give it to</label><select class="inp" id="cp-user"><option value="">Choose a salesperson</option>' +
-      sellers.map((p) => '<option value="' + esc(p.id) + '"' + (F.userId === p.id ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') +
-      '</select>' +
+      '<div class="mb"><span class="fl" style="margin-top:6px">Give it to</span>' + ddHtml('user', F.userId, sellers.map((p): [string, string] => [p.id, p.name]), c.dd === 'user', 'Choose a salesperson') +
       '<label class="fl" for="cp-code">Coupon code</label><input class="inp" id="cp-code" type="text" maxlength="32" placeholder="PRIYA10" autocapitalize="characters" value="' + esc(c.code) + '">' +
-      '<div class="cp-row"><div><label class="fl" for="cp-kind">Discount</label><select class="inp" id="cp-kind"><option value="percent"' + (c.kind === 'percent' ? ' selected' : '') + '>Percent off</option><option value="amount"' + (c.kind === 'amount' ? ' selected' : '') + '>Amount off (INR)</option></select></div>' +
+      '<div class="cp-row"><div><span class="fl">Discount</span>' + ddHtml('kind', c.kind, [['percent', 'Percent off'], ['amount', 'Amount off (INR)']], c.dd === 'kind', 'Percent off') + '</div>' +
       '<div><label class="fl" for="cp-value">Value</label><input class="inp" id="cp-value" type="text" inputmode="decimal" placeholder="' + (c.kind === 'percent' ? '10' : '500') + '" value="' + esc(c.value) + '"></div></div>' +
       '<div class="cp-row"><div><label class="fl" for="cp-months">For how many months</label><input class="inp" id="cp-months" type="text" inputmode="numeric" placeholder="Optional" value="' + esc(c.months) + '"></div>' +
       '<div><label class="fl" for="cp-max">Max uses</label><input class="inp" id="cp-max" type="text" inputmode="numeric" placeholder="Optional" value="' + esc(c.max) + '"></div></div>' +
@@ -1004,7 +1016,17 @@ document.addEventListener('click', (e) => {
   if (S.modal === 'coupon' && S.form.m) {
     const F = S.form.m;
     let hitCal = true;
-    if (hit('[data-cp-cal]')) {
+    if ((c = hit('[data-dd]'))) {
+      syncFields();
+      const id = c.dataset['dd'];
+      F.coupon.dd = (id === 'user' || id === 'kind') && F.coupon.dd !== id ? id : '';
+    } else if ((c = hit('[data-dd-pick]'))) {
+      syncFields();
+      const value = c.dataset['v'] ?? '';
+      if (c.dataset['ddPick'] === 'user') F.userId = value;
+      else if (value === 'percent' || value === 'amount') F.coupon.kind = value;
+      F.coupon.dd = '';
+    } else if (hit('[data-cp-cal]')) {
       syncFields();
       F.coupon.calOpen = !F.coupon.calOpen;
     } else if ((c = hit('[data-cp-nav]'))) {
