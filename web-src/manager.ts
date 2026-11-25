@@ -38,6 +38,8 @@ interface State {
   /** The salesperson whose leads are open in the popup, and those leads once loaded. */
   leadsUser: { id: string; name: string } | null;
   personLeads: PersonLead[] | null;
+  /** The stage the leads popup is narrowed to ('all' shows every lead). */
+  leadStage: string;
   /** Which lead cards have their notes open. */
   openLead: Record<string, boolean>;
   /** True right after a switch to the leads view, so its first load drops in like the other sections. */
@@ -59,6 +61,7 @@ const S: State = {
   date: '',
   leadsUser: null,
   personLeads: null,
+  leadStage: 'all',
   openLead: {},
   leadsFresh: false,
 };
@@ -240,9 +243,17 @@ function vPersonModal(): string {
     const counts = new Map<string, number>();
     items.forEach((l) => counts.set(l.status, (counts.get(l.status) ?? 0) + 1));
     summary = items.length + (items.length === 1 ? ' lead' : ' leads') + ' · ' + [...counts.entries()].map(([s, n]) => n + ' ' + stageName(s)).join(' · ');
+    const stage = counts.has(S.leadStage) ? S.leadStage : 'all';
+    const shown = stage === 'all' ? items : items.filter((l) => l.status === stage);
+    const chip = (key: string, label: string, n: number): string =>
+      '<button type="button" class="pl-fbtn" data-pl-stage="' + esc(key) + '" aria-pressed="' + (stage === key) + '">' + esc(label) + '<small>' + n + '</small></button>';
     body =
+      '<div class="pl-filter" role="group" aria-label="Filter by stage">' +
+      chip('all', 'All', items.length) +
+      [...counts.entries()].map(([s, n]) => chip(s, stageName(s), n)).join('') +
+      '</div>' +
       '<div class="pl-list">' +
-      items
+      shown
         .map((l, i) => {
           const open = S.openLead[l.id] === true;
           const path = l.history.length ? l.history.map((h) => esc(stageName(h.status)) + ' <small class="muted">' + shortDay(h.at) + '</small>').join(' → ') : 'New';
@@ -505,6 +516,7 @@ function loadLeads(keepFocus?: boolean): void {
 function openPersonLeads(id: string, name: string): void {
   S.leadsUser = { id, name };
   S.personLeads = null;
+  S.leadStage = 'all';
   S.openLead = {};
   render();
   api<PersonLeads>('GET', '/api/manager/people/' + encodeURIComponent(id) + '/leads?period=' + S.period + (S.period === 'date' ? '&date=' + S.date : ''))
@@ -526,7 +538,7 @@ function openVerificationModal(userId: string, name: string): void {
   S.verifications = null;
   S.editingClaimId = null;
   render();
-  api<VerificationItem[]>('GET', '/api/manager/verifications?userId=' + encodeURIComponent(userId))
+  api<VerificationItem[]>('GET', '/api/manager/verifications?userId=' + encodeURIComponent(userId) + '&period=' + S.period + (S.period === 'date' ? '&date=' + S.date : ''))
     .then((items) => {
       S.verifications = items;
       S.loadingVerifications = false;
@@ -683,6 +695,13 @@ document.addEventListener('click', (e) => {
     render();
     return;
   }
+  if ((c = hit('[data-pl-stage]'))) {
+    S.leadStage = c.dataset['plStage'] || 'all';
+    render();
+    const body = document.querySelector('.pl-body');
+    if (body) body.scrollTop = 0;
+    return;
+  }
   if ((c = hit('[data-pl-toggle]'))) {
     const id = c.dataset['plToggle'];
     if (id) {
@@ -762,7 +781,6 @@ document.addEventListener('click', (e) => {
         if (S.verifyUser) {
           const person = data().people.find((p) => p.id === S.verifyUser?.id);
           if (person && S.verifications) {
-            person.stats.won = S.verifications.filter((x) => x.status === 'Won').length;
             person.stats.verifiedWon = S.verifications.filter((x) => x.status === 'Won' && x.verified === 1).length;
           }
         }
