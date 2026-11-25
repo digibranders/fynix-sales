@@ -639,13 +639,15 @@ button.qsec[aria-expanded="true"] .chev{transform:rotate(180deg)}
 .fu-btn .ph{color:var(--muted)}
 .fu-btn .ico{color:var(--muted);width:16px;height:16px;flex:none}
 .pop.cal{width:min(288px,calc(100vw - 32px));padding:10px}
+/* The follow-up calendar sits in the first column of .sf, whose dropdowns are forced to 180px; the calendar needs its own width. */
+.sf > div:first-child .pop.cal{width:min(288px,calc(100vw - 32px))}
 .cal-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-weight:500}
 .cal-nav{width:28px;height:28px;border:0;background:none;border-radius:6px;cursor:pointer;display:grid;place-items:center}
 .cal-nav:hover{background:var(--hover)}
 .cal-nav svg{width:6px;height:10px;stroke:var(--fg);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .cal-w,.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
 .cal-w span{font-size:11px;color:var(--faint);padding:4px 0}
-.cal-d{height:34px;border:0;background:none;border-radius:8px;cursor:pointer;font-size:13px;color:var(--fg)}
+.cal-d{height:34px;min-width:0;padding:0;border:0;background:none;border-radius:8px;cursor:pointer;font-size:13px;color:var(--fg)}
 .cal-d:hover{background:var(--hover)}
 .cal-d.today{box-shadow:inset 0 0 0 1px var(--line2)}
 .cal-d.sel{background:var(--ink);color:var(--ink-fg)}
