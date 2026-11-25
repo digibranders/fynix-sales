@@ -589,6 +589,20 @@ function inviteBody(name: string, email: string, canEmail: boolean, reset: boole
 function newForm(): ModalForm {
   return { error: '', busy: false, id: '', name: '', email: '', role: 'sales', cat: dc(), members: [], lists: [], wss: [], csv: '', xlsx: '', fileName: '', title: '', body: '', link: '', userId: '', canEmail: false, sent: false, coupon: { code: '', kind: 'percent', value: '', months: '', expiry: '', max: '', calOpen: false, dd: '', calY: new Date().getFullYear(), calM: new Date().getMonth() } };
 }
+function loadCouponRows(userId: string): void {
+  api<{ coupons: { id: string; code: string; userId: string; payingClients: number }[] }>('GET', '/api/admin/coupons')
+    .then((res) => {
+      if (S.modal !== 'clients' || S.form.m?.id !== userId) return;
+      couponRows = res.coupons.filter((c) => c.userId === userId).map((c) => ({ id: c.id, code: c.code, payingClients: c.payingClients }));
+      paintModal();
+    })
+    .catch(() => undefined);
+}
+
+/** The coupons of the salesperson whose Paying clients popup is open, and the one waiting for a remove confirmation. */
+let couponRows: { id: string; code: string; payingClients: number }[] = [];
+let couponConfirm = '';
+
 function openModal(kind: 'ws' | 'list' | 'person'): void;
 function openModal(kind: 'editpeople' | 'rename' | 'category' | 'clients', personId: string): void;
 function openModal(kind: 'coupon', personId?: string): void;
@@ -611,6 +625,9 @@ function openModal(kind: ModalKind, extra?: string | LinkInfo): void {
     if (!p) return;
     F.id = p.id;
     F.name = p.name;
+    couponRows = [];
+    couponConfirm = '';
+    loadCouponRows(p.id);
   } else if (kind === 'coupon') {
     F.userId = typeof extra === 'string' ? extra : '';
   }
@@ -658,6 +675,26 @@ function syncFields(): void {
     F.coupon.max = field('cp-max') ?? F.coupon.max;
   }
 }
+/** The salesperson's coupons, each with a Remove button. A coupon that clients paid with cannot be removed. */
+function couponListHtml(): string {
+  if (couponRows.length === 0) return '';
+  return (
+    '<span class="fl">Coupons</span><div class="cp-list">' +
+    couponRows
+      .map((c) => {
+        const used = c.payingClients > 0;
+        const action = couponConfirm === c.id
+          ? '<span class="muted">Turn off and remove?</span><button type="button" class="btn sm" data-cp-keep>Keep</button><button type="button" class="btn sm danger" data-cp-rm-yes="' + esc(c.id) + '">Remove</button>'
+          : used
+            ? '<small class="muted">Clients have paid with it</small>'
+            : '<button type="button" class="btn sm" data-cp-rm="' + esc(c.id) + '">Remove</button>';
+        return '<div class="cp-item"><span class="tag-chip">' + esc(c.code) + '</span><span class="cp-act">' + action + '</span></div>';
+      })
+      .join('') +
+    '</div><p class="hint">Removing turns the code off in BrandBasket and takes it off Fynix.</p>'
+  );
+}
+
 function paintModal(): void {
   const F = S.form.m;
   const k = S.modal;
@@ -714,7 +751,7 @@ function paintModal(): void {
     const clients = p ? p.coupons.clients : [];
     h =
       mh('Paying clients: ' + esc(F.name)) +
-      '<div class="mb"><p class="hint" style="margin-top:0">' + (p && p.coupons.codes.length ? 'Coupons: ' + p.coupons.codes.map(esc).join(', ') + '. ' : 'No coupon yet. ') + 'Each client is counted once, from paid coupon payments only.</p>' + clientCards(clients, esc) + '</div><div class="df"><button class="btn dark" data-close>Done</button></div>';
+      '<div class="mb"><p class="hint" style="margin-top:0">' + (p && p.coupons.codes.length ? '' : 'No coupon yet. ') + 'Each client is counted once, from paid coupon payments only.</p>' + couponListHtml() + clientCards(clients, esc) + '</div><div class="df"><button class="btn dark" data-close>Done</button></div>';
   } else if (k === 'coupon') {
     const sellers = data().people.filter((p) => p.role === 'sales' && p.active && !p.invited);
     const c = F.coupon;
@@ -1049,6 +1086,33 @@ document.addEventListener('click', (e) => {
       paintModal();
       return;
     }
+  }
+  if ((c = hit('[data-cp-rm]'))) {
+    couponConfirm = c.dataset['cpRm'] ?? '';
+    paintModal();
+    return;
+  }
+  if (hit('[data-cp-keep]')) {
+    couponConfirm = '';
+    paintModal();
+    return;
+  }
+  if ((c = hit('[data-cp-rm-yes]'))) {
+    const id = c.dataset['cpRmYes'] ?? '';
+    const gone = couponRows.find((r) => r.id === id);
+    api<unknown>('DELETE', '/api/admin/coupons/' + encodeURIComponent(id))
+      .then(() => {
+        couponRows = couponRows.filter((r) => r.id !== id);
+        couponConfirm = '';
+        toast((gone ? 'Coupon ' + gone.code : 'Coupon') + ' removed');
+        return reload(paintModal);
+      })
+      .catch((err: unknown) => {
+        couponConfirm = '';
+        toast(messageOf(err, 'The coupon could not be removed.'));
+        paintModal();
+      });
+    return;
   }
   if ((c = hit('[data-clients]'))) {
     openModal('clients', c.dataset['clients'] ?? '');

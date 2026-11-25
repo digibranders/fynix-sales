@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import type { Db } from '../src/db.js';
-import { all, openDb } from '../src/db.js';
+import { all, openDb, run } from '../src/db.js';
 import { bbSignature } from '../src/routes/coupons.js';
 import { seedDatabase } from '../src/seed.js';
 
@@ -120,6 +120,69 @@ describe('creating a coupon', () => {
     assert.equal(res.statusCode, 400);
     res = await app.inject({ method: 'POST', url: '/api/admin/coupons', headers: { cookie: aarav }, payload: { code: 'PRIYA10', userId, discountKind: 'percent', discountValue: 10 } });
     assert.equal(res.statusCode, 409);
+  });
+});
+
+describe('removing a coupon', () => {
+  async function addCoupon(code: string): Promise<string> {
+    const id = `cp_${code}`;
+    await run(
+      db,
+      `INSERT INTO coupons (id, code, user_id, bb_coupon_id, currency, discount_kind, discount_value, created_at) VALUES (?, ?, ?, 'bb_x', 'INR', 'percent', '10', ?)`,
+      [id, code, await salesId(), Date.now()],
+    );
+    return id;
+  }
+
+  it('turns the code off in BrandBasket, then removes it here, for superadmins only', async () => {
+    const id = await addCoupon('REMOVEME');
+    const sales = await login('priya@fynix.test');
+    const denied = await app.inject({ method: 'DELETE', url: `/api/admin/coupons/${id}`, headers: { cookie: sales } });
+    assert.equal(denied.statusCode, 403);
+    const aarav = await login('aarav@fynix.test');
+    const seen: { url?: string; auth?: string | null; body?: Record<string, unknown> } = {};
+    stubBb(200, { id: 'bb_x', active: false }, seen);
+    const res = await app.inject({ method: 'DELETE', url: `/api/admin/coupons/${id}`, headers: { cookie: aarav } });
+    assert.equal(res.statusCode, 200, res.body);
+    assert.equal(seen.url, 'http://bb.test/api/integrations/fynix/coupons/bb_x/turn-off');
+    assert.equal(seen.auth, `Bearer ${KEY}`);
+    assert.equal((await all(db, 'SELECT 1 FROM coupons WHERE id = ?', [id])).length, 0);
+    const again = await app.inject({ method: 'DELETE', url: `/api/admin/coupons/${id}`, headers: { cookie: aarav } });
+    assert.equal(again.statusCode, 404);
+  });
+
+  it('keeps the coupon here when BrandBasket could not turn it off', async () => {
+    const id = await addCoupon('STAYS');
+    const aarav = await login('aarav@fynix.test');
+    stubBb(500, { error: 'boom' });
+    const failed = await app.inject({ method: 'DELETE', url: `/api/admin/coupons/${id}`, headers: { cookie: aarav } });
+    assert.equal(failed.statusCode, 502);
+    // A 404 with no message means BrandBasket does not have the feature yet: still nothing removed.
+    globalThis.fetch = (async () => new Response('<html>Not found</html>', { status: 404 })) as typeof fetch;
+    const unsupported = await app.inject({ method: 'DELETE', url: `/api/admin/coupons/${id}`, headers: { cookie: aarav } });
+    assert.equal(unsupported.statusCode, 502);
+    assert.equal(JSON.parse(unsupported.body).error, 'bb_unsupported');
+    assert.equal((await all(db, 'SELECT 1 FROM coupons WHERE id = ?', [id])).length, 1);
+    // BrandBasket saying it has no such code is fine: remove it here as well.
+    stubBb(404, { error: 'That code no longer exists.' });
+    const gone = await app.inject({ method: 'DELETE', url: `/api/admin/coupons/${id}`, headers: { cookie: aarav } });
+    assert.equal(gone.statusCode, 200, gone.body);
+  });
+
+  it('keeps a coupon that clients have paid with, so their payments stay counted', async () => {
+    const id = await addCoupon('KEEPME');
+    await run(
+      db,
+      `INSERT INTO coupon_payments (event_id, coupon_id, business_id, client_name, client_email, payment_id, kind, amount_cents, currency, paid_at, received_at)
+       VALUES ('evt_keep', ?, 'biz_1', 'Client', 'c@example.com', 'pay_1', 'subscription', 1000, 'INR', ?, ?)`,
+      [id, Date.now(), Date.now()],
+    );
+    const aarav = await login('aarav@fynix.test');
+    const res = await app.inject({ method: 'DELETE', url: `/api/admin/coupons/${id}`, headers: { cookie: aarav } });
+    assert.equal(res.statusCode, 409);
+    assert.equal((await all(db, 'SELECT 1 FROM coupon_payments WHERE event_id = ?', ['evt_keep'])).length, 1);
+    // The webhook tests below count every stored payment, so leave nothing behind.
+    await run(db, 'DELETE FROM coupons WHERE id = ?', [id]);
   });
 });
 

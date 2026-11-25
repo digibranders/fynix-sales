@@ -67,6 +67,22 @@ function paidAtMs(value: number | string): number {
 export function registerCouponRoutes(app: FastifyInstance, ctx: AppContext): void {
   const { db, config } = ctx;
 
+  /** One call to BrandBasket with our integration key. A network failure or a timeout is a 502 for the caller. */
+  async function callBb(path: string, payload: object): Promise<Response> {
+    try {
+      const target = new URL(`${config.bbApiUrl}${path}`);
+      const headers: Record<string, string> = { 'content-type': 'application/json', authorization: `Bearer ${config.integrationKey}` };
+      // Windows cannot look up name.localhost addresses, so go to the loopback address and keep the name in the Host header.
+      if (target.hostname.endsWith('.localhost')) {
+        headers['host'] = target.host;
+        target.hostname = '127.0.0.1';
+      }
+      return await fetch(target, { method: 'POST', headers, body: JSON.stringify(payload), signal: AbortSignal.timeout(10_000) });
+    } catch {
+      throw new HttpError(502, 'bb_unreachable', 'Could not reach BrandBasket. Try again in a moment.');
+    }
+  }
+
   /** Creates the code in BrandBasket first, then keeps it here next to the salesperson it belongs to. */
   app.post('/api/admin/coupons', async (request, reply) => {
     const me = superadmin(request);
@@ -76,32 +92,15 @@ export function registerCouponRoutes(app: FastifyInstance, ctx: AppContext): voi
     if (await one(db, 'SELECT 1 AS x FROM coupons WHERE code = ?', [body.code])) throw new HttpError(409, 'duplicate', 'That coupon code already exists.');
     if (!config.integrationKey) throw new HttpError(503, 'not_configured', 'The BrandBasket link is not set up yet (FYNIX_INTEGRATION_KEY).');
 
-    let res: Response;
-    try {
-      const target = new URL(`${config.bbApiUrl}/api/integrations/fynix/coupons`);
-      const headers: Record<string, string> = { 'content-type': 'application/json', authorization: `Bearer ${config.integrationKey}` };
-      // Windows cannot look up name.localhost addresses, so go to the loopback address and keep the name in the Host header.
-      if (target.hostname.endsWith('.localhost')) {
-        headers['host'] = target.host;
-        target.hostname = '127.0.0.1';
-      }
-      res = await fetch(target, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          code: body.code,
-          currency: body.currency,
-          discountKind: body.discountKind,
-          discountValue: String(body.discountValue),
-          ...(body.discountMonths ? { discountMonths: body.discountMonths } : {}),
-          ...(body.expiresAt ? { expiresAt: body.expiresAt } : {}),
-          ...(body.maxRedemptions ? { maxRedemptions: body.maxRedemptions } : {}),
-        }),
-        signal: AbortSignal.timeout(10_000),
-      });
-    } catch {
-      throw new HttpError(502, 'bb_unreachable', 'Could not reach BrandBasket. Try again in a moment.');
-    }
+    const res = await callBb('/api/integrations/fynix/coupons', {
+      code: body.code,
+      currency: body.currency,
+      discountKind: body.discountKind,
+      discountValue: String(body.discountValue),
+      ...(body.discountMonths ? { discountMonths: body.discountMonths } : {}),
+      ...(body.expiresAt ? { expiresAt: body.expiresAt } : {}),
+      ...(body.maxRedemptions ? { maxRedemptions: body.maxRedemptions } : {}),
+    });
     const answer = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (res.status === 409) throw new HttpError(409, 'duplicate', 'That coupon code already exists in BrandBasket.');
     if (res.status === 422) {
@@ -160,6 +159,39 @@ export function registerCouponRoutes(app: FastifyInstance, ctx: AppContext): voi
         payingClients: c.clients,
       })),
     };
+  });
+
+  /**
+   * Turns the code off in BrandBasket first, then removes it here, so a failure leaves both sides as they were.
+   * A coupon that clients have paid with is kept, because deleting it would erase those payments from the counts.
+   */
+  app.delete<{ Params: { id: string } }>('/api/admin/coupons/:id', async (request) => {
+    const me = superadmin(request);
+    const coupon = await one<{ id: string; code: string; bb_coupon_id: string; user_name: string }>(
+      db,
+      'SELECT c.id, c.code, c.bb_coupon_id, u.name AS user_name FROM coupons c JOIN users u ON u.id = c.user_id WHERE c.id = ?',
+      [request.params.id],
+    );
+    if (!coupon) throw new HttpError(404, 'not_found', 'Coupon not found.');
+    if (await one(db, 'SELECT 1 AS x FROM coupon_payments WHERE coupon_id = ? LIMIT 1', [coupon.id])) {
+      throw new HttpError(409, 'in_use', 'Clients have already paid with this coupon, so it cannot be removed.');
+    }
+    if (!config.integrationKey) throw new HttpError(503, 'not_configured', 'The BrandBasket link is not set up yet (FYNIX_INTEGRATION_KEY).');
+
+    const res = await callBb(`/api/integrations/fynix/coupons/${encodeURIComponent(coupon.bb_coupon_id)}/turn-off`, {});
+    if (res.status === 401 || res.status === 403) throw new HttpError(502, 'bb_auth', 'BrandBasket did not accept our integration key.');
+    if (res.status === 404) {
+      // BrandBasket answers 404 with a JSON message when it no longer has the code, which is fine to remove here too.
+      // A 404 without one means BrandBasket does not have this feature yet.
+      const answer = (await res.json().catch(() => null)) as { error?: unknown } | null;
+      if (typeof answer?.error !== 'string') throw new HttpError(502, 'bb_unsupported', 'BrandBasket cannot turn coupons off yet. Switch the code off in the BrandBasket console instead.');
+    } else if (!res.ok) {
+      throw new HttpError(502, 'bb_error', 'BrandBasket could not turn the coupon off. Try again.');
+    }
+
+    await run(db, 'DELETE FROM coupons WHERE id = ?', [coupon.id]);
+    await logActivity(db, null, `${me.name} removed coupon ${coupon.code} from ${coupon.user_name}`, '');
+    return { ok: true };
   });
 
   // The webhook lives in its own scope so the body arrives as the exact text BrandBasket signed.

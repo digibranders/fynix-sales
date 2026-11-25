@@ -241,3 +241,8 @@ html:has(.backdrop){overflow:hidden}
 .dd-o.sel{font-weight:600}
 .dd-o.sel::after{content:"";width:10px;height:6px;border-left:2px solid var(--fg);border-bottom:2px solid var(--fg);transform:rotate(-45deg) translate(1px,-1px)}
 @keyframes dd-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+
+/* Coupons listed inside a salesperson's Paying clients popup */
+.cp-list{display:flex;flex-direction:column;gap:6px;margin:4px 0 6px}
+.cp-item{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+.cp-act{display:flex;align-items:center;gap:8px}
