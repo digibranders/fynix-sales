@@ -180,6 +180,12 @@ describe('manager', () => {
     assert.equal(priyaStats.won, 5, 'Priya claimed 5 won');
     assert.equal(priyaStats.verifiedWon, 3, 'Manager verified 3 won');
 
+    // The Paid popup for the same period lists exactly the claims the Paid number counts.
+    const inPeriod = (await call(nisha, 'GET', '/api/manager/verifications?period=month')).body as unknown as { id: string; ownerName: string }[];
+    assert.equal(inPeriod.filter((v) => claimIds.includes(v.id)).length, priyaStats.won, 'popup list matches the Paid count');
+    const otherDay = (await call(nisha, 'GET', '/api/manager/verifications?period=date&date=2020-01-01')).body as unknown as unknown[];
+    assert.equal(otherDay.length, 0, 'a day with no paid deals lists none');
+
     // Priya (salesperson) bootstrap also reflects the verified status on the claims
     const bootSalesAfter = (await call(priya, 'GET', '/api/sales/bootstrap')).body as {
       leads: { id: string; work: Record<string, { verified: number; verificationNote: string | null }> }[];

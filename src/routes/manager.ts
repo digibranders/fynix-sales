@@ -162,7 +162,7 @@ export function registerManagerRoutes(app: FastifyInstance, ctx: AppContext): vo
     };
   });
 
-  app.get<{ Querystring: { userId?: string; category?: Category } }>('/api/manager/verifications', async (request) => {
+  app.get<{ Querystring: { userId?: string; category?: Category; period?: string; date?: string } }>('/api/manager/verifications', async (request) => {
     const { scope } = manager(request);
     const qCat = request.query.category;
     const qUser = request.query.userId;
@@ -174,6 +174,14 @@ export function registerManagerRoutes(app: FastifyInstance, ctx: AppContext): vo
     if (qUser) {
       extra += ' AND c.owner_id = ?';
       params.push(qUser);
+    }
+    // With a period, list exactly the claims the Paid count covers: those that reached Paid in that window.
+    let wonFilter = "(c.status = 'Won' OR c.verified IN (1, 2))";
+    if (request.query.period !== undefined) {
+      const { period, date } = periodQuery.parse({ period: request.query.period, date: request.query.date });
+      const range = periodRange(period, date);
+      wonFilter = "c.id IN (SELECT e.claim_id FROM claim_events e WHERE e.status = 'Won' AND e.at >= ? AND e.at < ?)";
+      params.unshift(range.since, range.until);
     }
     const rows = await all<VerificationRow>(
       db,
@@ -187,7 +195,7 @@ export function registerManagerRoutes(app: FastifyInstance, ctx: AppContext): vo
          JOIN leads l ON l.id = c.lead_id
          JOIN workspaces w ON w.id = c.workspace_id
          JOIN users u ON u.id = c.owner_id
-        WHERE (c.status = 'Won' OR c.verified IN (1, 2)) AND w.category IN (${marks})${extra}
+        WHERE ${wonFilter} AND w.category IN (${marks})${extra}
         ORDER BY c.verified ASC, closed_at DESC`,
       params,
     );
