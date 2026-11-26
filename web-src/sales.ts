@@ -11,7 +11,7 @@ import {
 import { closestOf, ds, maybeEl, media, prefersReducedMotion, qs } from './sales/dom.js';
 import type {
   ActivityItem, AppState, Bootstrap, Claim, ClaimComment, DdId, DdItem, FilterDrawerState, FoundNote, GbcCategory,
-  GbcData, KpiPeriod, Lead, Me, Notice, NoticeItem, OwnNote, QueueGroup, Report, ServerLead, Service, Tab, Targets,
+  GbcData, KpiPeriod, Lead, Me, Notice, NoticeItem, OwnCoupon, OwnNote, QueueGroup, Report, ServerLead, Service, Tab, Targets,
 } from './sales/types.js';
 import {
   SL, agoText, catLabel, dayOffset, diffDays, domain, esc, fmtAt, fuFull, fuText, has, pad2, plural, safeUrl,
@@ -44,7 +44,7 @@ async function loadGbc(): Promise<GbcData> {
 }
 
 function isTab(t: string): t is Tab {
-  return t === 'info' || t === 'assigned' || t === 'kpi' || t === 'profile';
+  return t === 'info' || t === 'assigned' || t === 'kpi' || t === 'coupons' || t === 'profile';
 }
 function isDdId(id: string): id is DdId {
   return id === 'area' || id === 'grp' || id === 'cat';
@@ -264,11 +264,11 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   /* slide the glass capsule under the selected tab, and ease the content in when the section changes */
   let scrollLock = 0;
   function placePill(): void {
-    const i = ['info', 'assigned', 'kpi', 'profile'].indexOf(state.tab);
+    const i = ['info', 'assigned', 'kpi', 'coupons', 'profile'].indexOf(state.tab);
     qs('.tabs').style.setProperty('--i', String(i < 0 ? 0 : i));
   }
   /* Switching tabs: each block drops in from above, one after another, top to bottom. */
-  const SHOWER = '.head,.tools,.kseg,.katt,.ksec,.kcard,.kpnote,tbody tr,.qhead,.qsec,.item-wrap,.pager,.empty,.pf-card,.pf-stats,.pf-cap,.pf-today,.pf-h,.pf-list,.detail';
+  const SHOWER = '.head,.cp-card,.tools,.kseg,.katt,.ksec,.kcard,.kpnote,tbody tr,.qhead,.qsec,.item-wrap,.pager,.empty,.pf-card,.pf-stats,.pf-cap,.pf-today,.pf-h,.pf-list,.detail';
   function shower(): void {
     if (prefersReducedMotion()) return;
     const els = view.querySelectorAll<HTMLElement>(SHOWER);
@@ -298,11 +298,11 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   function chrome(): void {
     const tt = document.getElementById('top-title');
     if (tt) {
-      const tabTitles: Record<string, string> = { info: 'Leads', assigned: 'Assigned', kpi: 'KPIs', profile: 'Profile' };
+      const tabTitles: Record<string, string> = { info: 'Leads', assigned: 'Assigned', kpi: 'KPIs', coupons: 'Coupons', profile: 'Profile' };
       tt.textContent = tabTitles[state.tab] || 'Leads';
     }
     el('cnt-assigned').textContent = String(mine().length);
-    ['info', 'assigned', 'kpi', 'profile'].forEach((t) => {
+    ['info', 'assigned', 'kpi', 'coupons', 'profile'].forEach((t) => {
       el('tab-' + t).setAttribute('aria-selected', String(state.tab === t));
     });
     qs('.top').classList.toggle('kpi', state.tab === 'kpi' || state.tab === 'profile');
@@ -842,6 +842,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   /* ---------- Notifications ---------- */
   /* Demo-only: the admin panel will send real notices like this one. */
   const NOTICES: Notice[] = DATA.notices.slice();
+  const COUPONS: OwnCoupon[] = DATA.coupons.slice();
   function notifications(): NoticeItem[] {
     const out: NoticeItem[] = [];
     LEADS.forEach((l) => {
@@ -1953,10 +1954,23 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     view.innerHTML = h;
   }
 
+  const COPY_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
+  /* ---------- Coupons tab: the codes the admin made for this person ---------- */
+  function renderCoupons(): void {
+    const h = '<div class="head"><h1>Coupons</h1><span class="sub">' + COUPONS.length + (COUPONS.length === 1 ? ' code' : ' codes') + '</span></div>';
+    if (COUPONS.length === 0) {
+      view.innerHTML = h + '<div class="empty"><b>No coupon yet</b>When your admin makes a coupon code for you, it shows up here.</div>';
+      return;
+    }
+    view.innerHTML = h + '<div class="cp-grid">' + COUPONS.map((c) => {
+      return '<div class="cp-card"><span class="cp-code">' + esc(c.code) + '</span><button type="button" class="cp-copy" data-copy="' + esc(c.code) + '" aria-label="Copy code ' + esc(c.code) + '" title="Copy">' + COPY_ICON + '</button></div>';
+    }).join('') + '</div>';
+  }
+
   /* ---------- wiring ---------- */
   function render(): void {
     chrome();
-    const draw: Record<Tab, () => void> = { info: renderInfo, assigned: renderAssigned, kpi: renderKpi, profile: renderProfile };
+    const draw: Record<Tab, () => void> = { info: renderInfo, assigned: renderAssigned, kpi: renderKpi, coupons: renderCoupons, profile: renderProfile };
     draw[state.tab]();
   }
 
@@ -2097,7 +2111,9 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     const c = closestOf(e, '[data-copy]');
     if (c) {
       try {
-        navigator.clipboard.writeText(ds(c, 'copy')).then(() => undefined, () => {
+        navigator.clipboard.writeText(ds(c, 'copy')).then(() => {
+          toast('Copied');
+        }, () => {
           toast('Copy not available here');
         });
       } catch {
@@ -2417,6 +2433,10 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       SERVICES.length = 0;
       d.workspaces.forEach((w) => {
         SERVICES.push(toService(w));
+      });
+      COUPONS.length = 0;
+      d.coupons.forEach((c) => {
+        COUPONS.push(c);
       });
       NOTICES.length = 0;
       d.notices.forEach((n) => {

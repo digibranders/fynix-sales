@@ -55,3 +55,57 @@ export async function loadPersonCoupons(db: Db, userIds: string[], since: number
   }
   return result;
 }
+
+export interface OwnCoupon {
+  code: string;
+  currency: string;
+  discountKind: 'percent' | 'amount';
+  discountValue: string;
+  /** How many months the discount lasts, or null when it is not limited. */
+  discountMonths: number | null;
+  expiresAt: string | null;
+  maxRedemptions: number | null;
+  createdAt: number;
+  /** The clients who paid with this code, newest payment first (one row per client and currency). */
+  clients: PayingClient[];
+}
+
+/** One salesperson's own coupon codes, newest first, each with the clients who paid with it (all time). */
+export async function loadOwnCoupons(db: Db, userId: string): Promise<OwnCoupon[]> {
+  const coupons = await all<{
+    id: string;
+    code: string;
+    currency: string;
+    discount_kind: string;
+    discount_value: string;
+    discount_months: number | null;
+    expires_at: string | null;
+    max_redemptions: number | null;
+    created_at: number;
+  }>(db, 'SELECT id, code, currency, discount_kind, discount_value, discount_months, expires_at, max_redemptions, created_at FROM coupons WHERE user_id = ? ORDER BY created_at DESC, code', [userId]);
+  if (coupons.length === 0) return [];
+  const paid = await all<{ coupon_id: string; business_id: string; name: string; email: string; amount: number; currency: string; paid_at: number }>(
+    db,
+    `SELECT p.coupon_id, p.business_id, (ARRAY_AGG(p.client_name ORDER BY p.paid_at DESC))[1] AS name,
+            (ARRAY_AGG(p.client_email ORDER BY p.paid_at DESC))[1] AS email,
+            SUM(p.amount_cents) AS amount, p.currency, MAX(p.paid_at) AS paid_at
+       FROM coupon_payments p
+      WHERE p.coupon_id IN (${inClause(coupons.map((c) => c.id))})
+      GROUP BY p.coupon_id, p.business_id, p.currency
+      ORDER BY MAX(p.paid_at) DESC`,
+    coupons.map((c) => c.id),
+  );
+  return coupons.map((c) => ({
+    code: c.code,
+    currency: c.currency,
+    discountKind: c.discount_kind === 'amount' ? 'amount' : 'percent',
+    discountValue: c.discount_value,
+    discountMonths: c.discount_months,
+    expiresAt: c.expires_at,
+    maxRedemptions: c.max_redemptions,
+    createdAt: Number(c.created_at),
+    clients: paid
+      .filter((p) => p.coupon_id === c.id)
+      .map((p) => ({ businessId: p.business_id, name: p.name, email: p.email, code: c.code, amountCents: Number(p.amount), currency: p.currency, paidAt: Number(p.paid_at) })),
+  }));
+}

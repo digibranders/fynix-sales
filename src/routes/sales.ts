@@ -14,6 +14,7 @@ import {
   logActivity,
 } from '../domain.js';
 import type { ClaimDto } from '../domain.js';
+import { loadOwnCoupons } from '../coupons.js';
 import { buildReport, currentMonth, monthRange, shiftMonth, totalsOf } from './reports.js';
 
 interface WorkspaceRow {
@@ -199,6 +200,7 @@ export function registerSalesRoutes(app: FastifyInstance, ctx: AppContext): void
       notices,
       reads,
       targets,
+      coupons: await loadOwnCoupons(db, user.id),
     };
   });
 
