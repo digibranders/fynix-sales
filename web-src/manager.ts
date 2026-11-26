@@ -415,7 +415,7 @@ function vVerifyModal(): string {
           '<td class="actions-col">' +
           '<div class="act-toggle-grp">' +
           '<button type="button" class="act-tbtn' + (isTrue ? ' is-true' : '') + '" data-verify-act="1" data-cid="' + item.id + '" title="Mark as Verified">✓ True</button>' +
-          '<button type="button" class="act-tbtn' + (isFalse ? ' is-false' : '') + '" data-verify-act="2" data-cid="' + item.id + '" title="Mark as Rejected">✕ False</button>' +
+          '<button type="button" class="act-tbtn' + (isFalse ? ' is-false' : '') + '" data-verify-act="2" data-cid="' + item.id + '" title="Mark as False: takes this lead out of the Paid count (it stays under Contacted)">✕ False</button>' +
           '</div>' +
           '<div>' + stageControl + '</div>' +
           '</td>' +
@@ -870,6 +870,8 @@ document.addEventListener('click', (e) => {
           const person = data().people.find((p) => p.id === S.verifyUser?.id);
           if (person && S.verifications) {
             person.stats.verifiedWon = S.verifications.filter((x) => x.verified === 1).length;
+            // False takes a lead out of the Paid number; the lead stays under Contacted.
+            person.stats.won = S.verifications.filter((x) => x.verified !== 2).length;
           }
         }
         render();
@@ -905,6 +907,7 @@ document.addEventListener('click', (e) => {
           const person = data().people.find((p) => p.id === S.verifyUser?.id);
           if (person && S.verifications) {
             person.stats.verifiedWon = S.verifications.filter((x) => x.status === 'Won' && x.verified === 1).length;
+            person.stats.won = S.verifications.filter((x) => x.verified !== 2).length;
           }
         }
         S.editingClaimId = null;

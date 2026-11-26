@@ -169,10 +169,11 @@ export async function loadPeople(db: Db, scope: Category[] | null, since: number
         [u.id, month, until],
       );
       for (const [key, stage] of [['meetings', 'Meeting'], ['won', 'Won']] as const) {
+        // A paid deal the manager marked False is not a paid deal, so it leaves the Paid count (it stays in Contacted).
         stats[key] = await claimCount(
           db,
           `SELECT COUNT(DISTINCT c.id) AS n FROM claims c JOIN claim_events e ON e.claim_id = c.id
-            WHERE c.owner_id = ? AND e.status = ? AND e.at >= ? AND e.at < ?`,
+            WHERE c.owner_id = ? AND e.status = ? AND e.at >= ? AND e.at < ?${key === 'won' ? ' AND c.verified <> 2' : ''}`,
           [u.id, stage, month, until],
         );
       }
