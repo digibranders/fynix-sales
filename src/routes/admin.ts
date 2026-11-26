@@ -143,7 +143,7 @@ async function claimCount(db: Db, sql: string, params: (string | number)[]): Pro
 }
 
 /** Everyone who can sign in with this month's numbers. `scope` limits it to the salespeople of those categories (what a manager may see). */
-export async function loadPeople(db: Db, scope: Category[] | null, since: number = monthStartMs(), until: number = 8.64e15) {
+export async function loadPeople(db: Db, scope: Category[] | null, since: number = monthStartMs(), until: number = 8.64e15, assignedInPeriod = false) {
   const month = since;
   const users = scope
     ? await all<UserRow>(
@@ -156,7 +156,10 @@ export async function loadPeople(db: Db, scope: Category[] | null, since: number
   return Promise.all(users.map(async (u) => {
     const stats = { assigned: 0, contacted: 0, meetings: 0, won: 0, verifiedWon: 0 };
     if (u.role === 'sales') {
-      stats.assigned = await claimCount(db, 'SELECT COUNT(*) AS n FROM claims WHERE owner_id = ?', [u.id]);
+      // Everything they own, or only what was given to them inside the period (the manager's Team page follows the period).
+      stats.assigned = assignedInPeriod
+        ? await claimCount(db, 'SELECT COUNT(*) AS n FROM claims WHERE owner_id = ? AND created_at >= ? AND created_at < ?', [u.id, since, until])
+        : await claimCount(db, 'SELECT COUNT(*) AS n FROM claims WHERE owner_id = ?', [u.id]);
       stats.contacted = await claimCount(
         db,
         `SELECT COUNT(*) AS n FROM (
