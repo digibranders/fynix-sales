@@ -1,4 +1,5 @@
 /** Shapes of the data the sales page sends and receives (see src/routes/sales.ts and src/domain.ts). */
+import type { PayingClient } from '../admin/types.js';
 
 export interface Me {
   id: string;
@@ -86,6 +87,19 @@ export interface Notice {
   at: number;
 }
 
+/** A coupon code made for this salesperson, with the clients who paid using it. */
+export interface OwnCoupon {
+  code: string;
+  currency: string;
+  discountKind: 'percent' | 'amount';
+  discountValue: string;
+  discountMonths: number | null;
+  expiresAt: string | null;
+  maxRedemptions: number | null;
+  createdAt: number;
+  clients: PayingClient[];
+}
+
 export interface Bootstrap {
   me: Me;
   category: string;
@@ -94,6 +108,7 @@ export interface Bootstrap {
   notices: Notice[];
   reads: string[];
   targets: Record<string, number>;
+  coupons: OwnCoupon[];
 }
 
 /** Google Business categories: [name, industry group index, worldwide businesses]. */
@@ -138,7 +153,7 @@ export interface Service {
   icon: string;
 }
 
-export type Tab = 'info' | 'assigned' | 'kpi' | 'profile';
+export type Tab = 'info' | 'assigned' | 'kpi' | 'coupons' | 'profile';
 export type KpiPeriod = 'today' | '7d' | 'month';
 /** The three filter dropdowns. */
 export type DdId = 'area' | 'grp' | 'cat';

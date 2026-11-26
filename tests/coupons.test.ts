@@ -245,3 +245,41 @@ describe('the coupon.paid webhook', () => {
     }
   });
 });
+
+describe('a salesperson sees the coupons made for them', () => {
+  it('shows a new code on their own page, then the client who paid with it, and nobody else sees it', async () => {
+    const aarav = await login('aarav@fynix.test');
+    const aisha = await login('aisha@fynix.test');
+    const karan = await login('karan@fynix.test');
+    const ids = await all<{ id: string }>(db, "SELECT id FROM users WHERE email = 'aisha@fynix.test'");
+    assert.ok(ids[0]);
+
+    const before = await app.inject({ method: 'GET', url: '/api/sales/bootstrap', headers: { cookie: aisha } });
+    const existing = (JSON.parse(before.body).coupons as { code: string }[]).length;
+
+    stubBb(201, { id: 'bb_aisha', code: 'AISHA20' });
+    const made = await app.inject({ method: 'POST', url: '/api/admin/coupons', headers: { cookie: aarav }, payload: { code: 'AISHA20', userId: ids[0].id, discountKind: 'percent', discountValue: 20, discountMonths: 1 } });
+    assert.equal(made.statusCode, 201, made.body);
+
+    const mine = JSON.parse((await app.inject({ method: 'GET', url: '/api/sales/bootstrap', headers: { cookie: aisha } })).body).coupons as { code: string; discountKind: string; discountValue: string; discountMonths: number | null; clients: unknown[] }[];
+    assert.equal(mine.length, existing + 1);
+    const code = mine.find((c) => c.code === 'AISHA20');
+    assert.ok(code);
+    assert.equal(code.discountKind, 'percent');
+    assert.equal(code.discountValue, '20');
+    assert.equal(code.discountMonths, 1);
+    assert.deepEqual(code.clients, []);
+
+    const theirs = JSON.parse((await app.inject({ method: 'GET', url: '/api/sales/bootstrap', headers: { cookie: karan } })).body).coupons as { code: string }[];
+    assert.ok(!theirs.some((c) => c.code === 'AISHA20'));
+
+    const paid = await hook(event({ id: 'evt_aisha', couponCode: 'AISHA20', client: { businessId: 'biz_aisha', name: 'Lotus Salon', email: 'hi@lotus.test' }, payment: { id: 'pay_aisha', kind: 'subscription', amountCents: 80000, currency: 'INR', paidAt: Date.now() } }));
+    assert.equal(paid.statusCode, 200, paid.body);
+    const after = JSON.parse((await app.inject({ method: 'GET', url: '/api/sales/bootstrap', headers: { cookie: aisha } })).body).coupons as { code: string; clients: { name: string; amountCents: number }[] }[];
+    const used = after.find((c) => c.code === 'AISHA20');
+    assert.ok(used);
+    assert.equal(used.clients.length, 1);
+    assert.equal(used.clients[0]?.name, 'Lotus Salon');
+    assert.equal(used.clients[0]?.amountCents, 80000);
+  });
+});
