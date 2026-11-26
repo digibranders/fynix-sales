@@ -87,6 +87,14 @@ export interface Notice {
   at: number;
 }
 
+/** A message a superadmin wrote for this person's category. */
+export interface Message {
+  id: string;
+  subject: string;
+  body: string;
+  at: number;
+}
+
 /** A coupon code made for this salesperson, with the clients who paid using it. */
 export interface OwnCoupon {
   code: string;
@@ -106,6 +114,7 @@ export interface Bootstrap {
   workspaces: Workspace[];
   leads: ServerLead[];
   notices: Notice[];
+  messages: Message[];
   reads: string[];
   targets: Record<string, number>;
   coupons: OwnCoupon[];

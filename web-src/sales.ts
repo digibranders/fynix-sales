@@ -11,7 +11,7 @@ import {
 import { closestOf, ds, maybeEl, media, prefersReducedMotion, qs } from './sales/dom.js';
 import type {
   ActivityItem, AppState, Bootstrap, Claim, ClaimComment, DdId, DdItem, FilterDrawerState, FoundNote, GbcCategory,
-  GbcData, KpiPeriod, Lead, Me, Notice, NoticeItem, OwnCoupon, OwnNote, QueueGroup, Report, ServerLead, Service, Tab, Targets,
+  GbcData, KpiPeriod, Lead, Me, Message, Notice, NoticeItem, OwnCoupon, OwnNote, QueueGroup, Report, ServerLead, Service, Tab, Targets,
 } from './sales/types.js';
 import {
   SL, agoText, catLabel, dayOffset, diffDays, domain, esc, fmtAt, fuFull, fuText, has, pad2, plural, safeUrl,
@@ -843,6 +843,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   /* Demo-only: the admin panel will send real notices like this one. */
   const NOTICES: Notice[] = DATA.notices.slice();
   const COUPONS: OwnCoupon[] = DATA.coupons.slice();
+  const MESSAGES: Message[] = DATA.messages.slice();
   function notifications(): NoticeItem[] {
     const out: NoticeItem[] = [];
     LEADS.forEach((l) => {
@@ -858,6 +859,9 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     NOTICES.forEach((n) => {
       out.push({ id: n.id, kind: n.kind, rank: 2, late: 0, title: n.title, sub: n.sub, tag: 'New', svc: n.svc, tab: n.tab, unread: false });
     });
+    MESSAGES.forEach((m) => {
+      out.push({ id: m.id, kind: 'msg', rank: 2, late: 0, title: m.subject, sub: m.body.split('\n')[0], tag: 'Message', svc: '', unread: false });
+    });
     out.forEach((n) => {
       n.unread = !state.read[n.id];
     });
@@ -871,12 +875,14 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     const sig = state.user + '|' + unread + '|' + open + '|' + list.map((n) => n.id + (n.unread ? '1' : '0')).join(',');
     if (!force && sig === ntSig) return;
     ntSig = sig;
-    const rows = list.filter((n) => n.unread).map((n) => {
-      const s = svc(n.svc);
-      return '<button type="button" class="nrow' + (n.unread ? ' unread' : '') + '" data-ntopt="' + esc(n.id) + '">' + svcIcon(s) + '<span class="ol"><span class="nt-t">' + esc(n.title) + '</span><span class="sm">' + esc(s.name) + ' · ' + esc(n.sub) + '</span></span><span class="nt-tag nt-' + n.kind + '">' + esc(n.tag) + '</span></button>';
+    /* Reminders leave once read; messages from the admin stay (dimmed) so they can be read again. */
+    const shown = list.filter((n) => n.unread || n.kind === 'msg');
+    const rows = shown.map((n) => {
+      const s = n.kind === 'msg' ? null : svc(n.svc);
+      return '<button type="button" class="nrow' + (n.unread ? ' unread' : '') + '" data-ntopt="' + esc(n.id) + '">' + (s ? svcIcon(s) : ptile('bell')) + '<span class="ol"><span class="nt-t">' + esc(n.title) + '</span><span class="sm">' + (s ? esc(s.name) + ' · ' : '') + esc(n.sub) + '</span></span><span class="nt-tag nt-' + n.kind + '">' + esc(n.tag) + '</span></button>';
     }).join('');
     el('nt-dd').innerHTML = '<button type="button" class="nt-btn' + (unread ? ' has' : '') + '" data-ntbtn aria-label="Notifications' + (unread ? ', ' + unread + ' unread' : '') + '" aria-haspopup="true" aria-expanded="' + open + '">' + BELL + (unread ? '<span class="nt-badge">' + (unread > 99 ? '99+' : unread) + '</span>' : '') + '</button>' +
-      (open ? '<div class="pop pop-r nt-pop"><div class="nt-h"><b>Notifications</b>' + (unread ? '<button type="button" class="nt-all" data-ntall>Mark all read</button>' : '') + '</div>' + (unread ? '<div class="opts">' + rows + '</div>' : '<p class="nt-empty"><b>Nothing left</b>You are all caught up.</p>') + '</div>' : '');
+      (open ? '<div class="pop pop-r nt-pop"><div class="nt-h"><b>Notifications</b>' + (unread ? '<button type="button" class="nt-all" data-ntall>Mark all read</button>' : '') + '</div>' + (shown.length ? '<div class="opts">' + rows + '</div>' : '<p class="nt-empty"><b>Nothing left</b>You are all caught up.</p>') + '</div>' : '');
   }
   function markRead(keys: string[]): void {
     const fresh = keys.filter((k) => !state.read[k]);
@@ -892,6 +898,12 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     if (!n) return;
     markRead([id]);
     state.open = '';
+    if (n.kind === 'msg') {
+      const m = MESSAGES.find((x) => x.id === id);
+      renderNt(true);
+      if (m) sheet(m.subject, esc(fmtAt(m.at)), '<div class="flow-body"><p class="msg-body">' + esc(m.body) + '</p></div>');
+      return;
+    }
     state.service = n.svc;
     state.stageFilter = '';
     state.qf = '';
@@ -935,8 +947,8 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       THEMES.map((x) => '<button type="button" class="theme-icon-btn" data-setheme="' + x[0] + '" aria-label="' + esc(x[1]) + ' theme" title="' + esc(x[1]) + '" aria-pressed="' + (curTheme === x[0]) + '">' + (THEME_ICONS[x[0]] || '') + '</button>').join('') +
       '</div>';
     el('who-dd').innerHTML = '<button type="button" class="who-btn" data-whobtn aria-label="Account menu" aria-haspopup="menu" aria-expanded="' + open + '"><span>' + esc(self().name) + '</span>' + CHEV + '</button>' +
-      (open ? '<div class="pop pop-r"><div class="sm pop-h">' + esc(DATA.me.email) + '</div><div class="opts" role="menu"><div class="sm pop-h">Work</div>' + optHtml('data-pfm', 'notes', 'My notes', allNotes().length + (allNotes().length === 1 ? ' note' : ' notes'), false) + optHtml('data-pfm', 'report', 'Monthly report', 'Your numbers, month by month', false) +
-        '<div class="sm pop-h">Theme</div>' + themeSeg + '<div class="sm pop-h">Account</div>' + optHtml('data-pfm', 'name', 'Edit name', self().name, false) + optHtml('data-pfm', 'password', 'Change password', '', false) + optHtml('data-forgotpw', '1', 'Forgot password', '', false) + optHtml('data-pfm', 'signall', 'Sign out of all devices', '', false) + optHtml('data-signout', '1', 'Sign out', '', false) + '</div></div>' : '');
+      (open ? '<div class="pop pop-r"><div class="sm pop-h">' + esc(DATA.me.email) + '</div><div class="opts" role="menu"><div class="sm pop-h">Work</div>' + optHtml('data-pfm', 'notes', 'My notes', allNotes().length + (allNotes().length === 1 ? ' note' : ' notes'), false, false, ptile('note')) + optHtml('data-pfm', 'report', 'Monthly report', 'Your numbers, month by month', false, false, ptile('chart')) +
+        '<div class="sm pop-h">Theme</div>' + themeSeg + '<div class="sm pop-h">Account</div>' + optHtml('data-pfm', 'name', 'Edit name', self().name, false, false, ptile('user')) + optHtml('data-pfm', 'password', 'Change password', '', false, false, ptile('key')) + optHtml('data-forgotpw', '1', 'Forgot password', '', false, false, ptile('key')) + optHtml('data-pfm', 'signall', 'Sign out of all devices', '', false, false, ptile('devices')) + optHtml('data-signout', '1', 'Sign out', '', false, false, ptile('logout')) + '</div></div>' : '');
   }
 
   /* ---------- shared bits ---------- */
@@ -2466,6 +2478,10 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       COUPONS.length = 0;
       d.coupons.forEach((c) => {
         COUPONS.push(c);
+      });
+      MESSAGES.length = 0;
+      d.messages.forEach((m) => {
+        MESSAGES.push(m);
       });
       NOTICES.length = 0;
       d.notices.forEach((n) => {

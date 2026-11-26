@@ -201,6 +201,20 @@ export const notices = pgTable(
   (t) => [index('idx_notices_user').on(t.userId)],
 );
 
+/** A message a superadmin wrote for the salespeople of Scale, Reach or both. It shows in their notifications. */
+export const announcements = pgTable(
+  'announcements',
+  {
+    id: text('id').primaryKey(),
+    audience: text('audience').notNull(),
+    subject: text('subject').notNull(),
+    body: text('body').notNull(),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: ms('created_at').notNull(),
+  },
+  (t) => [index('idx_announcements_at').on(t.createdAt), check('announcements_audience_check', sql`${t.audience} IN ('scale', 'reach', 'both')`)],
+);
+
 export const notificationReads = pgTable(
   'notification_reads',
   {

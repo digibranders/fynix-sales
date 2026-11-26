@@ -6,7 +6,7 @@ export type CategoryFilter = Category | 'all';
 export type FormCat = Category | 'both';
 export type Metric = 'contacted' | 'meetings' | 'won';
 export type Role = 'sales' | 'manager' | 'superadmin';
-export type View = 'overview' | 'workspaces' | 'lists' | 'leads' | 'team' | 'reports';
+export type View = 'overview' | 'workspaces' | 'lists' | 'leads' | 'team' | 'reports' | 'notify';
 
 export interface CategoryInfo {
   name: string;
@@ -114,6 +114,31 @@ export interface Activity {
 export type Targets = Record<Metric, number>;
 
 /** GET /api/admin/bootstrap */
+/** Who a notification is for. */
+export type Audience = Category | 'both';
+
+/** A notification a superadmin sent to salespeople. */
+export interface Announcement {
+  id: string;
+  audience: Audience;
+  subject: string;
+  body: string;
+  at: number;
+  by: string;
+  /** How many active salespeople it reaches. */
+  reach: number;
+}
+
+export interface NotifyForm {
+  audience: Audience;
+  subject: string;
+  body: string;
+  busy: boolean;
+  error: string;
+  /** The notification whose Remove button was pressed and is waiting for a second click. */
+  confirm: string | null;
+}
+
 export interface Bootstrap {
   me: { id: string; name: string; ini: string; email: string };
   categories: Record<Category, CategoryInfo>;
@@ -121,6 +146,7 @@ export interface Bootstrap {
   lists: LeadList[];
   people: Person[];
   activity: Activity[];
+  announcements: Announcement[];
   targets: Partial<Record<Category, Targets>>;
 }
 
@@ -275,4 +301,5 @@ export interface PageState {
   listConfirm: string | null;
   /** The person whose Delete button was pressed and is waiting for a second click. */
   userConfirm: string | null;
+  notify: NotifyForm;
 }
