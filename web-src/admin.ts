@@ -465,14 +465,14 @@ function vNotify(): string {
     '<p class="err" role="alert">' + esc(N.error) + '</p><button class="btn dark" data-nsend' + (N.busy ? ' disabled' : '') + '>' + (N.busy ? 'Sending' : 'Send notification') + '</button></div>';
   h += '<div class="blk"><h2>Sent</h2>';
   h += sent.length
-    ? '<div class="tw"><table><thead><tr><th>Subject</th><th>To</th><th>Reached</th><th>Sent</th><th></th></tr></thead><tbody>' +
+    ? '<div class="tw"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Subject</th><th>To</th><th>Reached</th><th>Sent</th><th></th></tr></thead><tbody>' +
       sent
-        .map((a) => {
+        .map((a, i) => {
           const ask = N.confirm === a.id;
           const acts = ask
             ? '<span class="muted">Take it back from everyone?</span><button class="btn sm" data-nkeep>Keep</button> <button class="btn sm danger" data-ndel="' + esc(a.id) + '">Remove</button>'
             : iconBtn('data-nask', a.id, 'Remove', ACT_ICON.trash, true);
-          return '<tr><td><b style="font-weight:500">' + esc(a.subject) + '</b><div class="muted nf-prev">' + esc(a.body) + '</div></td><td>' + esc(audienceName(a.audience)) + '</td><td class="num">' + num(a.reach) + '</td><td class="muted num">' +
+          return '<tr><td class="muted num">' + (i + 1) + '</td><td><b style="font-weight:500">' + esc(a.subject) + '</b><div class="muted nf-prev">' + esc(a.body) + '</div></td><td>' + esc(audienceName(a.audience)) + '</td><td class="num">' + num(a.reach) + '</td><td class="muted num">' +
             esc(new Date(a.at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + (a.by ? ' · ' + esc(a.by) : '') + '</td><td>' + acts + '</td></tr>';
         })
         .join('') +
