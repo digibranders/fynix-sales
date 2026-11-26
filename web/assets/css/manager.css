@@ -189,11 +189,21 @@
 .perrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}
 .perrow .per{margin:0}
 .datepick{position:relative;display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 12px;border:1px solid var(--line2);border-radius:9px;color:var(--muted);font-weight:500;cursor:pointer;background:var(--bg)}
-.datepick.on{background:var(--sel);color:var(--fg);border-color:var(--fg)}
-.datepick input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0;font-size:16px}
+/* The date control has no outline: the date sits between two arrows that step a day at a time. */
+.dpw{display:inline-flex;align-items:center;gap:2px}
+.datepick{border:0;padding:0 8px;background:transparent;color:var(--fg)}
+.datepick:hover{background:var(--sel)}
+.dstep{width:30px;height:30px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0 0 2px}
+.dstep:hover:not(:disabled){background:var(--sel);color:var(--fg)}
+.dstep:disabled{opacity:.3;cursor:default}
+.dpw{position:relative}
+.datepick{font:inherit}
+.dp-pop{position:absolute;top:calc(100% + 6px);left:0;z-index:40;width:288px;margin:0;box-shadow:0 12px 32px rgba(15,27,45,.16);animation:dd-in .16s ease}
 @media (max-width:700px){
   .perrow .per{flex:1 1 100%}
-  .datepick{flex:1 1 100%;justify-content:center}
+  .dpw{flex:1 1 100%;justify-content:center}
+  .dpw .datepick{flex:1;justify-content:center}
+  .dp-pop{width:100%}
 }
 
 /* Paying clients column */
@@ -222,3 +232,6 @@
 /* Team numbers: larger, in the page font so a zero is a plain 0 (the mono font draws it with a slash). */
 .team .num,.team .pl-btn .num,.team .v-review-btn .num{font-family:var(--f);font-size:16px;font-variant-numeric:tabular-nums;font-feature-settings:"zero" 0,"slashed-zero" 0}
 .team .v-review-btn .num,.team .pl-btn .num{font-weight:600}
+
+/* The number gets a fixed width (room for three digits), so the icon after it stays in one column however many digits it has. */
+.team .pl-btn .num,.team .v-review-btn .num{display:inline-block;min-width:3ch;text-align:left}

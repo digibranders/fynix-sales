@@ -41,22 +41,41 @@ interface VerificationRow {
 
 const periodQuery = z.object({
   period: z.enum(['today', 'week', 'month', 'date']).default('month'),
-  /** The day to look at when the period is "date", as YYYY-MM-DD. */
+  /** The day to look at when the period is "date", or a day inside an earlier week or month, as YYYY-MM-DD. */
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
-/** The window a period covers: midnight today, midnight on Monday, the first of the month, or one chosen day. */
+/** The window a period covers: today, this week or month so far, an earlier whole week or month, or one chosen day. */
 function periodRange(period: 'today' | 'week' | 'month' | 'date', date: string | undefined, now = new Date()): { since: number; until: number } {
-  if (period === 'date') {
-    const [y, m, d] = (date ?? '').split('-').map(Number);
+  /** The chosen day as a local date; a week or month with no day means the current one, which runs up to now. */
+  const chosen = (): Date | null => {
+    if (date === undefined) return null;
+    const [y, m, d] = date.split('-').map(Number);
     const day = new Date(y ?? 0, (m ?? 1) - 1, d ?? 1);
-    if (!date || Number.isNaN(day.getTime())) throw new HttpError(400, 'invalid_request', 'Pick a valid date.');
+    if (Number.isNaN(day.getTime())) throw new HttpError(400, 'invalid_request', 'Pick a valid date.');
+    return day;
+  };
+  if (period === 'date') {
+    const day = chosen();
+    if (!day) throw new HttpError(400, 'invalid_request', 'Pick a valid date.');
     return { since: day.getTime(), until: new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime() };
   }
-  if (period === 'month') return { since: monthStartMs(now), until: 8.64e15 };
-  const day = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  if (period === 'week') day.setDate(day.getDate() - ((day.getDay() + 6) % 7));
-  return { since: day.getTime(), until: 8.64e15 };
+  if (period === 'month') {
+    const day = chosen();
+    if (!day) return { since: monthStartMs(now), until: 8.64e15 };
+    return { since: new Date(day.getFullYear(), day.getMonth(), 1).getTime(), until: new Date(day.getFullYear(), day.getMonth() + 1, 1).getTime() };
+  }
+  if (period === 'week') {
+    const day = chosen();
+    if (day) {
+      const monday = new Date(day.getFullYear(), day.getMonth(), day.getDate() - ((day.getDay() + 6) % 7));
+      return { since: monday.getTime(), until: new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 7).getTime() };
+    }
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    today.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    return { since: today.getTime(), until: 8.64e15 };
+  }
+  return { since: new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime(), until: 8.64e15 };
 }
 
 const verifyBody = z.object({
@@ -88,7 +107,7 @@ export function registerManagerRoutes(app: FastifyInstance, ctx: AppContext): vo
     const people = await loadPeople(db, scope, range.since, range.until);
     return {
       period,
-      date: period === 'date' ? date : undefined,
+      date,
       me: { id: user.id, name: user.name, ini: initials(user.name), email: user.email },
       categories: Object.fromEntries(scope.map((c) => [c, CATEGORY_INFO[c]])),
       workspaces,
