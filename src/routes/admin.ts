@@ -307,6 +307,7 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       createdAt: l.created_at,
       archived: l.archived_at !== null,
       leadCount: await claimCount(db, 'SELECT COUNT(*) AS n FROM leads WHERE list_id = ?', [l.id]),
+      assignedCount: await claimCount(db, 'SELECT COUNT(DISTINCT c.lead_id) AS n FROM claims c JOIN leads l ON l.id = c.lead_id WHERE l.list_id = ?', [l.id]),
       workspaceIds: (await all<{ workspace_id: string }>(db, 'SELECT workspace_id FROM workspace_lists WHERE list_id = ?', [l.id])).map((r) => r.workspace_id),
     })));
 
@@ -508,18 +509,23 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     return { ok: true };
   });
 
-  /** Removing a list deletes its leads for good, so it is refused while any of them are assigned. */
-  app.delete<{ Params: { id: string } }>('/api/admin/lists/:id', async (request) => {
+  /**
+   * Removing a list deletes its leads for good, so it is refused while any of them are assigned,
+   * unless `releaseAll=1` says to release everyone first (their notes and progress on those leads go with them).
+   */
+  app.delete<{ Params: { id: string }; Querystring: { releaseAll?: string } }>('/api/admin/lists/:id', async (request) => {
     const me = superadmin(request);
+    const releaseAll = request.query.releaseAll === '1';
     await tx(db, async (db) => {
       const list = await one<{ name: string; category: Category }>(db, 'SELECT name, category FROM lists WHERE id = ?', [request.params.id]);
       if (!list) throw new HttpError(404, 'not_found', 'That list does not exist.');
       const n = await claimCount(db, 'SELECT COUNT(*) AS n FROM claims c JOIN leads l ON l.id = c.lead_id WHERE l.list_id = ?', [request.params.id]);
-      if (n > 0) {
+      if (n > 0 && !releaseAll) {
         throw new HttpError(409, 'in_use', `${n} leads from ${list.name} are assigned to salespeople. Deactivate the list instead, or release them first.`);
       }
+      if (n > 0) await run(db, 'DELETE FROM claims WHERE lead_id IN (SELECT id FROM leads WHERE list_id = ?)', [request.params.id]);
       await run(db, 'DELETE FROM lists WHERE id = ?', [request.params.id]);
-      await logActivity(db, list.category, `${me.name} removed the ${list.name} list`, CATEGORY_INFO[list.category].name);
+      await logActivity(db, list.category, `${me.name} removed the ${list.name} list`, n > 0 ? `${n} assigned leads released` : CATEGORY_INFO[list.category].name);
     });
     return { ok: true };
   });

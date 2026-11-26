@@ -288,7 +288,9 @@ function vLists(): string {
         const used = d.workspaces.filter((w) => w.listIds.indexOf(l.id) > -1);
         const ask = S.listConfirm === l.id;
         const acts = ask
-          ? '<span class="muted">Remove this data?</span><button class="btn sm" data-lcancel>Keep</button> <button class="btn sm danger" data-ldel="' + esc(l.id) + '">Remove</button>'
+          ? (l.assignedCount > 0
+              ? '<div class="rel-ask"><span class="muted">' + num(l.assignedCount) + ' assigned. Release everyone and remove? Their notes on these leads are deleted.</span><span class="rel-btns"><button class="btn sm" data-lcancel>Keep</button><button class="btn sm danger" data-ldel="' + esc(l.id) + '" data-release="1">Release all and remove</button></span></div>'
+              : '<span class="muted">Remove this data?</span><button class="btn sm" data-lcancel>Keep</button> <button class="btn sm danger" data-ldel="' + esc(l.id) + '">Remove</button>')
           : iconBtn('data-ltoggle', l.id, l.archived ? 'Activate' : 'Deactivate', l.archived ? ACT_ICON.play : ACT_ICON.pause) + iconBtn('data-lask', l.id, 'Remove', ACT_ICON.trash, true);
         return '<tr' + (l.archived ? ' style="opacity:.62"' : '') + '><td class="muted num">' + (i + 1) + '</td><td style="font-weight:500">' + esc(l.name) +
           (l.archived ? ' <span class="muted" style="font-weight:400;font-size:12px;border:1px solid var(--line2);border-radius:6px;padding:1px 6px;margin-left:6px">Inactive</span>' : '') +
@@ -1031,7 +1033,7 @@ document.addEventListener('click', (e) => {
     return;
   }
   if ((c = hit('[data-ldel]'))) {
-    api<unknown>('DELETE', '/api/admin/lists/' + encodeURIComponent(c.dataset['ldel'] ?? ''))
+    api<unknown>('DELETE', '/api/admin/lists/' + encodeURIComponent(c.dataset['ldel'] ?? '') + (c.dataset['release'] === '1' ? '?releaseAll=1' : ''))
       .then(() => {
         S.listConfirm = null;
         toast('Data removed');
