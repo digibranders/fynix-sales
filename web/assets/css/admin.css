@@ -86,7 +86,8 @@ h2{font-size:13px;font-weight:600;margin:0 0 10px}
 .tgt+.tgt{margin-top:14px}
 .tgt h3{grid-column:1/-1;margin:0;font-size:12.5px;font-weight:600}
 
-.tw{border:1px solid var(--line);border-radius:12px;overflow-x:auto}
+/* Tables have no box around them: just the header line and the thin lines between rows. */
+.tw{border:0;border-radius:0;overflow-x:auto}
 table{width:100%;border-collapse:collapse;min-width:640px}
 th{font-weight:500;color:var(--muted);text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);font-size:12.5px;white-space:nowrap}
 td{padding:11px 14px;border-top:1px solid var(--line);vertical-align:middle}
@@ -175,12 +176,23 @@ tbody tr.click:hover{background:var(--hover)}
 .pw{font-family:var(--mono);font-size:15px;background:var(--sel);border-radius:9px;padding:10px 12px;margin:10px 0;word-break:break-all}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#111318;color:#fff;padding:9px 16px;border-radius:10px;z-index:80;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:calc(100% - 32px)}
 
+/* Wide tablets and small laptops: a slimmer sidebar leaves the content room for its columns. */
+@media (min-width:901px) and (max-width:1100px){
+  .app{grid-template-columns:200px minmax(0,1fr)}
+  .main{padding-left:20px;padding-right:20px}
+}
+
 @media (max-width:900px){
-  .app{grid-template-columns:minmax(0,1fr)}
+  /* The bar is as tall as its content; without this the spare height of a short page is shared out and the bar stretches. */
+  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr}
   .side{position:sticky;height:auto;flex-direction:row;align-items:center;overflow-x:auto;padding:10px max(16px,env(safe-area-inset-left,0px));gap:4px;z-index:20}
-  .brand{padding:0 10px 0 0}.brand span,.sec,.me,.sp,.catnote{display:none}
-  .cats{margin:0 0 0 8px;min-width:200px}
-  .nv{width:auto;white-space:nowrap}.nv .c{display:none}
+  .brand{padding:0 10px 0 0}.brand span,.sec,.sp,.catnote{display:none}
+  /* The account stays in the bar as a picture and Sign out, so signing out never disappears on a narrow screen. */
+  .me{margin:0 0 0 auto;padding:0 0 0 8px;border-top:0;flex:none}
+  .me>span:nth-child(2){display:none}
+  .cats{margin:0 0 0 8px;min-width:176px}
+  /* Words only in the bar: the icons are what pushed Sign out off a tablet's screen. */
+  .nv{width:auto;white-space:nowrap;padding:8px 9px}.nv .c,.nv svg{display:none}
   .main{padding:20px max(16px,env(safe-area-inset-right,0px)) 48px max(16px,env(safe-area-inset-left,0px))}
   .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
   .stat:nth-child(3){border-left:0}.stat:nth-child(n+3){border-top:1px solid var(--line)}
