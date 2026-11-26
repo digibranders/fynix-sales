@@ -233,5 +233,5 @@
 .team .num,.team .pl-btn .num,.team .v-review-btn .num{font-family:var(--f);font-size:16px;font-variant-numeric:tabular-nums;font-feature-settings:"zero" 0,"slashed-zero" 0}
 .team .v-review-btn .num,.team .pl-btn .num{font-weight:600}
 
-/* The number gets a fixed width (room for three digits), so the icon after it stays in one column however many digits it has. */
-.team .pl-btn .num,.team .v-review-btn .num{display:inline-block;min-width:3ch;text-align:left}
+/* The number is right-aligned in a slot two digits wide, so it sits against its icon and the icons stay in one column. */
+.team .pl-btn .num,.team .v-review-btn .num{display:inline-block;min-width:2ch;text-align:right}
