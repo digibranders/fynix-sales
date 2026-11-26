@@ -364,6 +364,26 @@ describe('superadmin', () => {
     assert.equal((await call(priya, 'DELETE', `/api/admin/lists/${listId}`)).status, 403);
   });
 
+  it('can release everyone and remove a list that still has assigned leads', async () => {
+    const aarav = await login('aarav@fynix.test');
+    const priya = await login('priya@fynix.test');
+    const csv = ['title,place_id', 'Rel One,rel-1', 'Rel Two,rel-2'].join('\n');
+    const made = await call(aarav, 'POST', '/api/admin/lists', { name: 'Release me', category: 'scale', csv, workspaceIds: ['scale-website'] });
+    const listId = String(made.body['id']);
+    const leads = (await bootstrap(priya)).leads as { id: string; name: string }[];
+    const one = leads.find((l) => l.name === 'Rel One');
+    assert.ok(one);
+    assert.equal((await call(priya, 'POST', '/api/sales/claims', { leadId: one.id, workspaceId: 'scale-website' })).status, 201);
+
+    const listed = async () => ((await call(aarav, 'GET', '/api/admin/bootstrap')).body['lists'] as { id: string; assignedCount: number }[]).find((l) => l.id === listId);
+    assert.equal((await listed())?.assignedCount, 1);
+    assert.equal((await call(aarav, 'DELETE', `/api/admin/lists/${listId}`)).status, 409, 'refused without releaseAll');
+    assert.equal((await call(priya, 'DELETE', `/api/admin/lists/${listId}?releaseAll=1`)).status, 403);
+    assert.equal((await call(aarav, 'DELETE', `/api/admin/lists/${listId}?releaseAll=1`)).status, 200);
+    assert.equal(await listed(), undefined);
+    assert.equal((await bootstrap(priya)).leads.some((l) => (l as { name: string }).name === 'Rel One'), false);
+  });
+
   it('keeps every social link from the CSV together and drops anything that is not a web link', async () => {
     const aarav = await login('aarav@fynix.test');
     const priya = await login('priya@fynix.test');

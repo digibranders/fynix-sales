@@ -34,6 +34,8 @@ export interface LeadList {
   createdAt: number;
   archived: boolean;
   leadCount: number;
+  /** How many of this data's leads are assigned to salespeople right now. */
+  assignedCount: number;
   workspaceIds: string[];
 }
 
