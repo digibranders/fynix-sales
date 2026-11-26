@@ -1005,3 +1005,4 @@ textarea:hover{border-color:var(--faint)}
 .tag-chip{align-self:flex-start;margin-top:2px;font:500 11px var(--mono);border:1px solid var(--line2);border-radius:6px;padding:1px 6px}
 .msg-body{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;line-height:1.55}
 .nrow .ol .sm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.m-head h2{overflow-wrap:anywhere}
