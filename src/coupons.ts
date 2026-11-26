@@ -65,6 +65,8 @@ export interface OwnCoupon {
   discountMonths: number | null;
   expiresAt: string | null;
   maxRedemptions: number | null;
+  /** The superadmin's note for the salesperson, or an empty string. */
+  note: string;
   createdAt: number;
   /** The clients who paid with this code, newest payment first (one row per client and currency). */
   clients: PayingClient[];
@@ -81,8 +83,9 @@ export async function loadOwnCoupons(db: Db, userId: string): Promise<OwnCoupon[
     discount_months: number | null;
     expires_at: string | null;
     max_redemptions: number | null;
+    note: string | null;
     created_at: number;
-  }>(db, 'SELECT id, code, currency, discount_kind, discount_value, discount_months, expires_at, max_redemptions, created_at FROM coupons WHERE user_id = ? ORDER BY created_at DESC, code', [userId]);
+  }>(db, 'SELECT id, code, currency, discount_kind, discount_value, discount_months, expires_at, max_redemptions, note, created_at FROM coupons WHERE user_id = ? ORDER BY created_at DESC, code', [userId]);
   if (coupons.length === 0) return [];
   const paid = await all<{ coupon_id: string; business_id: string; name: string; email: string; amount: number; currency: string; paid_at: number }>(
     db,
@@ -103,6 +106,7 @@ export async function loadOwnCoupons(db: Db, userId: string): Promise<OwnCoupon[
     discountMonths: c.discount_months,
     expiresAt: c.expires_at,
     maxRedemptions: c.max_redemptions,
+    note: c.note ?? '',
     createdAt: Number(c.created_at),
     clients: paid
       .filter((p) => p.coupon_id === c.id)

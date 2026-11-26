@@ -31,10 +31,19 @@ export function clientCards(clients: PayingClient[], esc: (s: string) => string)
   );
 }
 
+/** A whole amount without decimals ("₹250"), or with two when it has paise. */
+function rupees(amount: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency, maximumFractionDigits: Number.isInteger(amount) ? 0 : 2 }).format(amount);
+  } catch {
+    return currency + ' ' + amount;
+  }
+}
+
 /** What a code gives, for example "20% off for the first 3 months" or "₹500 off". */
 export function discountText(kind: 'percent' | 'amount', value: string, currency: string, months: number | null): string {
   const n = Number(value);
-  const off = kind === 'percent' ? (Number.isFinite(n) ? n : value) + '% off' : money(Math.round(n * 100), currency) + ' off';
+  const off = kind === 'percent' ? (Number.isFinite(n) ? n : value) + '% off' : rupees(n, currency) + ' off';
   if (months === null) return off;
   return off + (months === 1 ? ' for the first month' : ' for the first ' + months + ' months');
 }

@@ -283,3 +283,70 @@ describe('a salesperson sees the coupons made for them', () => {
     assert.equal(used.clients[0]?.amountCents, 80000);
   });
 });
+
+describe('the note under a coupon', () => {
+  async function aishaId(): Promise<string> {
+    const rows = await all<{ id: string }>(db, "SELECT id FROM users WHERE email = 'aisha@fynix.test'");
+    assert.ok(rows[0]);
+    return rows[0].id;
+  }
+  const mine = async (cookie: string) => (JSON.parse((await app.inject({ method: 'GET', url: '/api/sales/bootstrap', headers: { cookie } })).body).coupons as { code: string; note: string }[]);
+
+  it('is saved with the coupon, shown to that salesperson only, and can be changed or cleared', async () => {
+    const aarav = await login('aarav@fynix.test');
+    const aisha = await login('aisha@fynix.test');
+    const karan = await login('karan@fynix.test');
+    stubBb(201, { id: 'bb_note' });
+    const made = await app.inject({ method: 'POST', url: '/api/admin/coupons', headers: { cookie: aarav }, payload: { code: 'NOTE100', userId: await aishaId(), discountKind: 'amount', discountValue: 250, note: '  Share with salon leads.\nOffer ends Friday.  ' } });
+    assert.equal(made.statusCode, 201, made.body);
+    const id = (JSON.parse(made.body) as { id: string }).id;
+
+    assert.equal((await mine(aisha)).find((c) => c.code === 'NOTE100')?.note, 'Share with salon leads.\nOffer ends Friday.');
+    assert.ok(!(await mine(karan)).some((c) => c.code === 'NOTE100'));
+    const admin = JSON.parse((await app.inject({ method: 'GET', url: '/api/admin/coupons', headers: { cookie: aarav } })).body).coupons as { code: string; note: string }[];
+    assert.equal(admin.find((c) => c.code === 'NOTE100')?.note, 'Share with salon leads.\nOffer ends Friday.');
+
+    const edit = await app.inject({ method: 'PATCH', url: `/api/admin/coupons/${id}`, headers: { cookie: aarav }, payload: { note: 'New wording.' } });
+    assert.equal(edit.statusCode, 200, edit.body);
+    assert.equal((await mine(aisha)).find((c) => c.code === 'NOTE100')?.note, 'New wording.');
+
+    assert.equal((await app.inject({ method: 'PATCH', url: `/api/admin/coupons/${id}`, headers: { cookie: aarav }, payload: { note: '   ' } })).statusCode, 200);
+    assert.equal((await mine(aisha)).find((c) => c.code === 'NOTE100')?.note, '');
+  });
+
+  it('is optional on a new coupon, and empty then', async () => {
+    const aarav = await login('aarav@fynix.test');
+    const aisha = await login('aisha@fynix.test');
+    stubBb(201, { id: 'bb_nonote' });
+    const made = await app.inject({ method: 'POST', url: '/api/admin/coupons', headers: { cookie: aarav }, payload: { code: 'NONOTE', userId: await aishaId(), discountKind: 'percent', discountValue: 10 } });
+    assert.equal(made.statusCode, 201, made.body);
+    assert.equal((await mine(aisha)).find((c) => c.code === 'NONOTE')?.note, '');
+  });
+
+  it('is for superadmins only, limited to 500 characters, and needs a coupon that exists', async () => {
+    const aarav = await login('aarav@fynix.test');
+    const aisha = await login('aisha@fynix.test');
+    const nisha = await login('nisha@fynix.test');
+    const id = (await all<{ id: string }>(db, "SELECT id FROM coupons WHERE code = 'NOTE100'"))[0]?.id;
+    assert.ok(id);
+    const patch = (cookie: string, target: string, note: string) => app.inject({ method: 'PATCH', url: `/api/admin/coupons/${target}`, headers: { cookie }, payload: { note } });
+    assert.equal((await patch(aisha, id, 'hi')).statusCode, 403);
+    assert.equal((await patch(nisha, id, 'hi')).statusCode, 403);
+    assert.equal((await patch('', id, 'hi')).statusCode, 401);
+    assert.equal((await patch(aarav, id, 'x'.repeat(501))).statusCode, 400);
+    assert.equal((await patch(aarav, id, 'x'.repeat(500))).statusCode, 200);
+    assert.equal((await patch(aarav, 'missing', 'hi')).statusCode, 404);
+    stubBb(201, { id: 'bb_long' });
+    const long = await app.inject({ method: 'POST', url: '/api/admin/coupons', headers: { cookie: aarav }, payload: { code: 'LONGNOTE', userId: await aishaId(), discountKind: 'percent', discountValue: 5, note: 'x'.repeat(501) } });
+    assert.equal(long.statusCode, 400);
+  });
+
+  it('is never sent to BrandBasket', async () => {
+    const aarav = await login('aarav@fynix.test');
+    const seen: { body?: Record<string, unknown> } = {};
+    stubBb(201, { id: 'bb_private' }, seen);
+    await app.inject({ method: 'POST', url: '/api/admin/coupons', headers: { cookie: aarav }, payload: { code: 'PRIVATE1', userId: await aishaId(), discountKind: 'percent', discountValue: 5, note: 'internal only' } });
+    assert.ok(seen.body);
+    assert.equal('note' in seen.body, false);
+  });
+});

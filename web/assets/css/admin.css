@@ -267,3 +267,10 @@ html:has(.backdrop){overflow:hidden}
 .nf{max-width:640px}
 .nf-body{height:auto;min-height:130px;padding:10px 12px;resize:vertical;line-height:1.5;font-family:inherit}
 .nf-prev{max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px}
+
+/* Coupon notes */
+.cp-item.cp-col{flex-direction:column;align-items:stretch;gap:6px}
+.cp-line{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cp-note{font-size:12.5px;white-space:pre-wrap;overflow-wrap:anywhere}
+.cp-note-edit .nf-body{min-height:80px}
+.cp-note-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
