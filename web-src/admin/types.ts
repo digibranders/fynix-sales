@@ -72,6 +72,7 @@ export interface CouponCreateBody {
   discountMonths?: number;
   expiresAt?: string;
   maxRedemptions?: number;
+  note?: string;
 }
 
 export interface CouponForm {
@@ -87,6 +88,7 @@ export interface CouponForm {
   calY: number;
   calM: number;
   max: string;
+  note: string;
 }
 
 export interface Person {

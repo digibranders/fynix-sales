@@ -285,6 +285,8 @@ export const coupons = pgTable(
     discountMonths: integer('discount_months'),
     expiresAt: text('expires_at'),
     maxRedemptions: integer('max_redemptions'),
+    /** A note the superadmin wrote for the salesperson, shown under the code on their Coupons tab. */
+    note: text('note'),
     createdAt: ms('created_at').notNull(),
   },
   (t) => [index('idx_coupons_user').on(t.userId), check('coupons_kind_check', sql`${t.discountKind} IN ('percent', 'amount')`)],

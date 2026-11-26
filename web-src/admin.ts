@@ -630,21 +630,26 @@ function inviteBody(name: string, email: string, canEmail: boolean, reset: boole
     : 'Copy this link and send it to ' + name + '. They open it and choose ' + what + '. Email is not set up yet.';
 }
 function newForm(): ModalForm {
-  return { error: '', busy: false, id: '', name: '', email: '', role: 'sales', cat: dc(), members: [], lists: [], wss: [], csv: '', xlsx: '', fileName: '', title: '', body: '', link: '', userId: '', canEmail: false, sent: false, coupon: { code: '', kind: 'percent', value: '', months: '', expiry: '', max: '', calOpen: false, dd: '', calY: new Date().getFullYear(), calM: new Date().getMonth() } };
+  return { error: '', busy: false, id: '', name: '', email: '', role: 'sales', cat: dc(), members: [], lists: [], wss: [], csv: '', xlsx: '', fileName: '', title: '', body: '', link: '', userId: '', canEmail: false, sent: false, coupon: { code: '', kind: 'percent', value: '', months: '', expiry: '', max: '', note: '', calOpen: false, dd: '', calY: new Date().getFullYear(), calM: new Date().getMonth() } };
 }
 function loadCouponRows(userId: string): void {
-  api<{ coupons: { id: string; code: string; userId: string; payingClients: number }[] }>('GET', '/api/admin/coupons')
+  api<{ coupons: { id: string; code: string; userId: string; payingClients: number; note: string }[] }>('GET', '/api/admin/coupons')
     .then((res) => {
       if (S.modal !== 'clients' || S.form.m?.id !== userId) return;
-      couponRows = res.coupons.filter((c) => c.userId === userId).map((c) => ({ id: c.id, code: c.code, payingClients: c.payingClients }));
+      couponRows = res.coupons.filter((c) => c.userId === userId).map((c) => ({ id: c.id, code: c.code, payingClients: c.payingClients, note: c.note }));
       paintModal();
     })
     .catch(() => undefined);
 }
 
 /** The coupons of the salesperson whose Paying clients popup is open, and the one waiting for a remove confirmation. */
-let couponRows: { id: string; code: string; payingClients: number }[] = [];
+let couponRows: { id: string; code: string; payingClients: number; note: string }[] = [];
 let couponConfirm = '';
+/** The coupon whose note is being edited ('' for none) and what is typed so far. */
+let noteEditing = '';
+let noteDraft = '';
+let noteBusy = false;
+let noteError = '';
 
 function openModal(kind: 'ws' | 'list' | 'person'): void;
 function openModal(kind: 'editpeople' | 'rename' | 'category' | 'clients', personId: string): void;
@@ -670,6 +675,8 @@ function openModal(kind: ModalKind, extra?: string | LinkInfo): void {
     F.name = p.name;
     couponRows = [];
     couponConfirm = '';
+    noteEditing = '';
+    noteError = '';
     loadCouponRows(p.id);
   } else if (kind === 'coupon') {
     F.userId = typeof extra === 'string' ? extra : '';
@@ -716,6 +723,8 @@ function syncFields(): void {
     F.coupon.months = field('cp-months') ?? F.coupon.months;
     F.coupon.expiry = field('cp-expiry') ?? F.coupon.expiry;
     F.coupon.max = field('cp-max') ?? F.coupon.max;
+    const note = document.getElementById('cp-note');
+    if (note instanceof HTMLTextAreaElement) F.coupon.note = note.value;
   }
 }
 /** The salesperson's coupons, each with a Remove button. A coupon that clients paid with cannot be removed. */
@@ -728,13 +737,19 @@ function couponListHtml(): string {
         const used = c.payingClients > 0;
         const action = couponConfirm === c.id
           ? '<span class="muted">Turn off and remove?</span><button type="button" class="btn sm" data-cp-keep>Keep</button><button type="button" class="btn sm danger" data-cp-rm-yes="' + esc(c.id) + '">Remove</button>'
-          : used
-            ? '<small class="muted">Clients have paid with it</small>'
-            : iconBtn('data-cp-rm', c.id, 'Remove coupon ' + c.code, ACT_ICON.trash, true);
-        return '<div class="cp-item"><span class="tag-chip">' + esc(c.code) + '</span><span class="cp-act">' + action + '</span></div>';
+          : (used ? '<small class="muted">Clients have paid with it</small>' : '') +
+            iconBtn('data-cp-note', c.id, 'Edit note for ' + c.code, ACT_ICON.pencil) +
+            (used ? '' : iconBtn('data-cp-rm', c.id, 'Remove coupon ' + c.code, ACT_ICON.trash, true));
+        const note = noteEditing === c.id
+          ? '<div class="cp-note-edit"><textarea class="inp nf-body" id="cp-note-edit" maxlength="500" rows="3" placeholder="A note for the salesperson, shown under the code">' + esc(noteDraft) + '</textarea>' +
+            '<p class="err" role="alert">' + esc(noteError) + '</p><div class="cp-note-btns"><button type="button" class="btn sm" data-cp-note-cancel>Cancel</button><button type="button" class="btn sm dark" data-cp-note-save="' + esc(c.id) + '"' + (noteBusy ? ' disabled' : '') + '>' + (noteBusy ? 'Saving' : 'Save note') + '</button></div></div>'
+          : c.note
+            ? '<div class="cp-note muted">' + esc(c.note) + '</div>'
+            : '';
+        return '<div class="cp-item cp-col"><div class="cp-line"><span class="tag-chip">' + esc(c.code) + '</span><span class="cp-act">' + action + '</span></div>' + note + '</div>';
       })
       .join('') +
-    '</div><p class="hint">Removing turns the code off in BrandBasket and takes it off Fynix.</p>'
+    '</div><p class="hint">Removing turns the code off in BrandBasket and takes it off Fynix. The note shows under the code on the salesperson\'s Coupons tab.</p>'
   );
 }
 
@@ -807,6 +822,7 @@ function paintModal(): void {
       '<div class="cp-row"><div><label class="fl" for="cp-months">For how many months</label><input class="inp" id="cp-months" type="text" inputmode="numeric" placeholder="Optional" value="' + esc(c.months) + '"></div>' +
       '<div><label class="fl" for="cp-max">Max uses</label><input class="inp" id="cp-max" type="text" inputmode="numeric" placeholder="Optional" value="' + esc(c.max) + '"></div></div>' +
       '<span class="fl">Expires on</span><div class="dp-row"><button type="button" class="inp dp-btn" data-cp-cal aria-expanded="' + c.calOpen + '">' + (c.expiry ? esc(expiryLabel(c.expiry)) : 'No expiry') + '</button>' + (c.expiry ? '<button type="button" class="btn sm" data-cp-clear>Clear</button>' : '') + '</div>' + (c.calOpen ? calHtml(c) : '') +
+      '<label class="fl" for="cp-note">Note for the salesperson</label><textarea class="inp nf-body" id="cp-note" maxlength="500" rows="3" placeholder="Optional. For example: Share this with salon leads. Offer ends 31 Dec.">' + esc(c.note) + '</textarea>' +
       '<p class="hint">Created in BrandBasket and credited to the salesperson. Their dashboard counts each client who pays with it.</p>' +
       foot('Create coupon', 'coupon');
   } else if (k === 'link') {
@@ -965,6 +981,7 @@ function save(kind: SaveKind): void {
     if (months !== undefined) body.discountMonths = months;
     if (max !== undefined) body.maxRedemptions = max;
     if (c.expiry) body.expiresAt = c.expiry;
+    if (c.note.trim()) body.note = c.note.trim();
     req = api<unknown>('POST', '/api/admin/coupons', body).then(() => ({ msg: 'Coupon ' + code + ' created', view: 'team' }));
   } else {
     req = api<unknown>('PATCH', '/api/admin/users/' + F.id, { workspaceIds: F.wss }).then(() => ({ msg: 'Workspaces updated', view: 'team' }));
@@ -1185,6 +1202,46 @@ document.addEventListener('click', (e) => {
       paintModal();
       return;
     }
+  }
+  if ((c = hit('[data-cp-note]'))) {
+    const id = c.dataset['cpNote'] ?? '';
+    noteEditing = id;
+    noteDraft = couponRows.find((r) => r.id === id)?.note ?? '';
+    noteError = '';
+    paintModal();
+    const box = document.getElementById('cp-note-edit');
+    if (box instanceof HTMLTextAreaElement) box.focus();
+    return;
+  }
+  if (hit('[data-cp-note-cancel]')) {
+    noteEditing = '';
+    noteError = '';
+    paintModal();
+    return;
+  }
+  if ((c = hit('[data-cp-note-save]'))) {
+    const id = c.dataset['cpNoteSave'] ?? '';
+    const box = document.getElementById('cp-note-edit');
+    const text = (box instanceof HTMLTextAreaElement ? box.value : noteDraft).trim();
+    noteDraft = text;
+    noteBusy = true;
+    noteError = '';
+    paintModal();
+    api<unknown>('PATCH', '/api/admin/coupons/' + encodeURIComponent(id), { note: text })
+      .then(() => {
+        noteBusy = false;
+        const row = couponRows.find((r) => r.id === id);
+        if (row) row.note = text;
+        noteEditing = '';
+        toast(text ? 'Note saved' : 'Note cleared');
+        paintModal();
+      })
+      .catch((err: unknown) => {
+        noteBusy = false;
+        noteError = messageOf(err, 'The note could not be saved.');
+        paintModal();
+      });
+    return;
   }
   if ((c = hit('[data-cp-rm]'))) {
     couponConfirm = c.dataset['cpRm'] ?? '';
@@ -1503,6 +1560,7 @@ document.addEventListener('input', (e) => {
   const field = e.target;
   if (field instanceof HTMLInputElement && field.id === 'n-subject') S.notify.subject = field.value;
   if (field instanceof HTMLTextAreaElement && field.id === 'n-body') S.notify.body = field.value;
+  if (field instanceof HTMLTextAreaElement && field.id === 'cp-note-edit') noteDraft = field.value;
   const input = e.target;
   if (input instanceof HTMLInputElement && input.id === 'lq') {
     S.leads.q = input.value;

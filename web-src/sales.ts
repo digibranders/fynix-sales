@@ -1,5 +1,6 @@
 import { takeEmbedded } from './shared/boot.js';
 import { el } from './shared/dom.js';
+import { discountText, paidOn } from './shared/coupons.js';
 import { initPwa } from './shared/pwa.js';
 import { api, messageOf, statusOf } from './sales/api.js';
 
@@ -2048,7 +2049,16 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       return;
     }
     view.innerHTML = h + '<div class="cp-grid">' + COUPONS.map((c) => {
-      return '<div class="cp-card"><span class="cp-code">' + esc(c.code) + '</span><button type="button" class="cp-copy" data-copy="' + esc(c.code) + '" aria-label="Copy code ' + esc(c.code) + '" title="Copy">' + COPY_ICON + '</button></div>';
+      const give = discountText(c.discountKind, c.discountValue, c.currency, c.discountMonths) + (c.discountMonths === null ? ' every month' : '');
+      const fine = [
+        c.discountKind === 'percent' ? 'On a yearly plan the percentage comes off the whole first year.' : '',
+        c.expiresAt ? 'Valid until ' + paidOn(new Date(c.expiresAt + 'T00:00:00').getTime()) + '.' : '',
+        c.maxRedemptions ? 'Up to ' + c.maxRedemptions + (c.maxRedemptions === 1 ? ' use.' : ' uses.') : '',
+      ].filter(Boolean).join(' ');
+      return '<div class="cp-card"><div class="cp-top"><span class="cp-code">' + esc(c.code) + '</span><button type="button" class="cp-copy" data-copy="' + esc(c.code) + '" aria-label="Copy code ' + esc(c.code) + '" title="Copy">' + COPY_ICON + '</button></div>' +
+        '<p class="cp-off">Clients get ' + esc(give) + '</p>' +
+        (c.note ? '<p class="cp-note">' + esc(c.note) + '</p>' : '') +
+        (fine ? '<p class="sm cp-fine">' + esc(fine) + '</p>' : '') + '</div>';
     }).join('') + '</div>';
   }
 

@@ -104,6 +104,7 @@ export interface OwnCoupon {
   discountMonths: number | null;
   expiresAt: string | null;
   maxRedemptions: number | null;
+  note: string;
   createdAt: number;
   clients: PayingClient[];
 }

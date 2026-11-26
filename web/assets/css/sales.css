@@ -998,7 +998,11 @@ textarea:hover{border-color:var(--faint)}
 
 /* Coupons tab */
 .cp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;align-items:start}
-.cp-card{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--bg);min-width:0}
+.cp-card{border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--bg);min-width:0}
+.cp-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cp-off{margin:4px 0 0;font-weight:500}
+.cp-note{margin:8px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;padding:8px 10px;border-radius:8px;background:var(--hover)}
+.cp-fine{margin:8px 0 0;color:var(--muted)}
 .cp-code{font:600 17px var(--mono);letter-spacing:.04em;overflow-wrap:anywhere}
 .cp-copy{display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:8px;background:none;color:var(--muted);cursor:pointer;flex:none}
 .cp-copy:hover{background:var(--hover);color:var(--fg)}

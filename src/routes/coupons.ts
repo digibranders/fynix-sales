@@ -22,8 +22,11 @@ const couponCreate = z
     discountMonths: z.number().int().min(1).max(120).optional(),
     expiresAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Pick an expiry date.').optional(),
     maxRedemptions: z.number().int().min(1).max(1_000_000).optional(),
+    note: z.string().trim().max(500, 'Keep the note under 500 characters.').optional(),
   })
   .refine((v) => v.discountKind !== 'percent' || v.discountValue <= 100, { message: 'A percentage cannot be more than 100.', path: ['discountValue'] });
+
+const noteBody = z.object({ note: z.string().trim().max(500, 'Keep the note under 500 characters.') });
 
 const paidEvent = z.object({
   id: z.string().min(1).max(200),
@@ -114,9 +117,9 @@ export function registerCouponRoutes(app: FastifyInstance, ctx: AppContext): voi
     const id = newId();
     await run(
       db,
-      `INSERT INTO coupons (id, code, user_id, bb_coupon_id, currency, discount_kind, discount_value, discount_months, expires_at, max_redemptions, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, body.code, body.userId, answer['id'], body.currency, body.discountKind, String(body.discountValue), body.discountMonths ?? null, body.expiresAt ?? null, body.maxRedemptions ?? null, Date.now()],
+      `INSERT INTO coupons (id, code, user_id, bb_coupon_id, currency, discount_kind, discount_value, discount_months, expires_at, max_redemptions, note, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, body.code, body.userId, answer['id'], body.currency, body.discountKind, String(body.discountValue), body.discountMonths ?? null, body.expiresAt ?? null, body.maxRedemptions ?? null, body.note || null, Date.now()],
     );
     await logActivity(db, null, `${me.name} gave coupon ${body.code} to ${person.name}`, '');
     return reply.status(201).send({ id, code: body.code, userId: body.userId, bbCouponId: answer['id'] });
@@ -135,11 +138,12 @@ export function registerCouponRoutes(app: FastifyInstance, ctx: AppContext): voi
       discount_months: number | null;
       expires_at: string | null;
       max_redemptions: number | null;
+      note: string | null;
       created_at: number;
       clients: number;
     }>(
       db,
-      `SELECT c.id, c.code, c.user_id, u.name AS user_name, c.currency, c.discount_kind, c.discount_value, c.discount_months, c.expires_at, c.max_redemptions, c.created_at,
+      `SELECT c.id, c.code, c.user_id, u.name AS user_name, c.currency, c.discount_kind, c.discount_value, c.discount_months, c.expires_at, c.max_redemptions, c.note, c.created_at,
               (SELECT COUNT(DISTINCT p.business_id) FROM coupon_payments p WHERE p.coupon_id = c.id) AS clients
          FROM coupons c JOIN users u ON u.id = c.user_id ORDER BY c.created_at DESC`,
     );
@@ -155,10 +159,22 @@ export function registerCouponRoutes(app: FastifyInstance, ctx: AppContext): voi
         discountMonths: c.discount_months,
         expiresAt: c.expires_at,
         maxRedemptions: c.max_redemptions,
+        note: c.note ?? '',
         createdAt: c.created_at,
         payingClients: c.clients,
       })),
     };
+  });
+
+  /** The note under the code on the salesperson's Coupons tab. An empty note clears it. Nothing is sent to BrandBasket. */
+  app.patch<{ Params: { id: string } }>('/api/admin/coupons/:id', async (request) => {
+    const me = superadmin(request);
+    const body = noteBody.parse(request.body);
+    const coupon = await one<{ code: string; user_name: string }>(db, 'SELECT c.code, u.name AS user_name FROM coupons c JOIN users u ON u.id = c.user_id WHERE c.id = ?', [request.params.id]);
+    if (!coupon) throw new HttpError(404, 'not_found', 'That coupon does not exist.');
+    await run(db, 'UPDATE coupons SET note = ? WHERE id = ?', [body.note || null, request.params.id]);
+    await logActivity(db, null, `${me.name} changed the note on coupon ${coupon.code}`, coupon.user_name);
+    return { ok: true };
   });
 
   /**
