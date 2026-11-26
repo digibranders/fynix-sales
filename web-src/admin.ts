@@ -687,7 +687,7 @@ function couponListHtml(): string {
           ? '<span class="muted">Turn off and remove?</span><button type="button" class="btn sm" data-cp-keep>Keep</button><button type="button" class="btn sm danger" data-cp-rm-yes="' + esc(c.id) + '">Remove</button>'
           : used
             ? '<small class="muted">Clients have paid with it</small>'
-            : '<button type="button" class="btn sm" data-cp-rm="' + esc(c.id) + '">Remove</button>';
+            : iconBtn('data-cp-rm', c.id, 'Remove coupon ' + c.code, ACT_ICON.trash, true);
         return '<div class="cp-item"><span class="tag-chip">' + esc(c.code) + '</span><span class="cp-act">' + action + '</span></div>';
       })
       .join('') +
@@ -751,7 +751,7 @@ function paintModal(): void {
     const clients = p ? p.coupons.clients : [];
     h =
       mh('Paying clients: ' + esc(F.name)) +
-      '<div class="mb"><p class="hint" style="margin-top:0">' + (p && p.coupons.codes.length ? '' : 'No coupon yet. ') + 'Each client is counted once, from paid coupon payments only.</p>' + couponListHtml() + clientCards(clients, esc) + '</div><div class="df"><button class="btn dark" data-close>Done</button></div>';
+      '<div class="mb">' + (p && p.coupons.codes.length ? '' : '<p class="hint" style="margin-top:0">No coupon yet.</p>') + couponListHtml() + clientCards(clients, esc) + '</div><div class="df"><button class="btn dark" data-close>Done</button></div>';
   } else if (k === 'coupon') {
     const sellers = data().people.filter((p) => p.role === 'sales' && p.active && !p.invited);
     const c = F.coupon;
