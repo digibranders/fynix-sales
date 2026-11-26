@@ -104,7 +104,7 @@ export function registerManagerRoutes(app: FastifyInstance, ctx: AppContext): vo
     const workspaces = (await all<WorkspaceRow>(db, 'SELECT id, category, key, name, icon, color FROM workspaces ORDER BY category, position, name')).filter((w) =>
       scope.includes(w.category),
     );
-    const people = await loadPeople(db, scope, range.since, range.until);
+    const people = await loadPeople(db, scope, range.since, range.until, true);
     return {
       period,
       date,

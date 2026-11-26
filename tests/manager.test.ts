@@ -187,15 +187,20 @@ describe('manager', () => {
     assert.equal(otherDay.length, 0, 'a day with no paid deals lists none');
 
     // An earlier whole month or week is its own window: nothing was paid in it, while this month still shows all 5.
-    const wonIn = async (query: string): Promise<number | undefined> => {
-      const boot = (await call(nisha, 'GET', `/api/manager/bootstrap?${query}`)).body as { people: { name: string; stats: { won: number } }[] };
-      return boot.people.find((p) => p.name === 'Priya Sharma')?.stats.won;
+    const priyaIn = async (query: string): Promise<{ assigned: number; won: number } | undefined> => {
+      const boot = (await call(nisha, 'GET', `/api/manager/bootstrap?${query}`)).body as { people: { name: string; stats: { assigned: number; won: number } }[] };
+      return boot.people.find((p) => p.name === 'Priya Sharma')?.stats;
     };
+    const wonIn = async (query: string): Promise<number | undefined> => (await priyaIn(query))?.won;
     const lastMonth = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 15);
     const lastMonthKey = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}-15`;
     assert.equal(await wonIn(`period=month&date=${lastMonthKey}`), 0, 'last month had no paid deals');
     assert.equal(await wonIn('period=week&date=2020-01-08'), 0, 'an old week had none');
     assert.equal(await wonIn('period=month'), 5, 'this month still counts all five');
+    // Assigned follows the period too: the five claims were given to Priya this month, none last month or in an old week.
+    assert.equal((await priyaIn(`period=month&date=${lastMonthKey}`))?.assigned, 0);
+    assert.equal((await priyaIn('period=week&date=2020-01-08'))?.assigned, 0);
+    assert.ok(((await priyaIn('period=month'))?.assigned ?? 0) >= 5, 'this month counts what she was given');
 
     // Priya (salesperson) bootstrap also reflects the verified status on the claims
     const bootSalesAfter = (await call(priya, 'GET', '/api/sales/bootstrap')).body as {
