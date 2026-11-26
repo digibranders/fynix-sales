@@ -916,6 +916,18 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     system: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>'
   };
 
+  /* The account options, shared by the Profile tab (phone) and the account menu (desktop). Returns false for an unknown key. */
+  function profileAction(k: string): boolean {
+    if (k === 'password') openPassword();
+    else if (k === 'name') openName();
+    else if (k === 'signall') openSignAll();
+    else if (k === 'notes') openNotes();
+    else if (k === 'report') openReport();
+    else if (k === 'notifications') setOpen(state.open === 'nt' ? '' : 'nt');
+    else return false;
+    return true;
+  }
+
   function renderWho(): void {
     const open = state.open === 'who';
     const curTheme = themePref();
@@ -923,7 +935,8 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       THEMES.map((x) => '<button type="button" class="theme-icon-btn" data-setheme="' + x[0] + '" aria-label="' + esc(x[1]) + ' theme" title="' + esc(x[1]) + '" aria-pressed="' + (curTheme === x[0]) + '">' + (THEME_ICONS[x[0]] || '') + '</button>').join('') +
       '</div>';
     el('who-dd').innerHTML = '<button type="button" class="who-btn" data-whobtn aria-label="Account menu" aria-haspopup="menu" aria-expanded="' + open + '"><span>' + esc(self().name) + '</span>' + CHEV + '</button>' +
-      (open ? '<div class="pop pop-r"><div class="sm pop-h">' + esc(DATA.me.email) + '</div><div class="opts" role="menu"><div class="sm pop-h">Theme</div>' + themeSeg + '<div class="sm pop-h">Account</div>' + optHtml('data-forgotpw', '1', 'Forgot password', '', false) + optHtml('data-signout', '1', 'Sign out', '', false) + '</div></div>' : '');
+      (open ? '<div class="pop pop-r"><div class="sm pop-h">' + esc(DATA.me.email) + '</div><div class="opts" role="menu"><div class="sm pop-h">Work</div>' + optHtml('data-pfm', 'notes', 'My notes', allNotes().length + (allNotes().length === 1 ? ' note' : ' notes'), false) + optHtml('data-pfm', 'report', 'Monthly report', 'Your numbers, month by month', false) +
+        '<div class="sm pop-h">Theme</div>' + themeSeg + '<div class="sm pop-h">Account</div>' + optHtml('data-pfm', 'name', 'Edit name', self().name, false) + optHtml('data-pfm', 'password', 'Change password', '', false) + optHtml('data-forgotpw', '1', 'Forgot password', '', false) + optHtml('data-pfm', 'signall', 'Sign out of all devices', '', false) + optHtml('data-signout', '1', 'Sign out', '', false) + '</div></div>' : '');
   }
 
   /* ---------- shared bits ---------- */
@@ -1678,12 +1691,30 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
 
   const NOWM = new Date();
   let reportM = monthKey(NOWM.getFullYear(), NOWM.getMonth());
-  function openReport(month: string | null): void {
-    if (month) reportM = month;
-    const cur = monthKey(NOWM.getFullYear(), NOWM.getMonth());
+  /* Opens the sheet once. Moving between months only swaps what is inside it, so the sheet never closes and reopens. */
+  let reportSeq = 0;
+  function openReport(): void {
     sheet('Monthly report', '', '<div class="flow-body" id="rp-body"><p class="sm">One moment</p></div>');
     qs('#layer .modal').classList.add('tall');
+    el('rp-body').addEventListener('click', (e) => {
+      const a = closestOf<HTMLButtonElement>(e, '[data-rpm]');
+      if (a && !a.disabled) {
+        loadReport(shiftM(reportM, parseInt(ds(a, 'rpm'), 10)));
+        return;
+      }
+      const h = closestOf(e, '[data-rpmonth]');
+      if (h) loadReport(ds(h, 'rpmonth'));
+    });
+    loadReport(null);
+  }
+  function loadReport(month: string | null): void {
+    if (month) reportM = month;
+    const seq = ++reportSeq;
+    const cur = monthKey(NOWM.getFullYear(), NOWM.getMonth());
+    const first = document.getElementById('rp-body');
+    if (first) first.classList.add('rp-busy');
     api<Report>('GET', '/api/sales/report?month=' + reportM).then((r) => {
+      if (seq !== reportSeq) return; /* a newer month was asked for meanwhile */
       const tot = r.totals;
       const body =
         '<div class="rp-month" role="group" aria-label="Month"><button type="button" class="rep-arrow" data-rpm="-1" aria-label="Previous month"><svg viewBox="0 0 8 14" aria-hidden="true"><path d="M7 1L1 7l6 6"/></svg></button><b>' + esc(r.label) + '</b>' +
@@ -1699,21 +1730,18 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
         }).join('');
       const box = document.getElementById('rp-body');
       if (!box) return;
+      const firstLoad = !box.querySelector('.rp-month');
       box.innerHTML = body;
-      box.classList.remove('rp-in');
-      void box.offsetWidth;
-      box.classList.add('rp-in');
-      box.addEventListener('click', (e) => {
-        const a = closestOf<HTMLButtonElement>(e, '[data-rpm]');
-        if (a && !a.disabled) {
-          openReport(shiftM(reportM, parseInt(ds(a, 'rpm'), 10)));
-          return;
-        }
-        const h = closestOf(e, '[data-rpmonth]');
-        if (h) openReport(ds(h, 'rpmonth'));
-      });
+      box.classList.remove('rp-busy');
+      if (firstLoad) {
+        box.classList.remove('rp-in');
+        void box.offsetWidth;
+        box.classList.add('rp-in');
+      }
     }).catch((e: unknown) => {
+      if (seq !== reportSeq) return;
       const box = document.getElementById('rp-body');
+      if (box) box.classList.remove('rp-busy');
       if (box) box.innerHTML = '<p class="pw-err">' + esc(messageOf(e, 'The report could not load.')) + '</p>';
     });
   }
@@ -2096,6 +2124,12 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       setTheme(ds(th_, 'setheme'));
       return;
     }
+    const pfm = closestOf(e, '[data-pfm]');
+    if (pfm) {
+      setOpen('');
+      profileAction(ds(pfm, 'pfm'));
+      return;
+    }
     const fp_ = closestOf(e, '[data-forgotpw]');
     if (fp_) {
       setOpen('');
@@ -2183,13 +2217,8 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     const pf = closestOf(e, '[data-pf]');
     if (pf) {
       const k = ds(pf, 'pf');
-      if (k === 'password') openPassword();
-      else if (k === 'name') openName();
-      else if (k === 'signall') openSignAll();
-      else if (k === 'notes') openNotes();
-      else if (k === 'report') openReport(null);
-      else if (k === 'notifications') setOpen(state.open === 'nt' ? '' : 'nt');
-      else if (k === 'today') {
+      if (profileAction(k)) return;
+      if (k === 'today') {
         state.tab = 'assigned';
         state.qf = '';
         state.showDetail = false;
