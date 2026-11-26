@@ -9,6 +9,8 @@ import {
   ico, pi, ptile, svcIcon, tileOf, toService,
 } from './sales/consts.js';
 import { closestOf, ds, maybeEl, media, prefersReducedMotion, qs } from './sales/dom.js';
+import { canPop, unreadMessages } from './sales/popup.js';
+import type { Busy } from './sales/popup.js';
 import type {
   ActivityItem, AppState, Bootstrap, Claim, ClaimComment, DdId, DdItem, FilterDrawerState, FoundNote, GbcCategory,
   GbcData, KpiPeriod, Lead, Me, Message, Notice, NoticeItem, OwnCoupon, OwnNote, QueueGroup, Report, ServerLead, Service, Tab, Targets,
@@ -1065,6 +1067,14 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     wireScrim();
   }
   document.addEventListener('keydown', (e) => {
+    if (state.modal === 'announce') {
+      /* A message from the admin is closed with Got it only, so keys never dismiss it and leave it unread. */
+      if (e.key === 'Tab' || e.key === 'Escape') {
+        e.preventDefault();
+        maybeEl('ann-ok', HTMLButtonElement)?.focus();
+      }
+      return;
+    }
     if (e.key !== 'Escape') return;
     if (state.modal) closeModal();
     else if (state.open) setOpen('');
@@ -1757,6 +1767,41 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       if (box) box.innerHTML = '<p class="pw-err">' + esc(messageOf(e, 'The report could not load.')) + '</p>';
     });
   }
+
+  /* ---------- Pop-up for messages from the admin ---------- */
+  /* An unread message pops up on its own, one at a time, oldest first. Only "Got it" closes it, which marks it read for good. */
+  let announcing = '';
+  function busyNow(): Busy {
+    const a = document.activeElement;
+    const typing = !!a && (a.tagName === 'TEXTAREA' || (a instanceof HTMLInputElement && !['checkbox', 'radio', 'button', 'submit'].includes(a.type)) || (a instanceof HTMLElement && a.isContentEditable));
+    return { modal: !!state.modal, typing, drawer: fd.open, working: assigning, menu: !!state.open, hidden: document.hidden };
+  }
+  function announceNext(): void {
+    if (announcing && state.modal !== 'announce') announcing = ''; /* something else closed it */
+    if (announcing) return;
+    const queue = unreadMessages(MESSAGES, state.read);
+    const m = queue[0];
+    if (!m || !canPop(busyNow())) return;
+    announcing = m.id;
+    state.modal = 'announce';
+    lockScroll();
+    layer.innerHTML = '<div class="scrim" id="scrim"><div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="m-title" aria-describedby="ann-body">' +
+      '<div class="m-head"><div><h2 id="m-title">' + esc(m.subject) + '</h2><div class="sm">Message from your admin · ' + esc(fmtAt(m.at)) + (queue.length > 1 ? ' · 1 of ' + queue.length : '') + '</div></div></div>' +
+      '<div class="flow-body" id="ann-body"><p class="msg-body">' + esc(m.body) + '</p></div>' +
+      '<div class="m-foot"><button type="button" class="btn assign" id="ann-ok">Got it</button></div></div></div>';
+    bindScrim(el('scrim'));
+    const ok = el('ann-ok');
+    ok.onclick = () => {
+      markRead([m.id]);
+      announcing = '';
+      closeModal();
+      renderNt(true);
+      setTimeout(announceNext, 350); /* the next one waits for this one to finish leaving */
+    };
+    ok.focus();
+  }
+  setInterval(announceNext, 3000);
+  setTimeout(announceNext, 700);
 
   function openForgotPw(): void {
     state.modal = 'forgotpw';
