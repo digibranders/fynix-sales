@@ -186,6 +186,17 @@ describe('manager', () => {
     const otherDay = (await call(nisha, 'GET', '/api/manager/verifications?period=date&date=2020-01-01')).body as unknown as unknown[];
     assert.equal(otherDay.length, 0, 'a day with no paid deals lists none');
 
+    // An earlier whole month or week is its own window: nothing was paid in it, while this month still shows all 5.
+    const wonIn = async (query: string): Promise<number | undefined> => {
+      const boot = (await call(nisha, 'GET', `/api/manager/bootstrap?${query}`)).body as { people: { name: string; stats: { won: number } }[] };
+      return boot.people.find((p) => p.name === 'Priya Sharma')?.stats.won;
+    };
+    const lastMonth = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 15);
+    const lastMonthKey = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}-15`;
+    assert.equal(await wonIn(`period=month&date=${lastMonthKey}`), 0, 'last month had no paid deals');
+    assert.equal(await wonIn('period=week&date=2020-01-08'), 0, 'an old week had none');
+    assert.equal(await wonIn('period=month'), 5, 'this month still counts all five');
+
     // Priya (salesperson) bootstrap also reflects the verified status on the claims
     const bootSalesAfter = (await call(priya, 'GET', '/api/sales/bootstrap')).body as {
       leads: { id: string; work: Record<string, { verified: number; verificationNote: string | null }> }[];

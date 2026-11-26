@@ -35,6 +35,10 @@ interface State {
   period: Period;
   /** The day shown when the period is a chosen date (YYYY-MM-DD). */
   date: string;
+  /** The calendar for choosing that day: whether it is open, and the month it shows. */
+  dpOpen: boolean;
+  dpY: number;
+  dpM: number;
   /** The salesperson whose leads are open in the popup, and those leads once loaded. */
   leadsUser: { id: string; name: string } | null;
   personLeads: PersonLead[] | null;
@@ -59,6 +63,9 @@ const S: State = {
   editingClaimId: null,
   period: 'month',
   date: '',
+  dpOpen: false,
+  dpY: new Date().getFullYear(),
+  dpM: new Date().getMonth(),
   leadsUser: null,
   personLeads: null,
   leadStage: 'all',
@@ -165,17 +172,75 @@ function chips(p: TeamMember): string {
   return names.length ? '<div class="chips">' + names.join('') + '</div>' : '<span class="muted">None yet</span>';
 }
 
+const MONTHS: readonly string[] = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+function dayKeyOf(y: number, m: number, d: number): string {
+  return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+
+/** A month grid for choosing the day the Team numbers cover. Days after today cannot be picked. */
+function calendarHtml(): string {
+  const today = todayKey();
+  const now = new Date();
+  const lead = (new Date(S.dpY, S.dpM, 1).getDay() + 6) % 7;
+  const days = new Date(S.dpY, S.dpM + 1, 0).getDate();
+  const atEnd = S.dpY > now.getFullYear() || (S.dpY === now.getFullYear() && S.dpM >= now.getMonth());
+  let cells = '';
+  for (let i = 0; i < lead; i++) cells += '<span></span>';
+  for (let d = 1; d <= days; d++) {
+    const key = dayKeyOf(S.dpY, S.dpM, d);
+    cells += '<button type="button" class="dp-d' + (key === S.date && S.period === 'date' ? ' sel' : '') + (key === today ? ' now' : '') + '" data-dp-day="' + key + '"' + (key > today ? ' disabled' : '') + '>' + d + '</button>';
+  }
+  return (
+    '<div class="dp dp-pop"><div class="dp-h"><button type="button" class="dp-nav" data-dp-nav="-1" aria-label="Previous month">&#8249;</button>' +
+    '<b>' + MONTHS[S.dpM] + ' ' + S.dpY + '</b><button type="button" class="dp-nav" data-dp-nav="1" aria-label="Next month"' + (atEnd ? ' disabled' : '') + '>&#8250;</button></div>' +
+    '<div class="dp-w"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><div class="dp-g">' + cells + '</div></div>'
+  );
+}
+
+/** What the chosen period covers, in words: today's date, the week so far, the month's name, or the picked day. */
+/** The period as the server wants it: the day too when a day, or an earlier week or month, was chosen. */
+function periodParams(): string {
+  return 'period=' + S.period + (S.date !== '' && S.period !== 'today' ? '&date=' + S.date : '');
+}
+
+function mondayOf(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
+}
+
+function periodNote(): string {
+  const now = new Date();
+  if (S.period === 'today') return fmtDay(todayKey());
+  if (S.period === 'week') {
+    const monday = mondayOf(S.date ? new Date(S.date + 'T12:00:00') : now);
+    // The current week runs up to today; an earlier one is shown whole, Monday to Sunday.
+    const end = S.date ? new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6) : now;
+    return fmtDay(dayKeyOf(monday.getFullYear(), monday.getMonth(), monday.getDate()), false) + ' to ' + fmtDay(dayKeyOf(end.getFullYear(), end.getMonth(), end.getDate()), false);
+  }
+  if (S.period === 'month') {
+    const shown = S.date ? new Date(S.date + 'T12:00:00') : now;
+    return MONTHS[shown.getMonth()] + ' ' + shown.getFullYear();
+  }
+  return S.date ? fmtDay(S.date) : '';
+}
+
 function vTeam(): string {
   const people = data().people.filter(inCat);
   const showCat = S.cat === 'all';
   let h = head('Team', 'Who did what, and verifications, ' + sub());
+  // The arrows step by the period: a day, a week or a month. They stop at the current one.
+  const atNow = S.period === 'week' || S.period === 'month' ? S.date === '' : (S.period === 'date' ? S.date : todayKey()) === todayKey();
+  const unit = S.period === 'week' ? 'week' : S.period === 'month' ? 'month' : 'day';
   h +=
-    '<div class="seg per" role="group" aria-label="Period">' +
+    '<div class="perrow"><div class="seg per" role="group" aria-label="Period">' +
     PERIODS.map(([k, label]) => '<button type="button" data-period="' + k + '" aria-pressed="' + (S.period === k) + '">' + label + '</button>').join('') +
     '</div>' +
-    '<label class="datepick' + (S.period === 'date' ? ' on' : '') + '" title="Pick a date">' + CAL + '<span>' + (S.period === 'date' && S.date ? esc(fmtDay(S.date, false)) : 'Pick a date') + '</span>' +
-    '<input type="date" id="pday" aria-label="Pick a date" max="' + todayKey() + '" value="' + esc(S.date) + '"></label>';
-  h = h.replace('<div class="seg per"', '<div class="perrow"><div class="seg per"').replace('</label>', '</label></div>');
+    '<div class="dpw">' +
+    '<button type="button" class="dstep" data-dp-step="-1" aria-label="Previous ' + unit + '">&#8249;</button>' +
+    '<button type="button" class="datepick' + (S.period === 'date' ? ' on' : '') + '" data-dp aria-expanded="' + S.dpOpen + '" aria-haspopup="dialog" aria-label="Pick a date" title="Pick a date">' + CAL + '<span>' + esc(periodNote()) + '</span></button>' +
+    '<button type="button" class="dstep" data-dp-step="1" aria-label="Next ' + unit + '"' + (atNow ? ' disabled' : '') + '>&#8250;</button>' +
+    (S.dpOpen ? calendarHtml() : '') +
+    '</div></div>';
   h +=
     '<div class="tw cards team"><table><thead><tr><th style="width:1%;white-space:nowrap">Sr. no</th><th>Name</th>' + (showCat ? '<th>Category</th>' : '') + '<th>Services</th><th>Assigned</th><th>Contacted</th><th>Paid</th><th>Status</th></tr></thead><tbody>' +
     (people.length
@@ -219,7 +284,7 @@ function shortDay(ms: number): string {
 function loadPeopleFor(): void {
   const p = S.period;
   const day = S.date;
-  api<ManagerBootstrap>('GET', '/api/manager/bootstrap?period=' + p + (p === 'date' ? '&date=' + day : ''))
+  api<ManagerBootstrap>('GET', '/api/manager/bootstrap?' + periodParams())
     .then((d) => {
       if (S.period !== p || S.date !== day) return;
       data().people = d.people;
@@ -524,7 +589,7 @@ function openPersonLeads(id: string, name: string): void {
   S.leadStage = 'all';
   S.openLead = {};
   render();
-  api<PersonLeads>('GET', '/api/manager/people/' + encodeURIComponent(id) + '/leads?period=' + S.period + (S.period === 'date' ? '&date=' + S.date : ''))
+  api<PersonLeads>('GET', '/api/manager/people/' + encodeURIComponent(id) + '/leads?' + periodParams())
     .then((res) => {
       if (S.leadsUser?.id !== id) return;
       S.personLeads = res.leads;
@@ -543,7 +608,7 @@ function openVerificationModal(userId: string, name: string): void {
   S.verifications = null;
   S.editingClaimId = null;
   render();
-  api<VerificationItem[]>('GET', '/api/manager/verifications?userId=' + encodeURIComponent(userId) + '&period=' + S.period + (S.period === 'date' ? '&date=' + S.date : ''))
+  api<VerificationItem[]>('GET', '/api/manager/verifications?userId=' + encodeURIComponent(userId) + '&' + periodParams())
     .then((items) => {
       S.verifications = items;
       S.loadingVerifications = false;
@@ -589,13 +654,11 @@ document.addEventListener('submit', (e) => {
     });
 });
 
-document.addEventListener('change', (e) => {
-  const t = e.target;
-  if (!(t instanceof HTMLInputElement) || t.id !== 'pday' || !t.value) return;
-  S.period = 'date';
-  S.date = t.value;
-  render();
-  loadPeopleFor();
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && S.dpOpen) {
+    S.dpOpen = false;
+    render();
+  }
 });
 
 document.addEventListener('input', (e) => {
@@ -613,6 +676,11 @@ document.addEventListener('click', (e) => {
   const hit = (selector: string): HTMLElement | null => t.closest<HTMLElement>(selector);
   let c: HTMLElement | null;
 
+  // A click anywhere else closes the calendar, and the click then does whatever it was meant to.
+  if (S.dpOpen && !hit('.dpw')) {
+    S.dpOpen = false;
+    render();
+  }
   if (hit('[data-signout]')) {
     const back = (): void => {
       window.location.href = '/login';
@@ -672,21 +740,61 @@ document.addEventListener('click', (e) => {
 
   if ((c = hit('[data-period]'))) {
     const p = c.dataset['period'];
-    if ((p !== 'today' && p !== 'week' && p !== 'month') || p === S.period) return;
+    if ((p !== 'today' && p !== 'week' && p !== 'month') || (p === S.period && S.date === '')) return;
     S.period = p;
+    S.date = '';
     render();
     loadPeopleFor();
     return;
   }
-  if (hit('.datepick')) {
-    const inp = document.getElementById('pday');
-    if (inp instanceof HTMLInputElement && t !== inp) {
-      try {
-        inp.showPicker();
-      } catch {
-        inp.focus();
-      }
+  if (hit('[data-dp]')) {
+    if (!S.dpOpen) {
+      const shown = S.period === 'date' && S.date ? new Date(S.date + 'T12:00:00') : new Date();
+      S.dpY = shown.getFullYear();
+      S.dpM = shown.getMonth();
     }
+    S.dpOpen = !S.dpOpen;
+    render();
+    return;
+  }
+  if ((c = hit('[data-dp-step]'))) {
+    const dir = Number(c.dataset['dpStep']);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const from = S.date ? new Date(S.date + 'T12:00:00') : today;
+    if (S.period === 'week' || S.period === 'month') {
+      const monday = mondayOf(from);
+      const next = S.period === 'week' ? new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 7 * dir) : new Date(from.getFullYear(), from.getMonth() + dir, 1);
+      const nowStart = S.period === 'week' ? mondayOf(today) : new Date(today.getFullYear(), today.getMonth(), 1);
+      if (next.getTime() > nowStart.getTime()) return;
+      S.date = next.getTime() === nowStart.getTime() ? '' : dayKeyOf(next.getFullYear(), next.getMonth(), next.getDate());
+    } else {
+      from.setDate(from.getDate() + dir);
+      const key = dayKeyOf(from.getFullYear(), from.getMonth(), from.getDate());
+      if (key > todayKey()) return;
+      S.period = key === todayKey() ? 'today' : 'date';
+      S.date = key === todayKey() ? '' : key;
+    }
+    S.dpOpen = false;
+    render();
+    loadPeopleFor();
+    return;
+  }
+  if ((c = hit('[data-dp-nav]'))) {
+    const to = new Date(S.dpY, S.dpM + Number(c.dataset['dpNav']), 1);
+    S.dpY = to.getFullYear();
+    S.dpM = to.getMonth();
+    render();
+    return;
+  }
+  if ((c = hit('[data-dp-day]'))) {
+    const key = c.dataset['dpDay'];
+    if (!key || key > todayKey()) return;
+    S.period = 'date';
+    S.date = key;
+    S.dpOpen = false;
+    render();
+    loadPeopleFor();
     return;
   }
   if ((c = hit('[data-person-leads]'))) {
