@@ -186,6 +186,14 @@ export function registerSalesRoutes(app: FastifyInstance, ctx: AppContext): void
       'SELECT id, workspace_id, title, sub, at FROM notices WHERE user_id = ? ORDER BY at DESC LIMIT 30',
       [user.id],
     )).map((n) => ({ id: `n:${n.id}`, kind: 'info', title: n.title, sub: n.sub, svc: n.workspace_id, tab: 'info', at: n.at }));
+    /* Messages from the superadmin for this person's category (or both), from the day they joined. */
+    const messages = (await all<{ id: string; subject: string; body: string; created_at: number }>(
+      db,
+      `SELECT a.id, a.subject, a.body, a.created_at FROM announcements a
+        WHERE (a.audience = 'both' OR a.audience = ?) AND a.created_at >= (SELECT created_at FROM users WHERE id = ?)
+        ORDER BY a.created_at DESC LIMIT 30`,
+      [user.category ?? '', user.id],
+    )).map((m) => ({ id: `a:${m.id}`, subject: m.subject, body: m.body, at: Number(m.created_at) }));
     const reads = (await all<{ key: string }>(db, 'SELECT key FROM notification_reads WHERE user_id = ?', [user.id])).map((r) => r.key);
     const targets: Record<string, number> = {};
     for (const row of await all<{ metric: string; value: number }>(db, 'SELECT metric, value FROM kpi_targets WHERE category = ?', [user.category])) {
@@ -198,6 +206,7 @@ export function registerSalesRoutes(app: FastifyInstance, ctx: AppContext): void
       workspaces,
       leads,
       notices,
+      messages,
       reads,
       targets,
       coupons: await loadOwnCoupons(db, user.id),

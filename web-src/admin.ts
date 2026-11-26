@@ -1,5 +1,6 @@
 import { api, messageOf } from './admin/api.js';
 import type {
+  Audience,
   Bootstrap,
   Category,
   CategoryFilter,
@@ -40,6 +41,7 @@ const NAVICON: Record<string, string> = {
   workspaces:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8"/><path d="M16.8 13.5v6.5M13.5 16.8H20"/></svg>',
   lists:'<svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.8" cy="6" r="1"/><circle cx="4.8" cy="12" r="1"/><circle cx="4.8" cy="18" r="1"/></svg>',
   leads:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.6-3.6 3.5-5.5 7-5.5s6.4 1.9 7 5.5"/></svg>',
+  notify:'<svg viewBox="0 0 24 24"><path d="M10 5a2 2 0 1 1 4 0 7 7 0 0 1 4 6v3a4 4 0 0 0 2 3H4a4 4 0 0 0 2-3v-3a7 7 0 0 1 4-6"/><path d="M9 17v1a3 3 0 0 0 6 0v-1"/></svg>',
   reports:'<svg viewBox="0 0 24 24"><path d="M6 3.5h8.5L19 8v12.5H6z"/><path d="M14 3.5V8.5h5M9.5 17v-3M12.5 17v-5.5M15.5 17v-2"/></svg>',
   team:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19c.5-3.2 2.8-4.8 5.5-4.8s5 1.6 5.5 4.8"/><path d="M15.5 5.6a3.1 3.1 0 0 1 0 5.8M17.5 14.5c1.7.6 2.7 2 3 4.5"/></svg>'
 };
@@ -60,6 +62,7 @@ const S: PageState = {
   drawerId: null,
   listConfirm: null,
   userConfirm: null,
+  notify: { audience: 'both', subject: '', body: '', busy: false, error: '', confirm: null },
 };
 
 /** The bootstrap data. Nothing is drawn before it has loaded, so a missing value is a bug. */
@@ -165,7 +168,7 @@ function wsOf(p: Person): string {
 /* ---------- chrome ---------- */
 function nav(): void {
   const d = data();
-  const names: Record<string, string> = { overview: 'Overview', workspaces: 'Services', lists: 'Data', leads: 'All leads', team: 'Team', reports: 'Reports' };
+  const names: Record<string, string> = { overview: 'Overview', workspaces: 'Services', lists: 'Data', leads: 'All leads', team: 'Team', reports: 'Reports', notify: 'Notifications' };
   const cnt: Record<string, number | undefined> = {
     workspaces: d.workspaces.filter(inCat).length,
     lists: d.lists.filter(inCat).length,
@@ -444,7 +447,40 @@ function vReports(): string {
     '<li><span>A Total row after each service and a final row for everything.</span></li></ul></div>';
   return h;
 }
-const VIEWS: Record<View, () => string> = { overview: vOverview, workspaces: vWorkspaces, lists: vLists, leads: vLeads, team: vTeam, reports: vReports };
+/* ---------- notifications to salespeople ---------- */
+const AUDIENCES: readonly Audience[] = ['both', 'scale', 'reach'];
+function audienceName(a: Audience): string {
+  return a === 'both' ? 'Scale and Reach' : catName(a);
+}
+function vNotify(): string {
+  const N = S.notify;
+  const sent = data().announcements;
+  let h = head('Notifications', 'Write to salespeople');
+  h +=
+    '<div class="blk nf"><span class="fl" style="margin-top:0">Send to</span><div class="seg">' +
+    AUDIENCES.map((a) => '<button type="button" data-na="' + a + '" aria-pressed="' + (N.audience === a) + '">' + (a === 'both' ? 'Both' : esc(catName(a))) + '</button>').join('') +
+    '</div><p class="hint">' + (N.audience === 'both' ? 'Every active salesperson in Scale and Reach' : 'Only active salespeople in ' + esc(catName(N.audience))) + ' will see it in their notifications.</p>' +
+    '<label class="fl" for="n-subject">Subject</label><input class="inp" id="n-subject" type="text" maxlength="120" placeholder="e.g. New leads added to Website" value="' + esc(N.subject) + '">' +
+    '<label class="fl" for="n-body">Message</label><textarea class="inp nf-body" id="n-body" maxlength="2000" rows="6" placeholder="Write the message">' + esc(N.body) + '</textarea>' +
+    '<p class="err" role="alert">' + esc(N.error) + '</p><button class="btn dark" data-nsend' + (N.busy ? ' disabled' : '') + '>' + (N.busy ? 'Sending' : 'Send notification') + '</button></div>';
+  h += '<div class="blk"><h2>Sent</h2>';
+  h += sent.length
+    ? '<div class="tw"><table><thead><tr><th>Subject</th><th>To</th><th>Reached</th><th>Sent</th><th></th></tr></thead><tbody>' +
+      sent
+        .map((a) => {
+          const ask = N.confirm === a.id;
+          const acts = ask
+            ? '<span class="muted">Take it back from everyone?</span><button class="btn sm" data-nkeep>Keep</button> <button class="btn sm danger" data-ndel="' + esc(a.id) + '">Remove</button>'
+            : iconBtn('data-nask', a.id, 'Remove', ACT_ICON.trash, true);
+          return '<tr><td><b style="font-weight:500">' + esc(a.subject) + '</b><div class="muted nf-prev">' + esc(a.body) + '</div></td><td>' + esc(audienceName(a.audience)) + '</td><td class="num">' + num(a.reach) + '</td><td class="muted num">' +
+            esc(new Date(a.at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + (a.by ? ' · ' + esc(a.by) : '') + '</td><td>' + acts + '</td></tr>';
+        })
+        .join('') +
+      '</tbody></table></div>'
+    : '<div class="empty"><b>Nothing sent yet</b>Notifications you send show here.</div>';
+  return h + '</div>';
+}
+const VIEWS: Record<View, () => string> = { overview: vOverview, workspaces: vWorkspaces, lists: vLists, leads: vLeads, team: vTeam, reports: vReports, notify: vNotify };
 function render(keepFocus?: boolean): void {
   nav();
   el('view').innerHTML = VIEWS[S.view]();
@@ -469,6 +505,11 @@ function reload(then?: () => void): Promise<void> {
 function goto(view: View): void {
   S.view = view;
   S.userConfirm = null;
+  if (view === 'notify') {
+    S.notify.audience = S.cat === 'all' ? 'both' : S.cat;
+    S.notify.error = '';
+    S.notify.confirm = null;
+  }
   closeAll();
   if (view === 'leads') {
     S.leads.res = null;
@@ -1046,6 +1087,62 @@ document.addEventListener('click', (e) => {
       });
     return;
   }
+  if ((c = hit('[data-na]'))) {
+    const a = c.dataset['na'];
+    if (a === 'both' || a === 'scale' || a === 'reach') S.notify.audience = a;
+    render();
+    return;
+  }
+  if (hit('[data-nsend]')) {
+    const N = S.notify;
+    N.error = '';
+    if (!N.subject.trim()) N.error = 'Write a subject.';
+    else if (!N.body.trim()) N.error = 'Write the message.';
+    if (N.error) {
+      render();
+      return;
+    }
+    N.busy = true;
+    render();
+    api<unknown>('POST', '/api/admin/announcements', { audience: N.audience, subject: N.subject, body: N.body })
+      .then(() => {
+        N.busy = false;
+        N.subject = '';
+        N.body = '';
+        toast('Sent to ' + audienceName(N.audience));
+        return reload();
+      })
+      .catch((err: unknown) => {
+        N.busy = false;
+        N.error = messageOf(err, 'Could not send it. Try again.');
+        render();
+      });
+    return;
+  }
+  if ((c = hit('[data-nask]'))) {
+    S.notify.confirm = c.dataset['nask'] ?? null;
+    render();
+    return;
+  }
+  if (hit('[data-nkeep]')) {
+    S.notify.confirm = null;
+    render();
+    return;
+  }
+  if ((c = hit('[data-ndel]'))) {
+    api<unknown>('DELETE', '/api/admin/announcements/' + encodeURIComponent(c.dataset['ndel'] ?? ''))
+      .then(() => {
+        S.notify.confirm = null;
+        toast('Notification removed');
+        return reload();
+      })
+      .catch((err: unknown) => {
+        S.notify.confirm = null;
+        toast(messageOf(err, ''));
+        render();
+      });
+    return;
+  }
   if ((c = hit('[data-new]'))) {
     const kind = c.dataset['new'];
     if (kind === 'ws' || kind === 'list' || kind === 'person') openModal(kind);
@@ -1403,6 +1500,9 @@ document.addEventListener('change', (e) => {
 
 let searchTimer: number | undefined;
 document.addEventListener('input', (e) => {
+  const field = e.target;
+  if (field instanceof HTMLInputElement && field.id === 'n-subject') S.notify.subject = field.value;
+  if (field instanceof HTMLTextAreaElement && field.id === 'n-body') S.notify.body = field.value;
   const input = e.target;
   if (input instanceof HTMLInputElement && input.id === 'lq') {
     S.leads.q = input.value;

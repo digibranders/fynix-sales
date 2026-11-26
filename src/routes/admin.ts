@@ -21,6 +21,7 @@ import type { ParsedLead } from '../importer.js';
 import { parseLeadsCsv } from '../importer.js';
 import { xlsxToCsv } from '../xlsx.js';
 import { inviteEmail } from '../mailer.js';
+import { loadAnnouncements } from '../announcements.js';
 import { loadPersonCoupons } from '../coupons.js';
 
 const category = z.enum(CATEGORIES);
@@ -331,6 +332,7 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       people,
       coupons: couponList.map((c) => ({ id: c.id, code: c.code, userId: c.user_id, userName: c.user_name })),
       activity,
+      announcements: await loadAnnouncements(db),
       targets,
     };
   });
