@@ -1165,7 +1165,8 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       const closed = g.key === 'closed';
       if (closed) n = 0; /* closed leads are numbered from 1 on their own */
       const verifiedInGroup = closed ? g.items.filter((x) => claim(x).verified === 1).length : 0;
-      const head = closed ? '<button type="button" class="qsec closed-t" data-closedtoggle aria-expanded="' + state.closedOpen + '">Paid · ' + g.items.length + (g.items.length > 0 ? ' (' + verifiedInGroup + ' verified)' : '') + CHEV + '</button>' : '<div class="qsec' + (g.key === 'od' ? ' od' : '') + '">' + g.title + ' · ' + g.items.length + '</div>';
+      const paidInGroup = closed ? g.items.filter((x) => claim(x).verified !== 2).length : 0;
+      const head = closed ? '<button type="button" class="qsec closed-t" data-closedtoggle aria-expanded="' + state.closedOpen + '">Paid · ' + paidInGroup + (paidInGroup > 0 ? ' (' + verifiedInGroup + ' verified)' : '') + CHEV + '</button>' : '<div class="qsec' + (g.key === 'od' ? ' od' : '') + '">' + g.title + ' · ' + g.items.length + '</div>';
       return head + g.items.map((l) => {
         const w = claim(l);
         n++;
@@ -1590,7 +1591,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     const start = periodStart('month');
     const m = mine();
     const contacted = m.filter((l) => leftNewIn(l, start)).length;
-    const wonLeads = m.filter((l) => enteredIn(l, 'Won', start));
+    const wonLeads = m.filter((l) => enteredIn(l, 'Won', start) && claim(l).verified !== 2);
     const won = wonLeads.length;
     const verifiedWon = wonLeads.filter((l) => claim(l).verified === 1).length;
     const unread = notifications().filter((n) => n.unread).length;
@@ -1912,7 +1913,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     const start = periodStart(p);
     const month = (p === 'month');
     const contacted = m.filter((l) => leftNewIn(l, start)).length;
-    const wonLeads = m.filter((l) => enteredIn(l, 'Won', start));
+    const wonLeads = m.filter((l) => enteredIn(l, 'Won', start) && claim(l).verified !== 2);
     const won = wonLeads.length;
     const verifiedWon = wonLeads.filter((l) => claim(l).verified === 1).length;
     const openL = m.filter((l) => !isEnded(claim(l).status));

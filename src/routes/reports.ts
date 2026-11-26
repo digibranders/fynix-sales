@@ -75,7 +75,9 @@ export async function buildReport(db: Db, start: number, end: number, category?:
   const entered = (stage: string): string => {
     const list = stage === 'Invalid' ? ['Invalid Number', 'Invalid Email'] : [stage];
     params.push(...list, start, end);
-    return `SUM(CASE WHEN EXISTS (SELECT 1 FROM claim_events e WHERE e.claim_id = c.id AND e.status IN (${list.map(() => '?').join(', ')}) AND e.at >= ? AND e.at < ?) THEN 1 ELSE 0 END)`;
+    // A paid deal a manager marked False does not count as Paid.
+    const notFalse = stage === 'Won' ? ' AND c.verified <> 2' : '';
+    return `SUM(CASE WHEN EXISTS (SELECT 1 FROM claim_events e WHERE e.claim_id = c.id AND e.status IN (${list.map(() => '?').join(', ')}) AND e.at >= ? AND e.at < ?)${notFalse} THEN 1 ELSE 0 END)`;
   };
   params.push(start, end);
   const assigned = 'SUM(CASE WHEN c.created_at >= ? AND c.created_at < ? THEN 1 ELSE 0 END)';

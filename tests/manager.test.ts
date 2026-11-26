@@ -173,16 +173,18 @@ describe('manager', () => {
 
     // Manager bootstrap now shows 3 verifiedWon out of 5 won for Priya
     const bootMgr = (await call(nisha, 'GET', '/api/manager/bootstrap')).body as {
-      people: { name: string; stats: { won: number; verifiedWon: number } }[];
+      people: { name: string; stats: { won: number; verifiedWon: number; contacted: number } }[];
     };
     const priyaStats = bootMgr.people.find((p) => p.name === 'Priya Sharma')?.stats;
     assert.ok(priyaStats);
-    assert.equal(priyaStats.won, 5, 'Priya claimed 5 won');
+    // Two were marked False: they leave the Paid number, but they were still contacted.
+    assert.equal(priyaStats.won, 3, 'Priya claimed 5 won, 2 were marked False');
+    assert.ok(priyaStats.contacted >= 5, 'the False ones stay under Contacted');
     assert.equal(priyaStats.verifiedWon, 3, 'Manager verified 3 won');
 
     // The Paid popup for the same period lists exactly the claims the Paid number counts.
     const inPeriod = (await call(nisha, 'GET', '/api/manager/verifications?period=month')).body as unknown as { id: string; ownerName: string }[];
-    assert.equal(inPeriod.filter((v) => claimIds.includes(v.id)).length, priyaStats.won, 'popup list matches the Paid count');
+    assert.equal(inPeriod.filter((v) => claimIds.includes(v.id)).length, priyaStats.won + 2, 'the popup still lists the two False ones, so they can be put back');
     const otherDay = (await call(nisha, 'GET', '/api/manager/verifications?period=date&date=2020-01-01')).body as unknown as unknown[];
     assert.equal(otherDay.length, 0, 'a day with no paid deals lists none');
 
@@ -196,7 +198,7 @@ describe('manager', () => {
     const lastMonthKey = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}-15`;
     assert.equal(await wonIn(`period=month&date=${lastMonthKey}`), 0, 'last month had no paid deals');
     assert.equal(await wonIn('period=week&date=2020-01-08'), 0, 'an old week had none');
-    assert.equal(await wonIn('period=month'), 5, 'this month still counts all five');
+    assert.equal(await wonIn('period=month'), 3, 'this month counts the three that were not marked False');
     // Assigned follows the period too: the five claims were given to Priya this month, none last month or in an old week.
     assert.equal((await priyaIn(`period=month&date=${lastMonthKey}`))?.assigned, 0);
     assert.equal((await priyaIn('period=week&date=2020-01-08'))?.assigned, 0);
@@ -234,7 +236,7 @@ describe('manager', () => {
       assert.equal(res.status, 200);
       const ps = (res.body as unknown as { people: { name: string; stats: { assigned: number; won: number } }[] }).people.find((p) => p.name === 'Priya Sharma')?.stats;
       assert.equal(ps?.assigned, 5, 'assigned is everything they own, whatever the period');
-      assert.equal(ps?.won, 5, 'all five were closed just now');
+      assert.equal(ps?.won, 3, 'all five were closed just now, and two were marked False');
     }
     assert.equal((await call(nisha, 'GET', '/api/manager/bootstrap?period=year')).status, 400);
     // A chosen day: today shows the work, an earlier day shows none, a bad date is refused
@@ -242,7 +244,7 @@ describe('manager', () => {
     const key = (x: Date): string => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
     const statsOn = async (day: string) =>
       ((await call(nisha, 'GET', `/api/manager/bootstrap?period=date&date=${day}`)).body as unknown as { people: { name: string; stats: { won: number } }[] }).people.find((p) => p.name === 'Priya Sharma')?.stats;
-    assert.equal((await statsOn(key(d)))?.won, 5);
+    assert.equal((await statsOn(key(d)))?.won, 3);
     assert.equal((await statsOn(key(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 3))))?.won, 0);
     assert.equal((await call(nisha, 'GET', '/api/manager/bootstrap?period=date')).status, 400);
     assert.equal((await call(nisha, 'GET', '/api/manager/bootstrap?period=date&date=nope')).status, 400);
