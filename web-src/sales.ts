@@ -132,8 +132,8 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   }
   const LEADS: Lead[] = DATA.leads.map(prepLead);
 
-  /* The Scale dashboard has no category filter. */
-  function canFilterCategory(): boolean {
+  /* The Scale dashboard has no area or category filter. */
+  function hasFullFilters(): boolean {
     return DATA.category !== 'scale' && DATA.me.category !== 'scale';
   }
 
@@ -152,7 +152,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   /** The word for a stage as it shows on screen is SL(); STAGES, ALLSTAGES and PAGE live in sales/consts.ts. */
   const state: AppState = {
     user: DATA.me.id, service: SERVICES[0].id, tab: 'info', q: '', area: '', grp: '', cat: '', need: [], open: '', sort: 'rev', page: 0,
-    selected: null, showDetail: false, stageFilter: '', logStage: '', stgOpen: {}, stgLead: '', calMonth: '', qf: '', closedOpen: false,
+    selected: null, showDetail: false, stageFilter: '', logStage: '', stgOpen: {}, stgLead: '', calMonth: '', qf: '', closedOpen: false, lostOpen: false,
     kpiPeriod: 'month', read: {}, modal: null,
   };
   DATA.reads.forEach((k) => {
@@ -348,7 +348,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   function renderInfo(): void {
     const all = open_();
     const rows = all.filter((l) => {
-      return (!state.area || l.area === state.area) && (state.grp === '' || l.grp === state.grp) && (!state.cat || !canFilterCategory() || l.cat === state.cat) && needOk(l) &&
+      return (!state.area || !hasFullFilters() || l.area === state.area) && (state.grp === '' || l.grp === state.grp) && (!state.cat || !hasFullFilters() || l.cat === state.cat) && needOk(l) &&
         matchQ(l);
     });
     const pages = Math.max(1, Math.ceil(rows.length / PAGE));
@@ -357,7 +357,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
 
     let h = '<div class="head"><h1>Leads</h1><span class="sub">' + esc(svcName()) + '</span></div>' +
       '<div class="tools"><div class="tools-d">' +
-      ddHtml('area', 'Filter by area') + (canFilterCategory() ? ddHtml('cat', 'Filter by category') : '') + toolsWsHtml() + needsHtml() +
+      (hasFullFilters() ? ddHtml('area', 'Filter by area') + ddHtml('cat', 'Filter by category') : '') + toolsWsHtml() + needsHtml() +
       '<span class="grow num">' + rows.length + ' of ' + all.length + ' leads</span></div>' +
       '<div class="tools-p"><div class="tp-row"><span class="num">' + rows.length + ' of ' + all.length + ' leads</span>' +
       '<button type="button" class="fbtn" id="fbtn" data-fopen aria-label="Filters' + (activeFilters().length ? ', ' + activeFilters().length + ' active' : '') + '" aria-haspopup="dialog" aria-expanded="' + fd.open + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>Filters<i class="fb-n" id="fbn">' + (activeFilters().length || '') + '</i></button></div>' +
@@ -652,7 +652,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   }
   /* The "Must have" details a person can filter by. Scale leads are found by their company, so Website is not offered. */
   function needChoices(): readonly (readonly [string, string])[] {
-    return canFilterCategory() ? NEEDS : NEEDS.filter((n) => n[0] !== 'web');
+    return hasFullFilters() ? NEEDS : NEEDS.filter((n) => n[0] !== 'web');
   }
   function needLabel(k: string): string {
     return NEEDS.find((n) => n[0] === k)?.[1] ?? k;
@@ -682,8 +682,8 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   }
   function activeFilters(): [string, string][] {
     const a: [string, string][] = [];
-    if (state.area) a.push(['area', toTitleCase(state.area)]);
-    if (state.cat && canFilterCategory()) a.push(['cat', catLabel(state.cat)]);
+    if (state.area && hasFullFilters()) a.push(['area', toTitleCase(state.area)]);
+    if (state.cat && hasFullFilters()) a.push(['cat', catLabel(state.cat)]);
     state.need.forEach((k) => {
       a.push(['need:' + k, 'Has ' + needLabel(k).toLowerCase()]);
     });
@@ -754,7 +754,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
         (on ? '<input class="field" id="fd-q" type="search" placeholder="' + esc(DD[id].search ?? '') + '" aria-label="' + esc(title) + '" value="' + esc(fd.q) + '"><div class="opts fd-list" id="fd-list" role="listbox">' + ddListHtml(id, fd.q) + '</div>' : '') + '</div>';
     }
     d.innerHTML = '<div class="fd-h"><h2>Filters</h2><button type="button" class="fd-x" data-fdclose aria-label="Close filters"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>' +
-      '<div class="fd-b">' + needsDrawerHtml() + acc('area', 'Area') + (canFilterCategory() ? acc('cat', 'Category') : '') + '</div>' +
+      '<div class="fd-b">' + needsDrawerHtml() + (hasFullFilters() ? acc('area', 'Area') + acc('cat', 'Category') : '') + '</div>' +
       '<div class="fd-f">' + (act ? '<button type="button" class="btn" data-fdclear>Clear all</button>' : '') + '<button type="button" class="btn primary" data-fdclose>Show ' + plural(n) + '</button></div>';
   }
   function openDrawer(): void {
@@ -1156,7 +1156,8 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
 
   function groupOf(l: Lead): string {
     const w = claim(l);
-    if (isEnded(w.status)) return 'closed';
+    if (w.status === 'Won') return 'closed'; /* the Paid section */
+    if (isEnded(w.status)) return 'lost'; /* Lost and invalid leads */
     if (w.status !== 'Follow Up' || !w.next) return 'none';
     const d = diffDays(w.next);
     return d < 0 ? 'od' : (d === 0 ? 'today' : 'later');
@@ -1169,7 +1170,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
         const x = claim(a);
         const y = claim(b);
         if (g[0] === 'od' || g[0] === 'later' || g[0] === 'today') return x.next < y.next ? -1 : (x.next > y.next ? 1 : a.name.localeCompare(b.name));
-        if (g[0] === 'closed') return y.last - x.last;
+        if (g[0] === 'closed' || g[0] === 'lost') return y.last - x.last;
         return a.name.localeCompare(b.name);
       });
       if (items.length) out.push({ key: g[0], title: g[1], items });
@@ -1224,14 +1225,15 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     let n = 0;
     const body = groups.map((g) => {
       const closed = g.key === 'closed';
-      if (closed) n = 0; /* closed leads are numbered from 1 on their own */
+      const lost = g.key === 'lost';
+      if (closed || lost) n = 0; /* Paid and Lost leads are each numbered from 1 on their own */
       const verifiedInGroup = closed ? g.items.filter((x) => claim(x).verified === 1).length : 0;
       const paidInGroup = closed ? g.items.filter((x) => claim(x).verified !== 2).length : 0;
-      const head = closed ? '<button type="button" class="qsec closed-t" data-closedtoggle aria-expanded="' + state.closedOpen + '">Paid · ' + paidInGroup + (paidInGroup > 0 ? ' (' + verifiedInGroup + ' verified)' : '') + CHEV + '</button>' : '<div class="qsec' + (g.key === 'od' ? ' od' : '') + '">' + g.title + ' · ' + g.items.length + '</div>';
+      const head = lost ? '<button type="button" class="qsec lost-t" data-losttoggle aria-expanded="' + state.lostOpen + '">Lost · ' + g.items.length + CHEV + '</button>' : closed ? '<button type="button" class="qsec closed-t" data-closedtoggle aria-expanded="' + state.closedOpen + '">Paid · ' + paidInGroup + (paidInGroup > 0 ? ' (' + verifiedInGroup + ' verified)' : '') + CHEV + '</button>' : '<div class="qsec' + (g.key === 'od' ? ' od' : '') + '">' + g.title + ' · ' + g.items.length + '</div>';
       return head + g.items.map((l) => {
         const w = claim(l);
         n++;
-        const fu = '<span class="fu ' + (closed ? '' : g.key) + '">' + (closed || !w.next || w.status !== 'Follow Up' ? '' : esc(fuText(w.next))) + '</span>';
+        const fu = '<span class="fu ' + (closed || lost ? '' : g.key) + '">' + (closed || lost || !w.next || w.status !== 'Follow Up' ? '' : esc(fuText(w.next))) + '</span>';
         const hasAct = (g.key === 'od' || g.key === 'today');
         const pNum = isScale() ? (l.personalNumber || l.phone) : l.phone;
         const dg = pNum ? pNum.replace(/\D/g, '') : '';
@@ -1245,11 +1247,11 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
                 ? '<span class="v-lead-badge v-lead-false" title="Rejected by Manager"><svg viewBox="0 0 8 8" class="v-mb-ic" aria-hidden="true"><path d="M1 1l6 6M7 1L1 7"/></svg>Rejected</span>'
                 : '<span class="v-lead-badge v-lead-pending" title="Awaiting Manager Verification"><svg viewBox="0 0 8 8" class="v-mb-ic" aria-hidden="true"><circle cx="4" cy="4" r="3"/></svg>Pending</span>')
           : '';
-        return '<div class="item-wrap' + (hasAct ? ' has-act' : '') + (closed ? ' closed-item' : '') + '"><button class="item" role="listitem" data-pick="' + l.id + '" aria-current="' + (l.id === state.selected) + '"><span class="no num">' + n + '</span>' +
+        return '<div class="item-wrap' + (hasAct ? ' has-act' : '') + (closed ? ' closed-item' : '') + (lost ? ' lost-item' : '') + '"><button class="item" role="listitem" data-pick="' + l.id + '" aria-current="' + (l.id === state.selected) + '"><span class="no num">' + n + '</span>' +
           '<span class="name">' + esc(toTitleCase(l.name)) + vBadge + '</span><span class="m-sub">' + subTxt + '</span><span class="st">' + assignedStagePreview(w) + '</span><span class="stgt" aria-label="Current stage is ' + esc(SL(w.status)) + '">' + assignedStagePreview(w) + '</span>' + fu + '<span class="last">' + esc(ucfirst(agoText(w.last))) + '</span></button>' + acts + '</div>';
       }).join('');
     }).join('');
-    h += '<div class="split' + (state.showDetail ? ' show-detail' : '') + '"><div class="list' + (state.closedOpen ? ' closed-open' : '') + '" role="list"><div class="qhead" aria-hidden="true"><span>Sr.</span><span>' + (isScale() ? 'Lead' : 'Store') + '</span><span>Stage</span><span>Follow-up</span><span class="c-last">Last touched</span><span></span></div>' + body + '</div>' + detail(cur) + '</div>';
+    h += '<div class="split' + (state.showDetail ? ' show-detail' : '') + '"><div class="list' + (state.closedOpen ? ' closed-open' : '') + (state.lostOpen ? ' lost-open' : '') + '" role="list"><div class="qhead" aria-hidden="true"><span>Sr.</span><span>' + (isScale() ? 'Lead' : 'Store') + '</span><span>Stage</span><span>Follow-up</span><span class="c-last">Last touched</span><span></span></div>' + body + '</div>' + detail(cur) + '</div>';
     view.innerHTML = h;
     const ta = maybeEl('note', HTMLTextAreaElement);
     if (ta && draft) ta.value = draft;
@@ -2366,6 +2368,12 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     const qf = closestOf(e, '[data-qf]');
     if (qf) {
       state.qf = state.qf === ds(qf, 'qf') ? '' : ds(qf, 'qf');
+      renderAssigned();
+      return;
+    }
+    const lt = closestOf(e, '[data-losttoggle]');
+    if (lt) {
+      state.lostOpen = !state.lostOpen;
       renderAssigned();
       return;
     }

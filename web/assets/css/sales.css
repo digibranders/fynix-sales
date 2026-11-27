@@ -338,12 +338,12 @@ th:last-child,td:last-child{padding-right:4px}
 .btn.arrow:disabled svg{stroke:var(--muted)}
 .btn.pg{min-width:28px;padding:0 8px;font-family:var(--mono)}
 /* compact pager */
-.pager{font-size:12px}
-.pager .btns{gap:4px}
-.pager .btn{height:26px;border-radius:6px;font-size:12px}
-.pager .btn.pg{min-width:26px;padding:0 6px}
-.pager .btn.arrow{width:26px;padding:0}
-.pager .btn.arrow svg{width:5px;height:9px}
+.pager{font-size:11.5px}
+.pager .btns{gap:3px}
+.pager .btn,.pager .btn.xs{height:22px;border-radius:5px;font-size:11px}
+.pager .btn.pg,.pager .btn.xs.pg{min-width:22px;padding:0 5px}
+.pager .btn.arrow{width:22px;padding:0}
+.pager .btn.arrow svg{width:4px;height:8px}
 .pager .gap{padding:0 2px}
 .btn.pg.cur{background:var(--ink);border-color:var(--ink);color:var(--ink-fg)}
 th.sr,td.sr{width:56px;color:var(--muted)}
@@ -522,6 +522,7 @@ button.qsec:hover{opacity:.85}
 button.qsec .chev{display:block;margin:0;stroke:currentColor;transition:transform .18s ease}
 button.qsec[aria-expanded="true"] .chev{transform:rotate(180deg)}
 .list:not(.closed-open) .closed-item{display:none}
+.list:not(.lost-open) .lost-item{display:none}
 .place,.comp-m{display:none}
 .needs{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .need{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit;font-size:13px;font-weight:500;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -552,6 +553,8 @@ button.qsec[aria-expanded="true"] .chev{transform:rotate(180deg)}
 .soc a:hover{text-decoration:underline}
 .qsec.closed-t{color:var(--d-won)}
 .qsec.closed-t .chev{stroke:var(--d-won)}
+.qsec.lost-t{color:var(--d-lost)}
+.qsec.lost-t .chev{stroke:var(--d-lost)}
 .qsec.od{color:var(--d-lost)}
 .msum{display:grid;grid-template-columns:repeat(3,128px);gap:20px;margin:0 0 8px}
 .msc{text-align:left;background:none;border:0;border-top:2px solid var(--k,var(--line2));padding:10px 0 8px;cursor:pointer;border-radius:0}

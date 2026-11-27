@@ -55,7 +55,7 @@ export function ico(n: string): string {
   return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">' + ICO[n] + '</svg>';
 }
 
-export const GROUPS_Q: Pair[] = [['od', 'Overdue'], ['today', 'Today'], ['later', 'Later'], ['none', 'No follow-up'], ['closed', 'Paid']];
+export const GROUPS_Q: Pair[] = [['od', 'Overdue'], ['today', 'Today'], ['later', 'Later'], ['none', 'No follow-up'], ['closed', 'Paid'], ['lost', 'Lost']];
 export const CAL_DAYS: string[] = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 export const THEMES: Pair[] = [['light', 'Light'], ['dark', 'Dark'], ['system', 'Auto']];
 export const KP_PERIODS: readonly (readonly [string, string, string])[] = [['today', 'Today', 'Today'], ['7d', '7 days', '7 days'], ['month', 'This month', 'Month']];
