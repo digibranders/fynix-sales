@@ -190,6 +190,8 @@ export interface AppState {
   calMonth: string;
   qf: string;
   closedOpen: boolean;
+  /** Whether the Lost section (Lost and invalid leads) is expanded. */
+  lostOpen: boolean;
   kpiPeriod: KpiPeriod;
   read: Record<string, boolean>;
   /** Which modal is showing: a lead id, or the name of a sheet. */

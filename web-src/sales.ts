@@ -101,6 +101,11 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   }
   const USERS: Me[] = [DATA.me];
 
+  /* Coupons are not part of the Scale dashboard, so that tab is taken out for Scale salespeople. */
+  if (DATA.category === 'scale' || DATA.me.category === 'scale') document.getElementById('tab-coupons')?.remove();
+  const TAB_ORDER: string[] = Array.from(document.querySelectorAll<HTMLElement>('.tab')).map((b) => ds(b, 'tab'));
+  qs('.tabs').style.setProperty('--n', String(TAB_ORDER.length));
+
   /* All Google Business categories (lobstrio/google-business-categories): [name, industry group index, worldwide businesses]. */
   const GROUPS = GBC.groups;
   const CATS = GBC.cats;
@@ -127,6 +132,16 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   }
   const LEADS: Lead[] = DATA.leads.map(prepLead);
 
+  /* The Scale dashboard has no area or category filter. */
+  function hasFullFilters(): boolean {
+    return DATA.category !== 'scale' && DATA.me.category !== 'scale';
+  }
+
+  /* Scale salespeople work in one place, so they are not offered a service switcher anywhere. */
+  function canSwitchService(): boolean {
+    return DATA.category !== 'scale' && DATA.me.category !== 'scale';
+  }
+
   function isScale(): boolean {
     const s = svcById(state.service);
     return !!(s && s.id && s.id.indexOf('scale') === 0) || DATA.category === 'scale' || DATA.me.category === 'scale';
@@ -137,7 +152,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   /** The word for a stage as it shows on screen is SL(); STAGES, ALLSTAGES and PAGE live in sales/consts.ts. */
   const state: AppState = {
     user: DATA.me.id, service: SERVICES[0].id, tab: 'info', q: '', area: '', grp: '', cat: '', need: [], open: '', sort: 'rev', page: 0,
-    selected: null, showDetail: false, stageFilter: '', logStage: '', stgOpen: {}, stgLead: '', calMonth: '', qf: '', closedOpen: false,
+    selected: null, showDetail: false, stageFilter: '', logStage: '', stgOpen: {}, stgLead: '', calMonth: '', qf: '', closedOpen: false, lostOpen: false,
     kpiPeriod: 'month', read: {}, modal: null,
   };
   DATA.reads.forEach((k) => {
@@ -267,7 +282,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   /* slide the glass capsule under the selected tab, and ease the content in when the section changes */
   let scrollLock = 0;
   function placePill(): void {
-    const i = ['info', 'assigned', 'kpi', 'coupons', 'profile'].indexOf(state.tab);
+    const i = TAB_ORDER.indexOf(state.tab);
     qs('.tabs').style.setProperty('--i', String(i < 0 ? 0 : i));
   }
   /* Switching tabs: each block drops in from above, one after another, top to bottom. */
@@ -305,7 +320,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       tt.textContent = tabTitles[state.tab] || 'Leads';
     }
     el('cnt-assigned').textContent = String(mine().length);
-    ['info', 'assigned', 'kpi', 'coupons', 'profile'].forEach((t) => {
+    TAB_ORDER.forEach((t) => {
       el('tab-' + t).setAttribute('aria-selected', String(state.tab === t));
     });
     qs('.top').classList.toggle('kpi', state.tab === 'kpi' || state.tab === 'profile');
@@ -333,7 +348,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   function renderInfo(): void {
     const all = open_();
     const rows = all.filter((l) => {
-      return (!state.area || l.area === state.area) && (state.grp === '' || l.grp === state.grp) && (!state.cat || l.cat === state.cat) && needOk(l) &&
+      return (!state.area || !hasFullFilters() || l.area === state.area) && (state.grp === '' || l.grp === state.grp) && (!state.cat || !hasFullFilters() || l.cat === state.cat) && needOk(l) &&
         matchQ(l);
     });
     const pages = Math.max(1, Math.ceil(rows.length / PAGE));
@@ -342,7 +357,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
 
     let h = '<div class="head"><h1>Leads</h1><span class="sub">' + esc(svcName()) + '</span></div>' +
       '<div class="tools"><div class="tools-d">' +
-      ddHtml('area', 'Filter by area') + ddHtml('cat', 'Filter by category') + toolsWsHtml() + needsHtml() +
+      (hasFullFilters() ? ddHtml('area', 'Filter by area') + ddHtml('cat', 'Filter by category') : '') + toolsWsHtml() + needsHtml() +
       '<span class="grow num">' + rows.length + ' of ' + all.length + ' leads</span></div>' +
       '<div class="tools-p"><div class="tp-row"><span class="num">' + rows.length + ' of ' + all.length + ' leads</span>' +
       '<button type="button" class="fbtn" id="fbtn" data-fopen aria-label="Filters' + (activeFilters().length ? ', ' + activeFilters().length + ' active' : '') + '" aria-haspopup="dialog" aria-expanded="' + fd.open + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>Filters<i class="fb-n" id="fbn">' + (activeFilters().length || '') + '</i></button></div>' +
@@ -512,12 +527,17 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     }).join('');
   }
   function toolsWsHtml(): string {
+    if (!canSwitchService()) return '';
     const open = state.open === 'tools-ws';
     const s = svc(state.service);
     return '<div class="combo" id="tools-ws-dd"><button type="button" class="field combo-btn" data-ddbtn="tools-ws" data-toolswsbtn aria-label="Switch service" aria-haspopup="listbox" aria-expanded="' + open + '"><span>' + esc(s.name) + '</span>' + CHEV + '</button>' +
       (open ? '<div class="pop"><div class="sm pop-h">Service</div><div class="opts" role="listbox">' + serviceOptions() + '</div></div>' : '') + '</div>';
   }
   function renderWs(): void {
+    if (!canSwitchService()) {
+      el('ws-dd').innerHTML = '';
+      return;
+    }
     const open = state.open === 'ws';
     const s = svc(state.service);
     el('ws-dd').innerHTML = '<button type="button" class="ws-btn" data-wsbtn aria-label="Switch service" aria-haspopup="listbox" aria-expanded="' + open + '">' + svcIcon(s) + '<b>' + esc(s.name) + '</b>' + CHEV + '</button>' +
@@ -628,7 +648,11 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     return !!(l.email && l.email.length);
   }
   function needOk(l: Lead): boolean {
-    return state.need.every((k) => hasField(l, k));
+    return state.need.every((k) => hasField(l, k) || !needChoices().some((n) => n[0] === k));
+  }
+  /* The "Must have" details a person can filter by. Scale leads are found by their company, so Website is not offered. */
+  function needChoices(): readonly (readonly [string, string])[] {
+    return hasFullFilters() ? NEEDS : NEEDS.filter((n) => n[0] !== 'web');
   }
   function needLabel(k: string): string {
     return NEEDS.find((n) => n[0] === k)?.[1] ?? k;
@@ -658,8 +682,8 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   }
   function activeFilters(): [string, string][] {
     const a: [string, string][] = [];
-    if (state.area) a.push(['area', toTitleCase(state.area)]);
-    if (state.cat) a.push(['cat', catLabel(state.cat)]);
+    if (state.area && hasFullFilters()) a.push(['area', toTitleCase(state.area)]);
+    if (state.cat && hasFullFilters()) a.push(['cat', catLabel(state.cat)]);
     state.need.forEach((k) => {
       a.push(['need:' + k, 'Has ' + needLabel(k).toLowerCase()]);
     });
@@ -679,7 +703,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     b.setAttribute('aria-label', 'Filters' + (c ? ', ' + c + ' active' : ''));
   }
   function needsHtml(): string {
-    return '<div class="needs" role="group" aria-label="Must have"><span class="sm muted">Must have</span>' + NEEDS.map((n) => {
+    return '<div class="needs" role="group" aria-label="Must have"><span class="sm muted">Must have</span>' + needChoices().map((n) => {
       return '<button type="button" class="need" data-need="' + n[0] + '" aria-pressed="' + (state.need.indexOf(n[0]) > -1) + '">' + NEED_ICON[n[0]] + '<span>' + n[1] + '</span></button>';
     }).join('') + '</div>';
   }
@@ -688,13 +712,13 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   function syncDrawerNeeds(): void {
     const d = document.getElementById('fdrawer');
     if (!d) return;
-    NEEDS.forEach((n) => {
+    needChoices().forEach((n) => {
       const b = d.querySelector('[data-needopt="' + n[0] + '"]');
       if (b) b.setAttribute('aria-checked', state.need.indexOf(n[0]) > -1 ? 'true' : 'false');
     });
     const v = d.querySelector('[data-fdneed] .v');
     if (v) {
-      const picked = NEEDS.filter((n) => state.need.indexOf(n[0]) > -1);
+      const picked = needChoices().filter((n) => state.need.indexOf(n[0]) > -1);
       v.textContent = picked.length ? picked.map((n) => n[1]).join(', ') : 'Any';
     }
     const cta = d.querySelector('.fd-f .primary');
@@ -708,11 +732,11 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
   function needsDrawerHtml(): string {
     const pool = open_();
     const on = fd.needOpen;
-    const picked = NEEDS.filter((n) => state.need.indexOf(n[0]) > -1);
+    const picked = needChoices().filter((n) => state.need.indexOf(n[0]) > -1);
     function row(attr: string, val: string, label: string, sub: string, checked: string, icon: string): string {
       return '<button type="button" class="opt nopt" role="checkbox" aria-checked="' + checked + '" ' + attr + '="' + val + '">' + icon + '<span class="ol"><span>' + label + '</span><span class="sm">' + sub + '</span></span><span class="cbx" aria-hidden="true"></span></button>';
     }
-    const rows = NEEDS.map((n) => {
+    const rows = needChoices().map((n) => {
       const c = pool.filter((l) => hasField(l, n[0])).length;
       return row('data-needopt', n[0], n[1], plural(c), state.need.indexOf(n[0]) > -1 ? 'true' : 'false', '<span class="nic">' + NEED_ICON[n[0]] + '</span>');
     }).join('');
@@ -730,7 +754,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
         (on ? '<input class="field" id="fd-q" type="search" placeholder="' + esc(DD[id].search ?? '') + '" aria-label="' + esc(title) + '" value="' + esc(fd.q) + '"><div class="opts fd-list" id="fd-list" role="listbox">' + ddListHtml(id, fd.q) + '</div>' : '') + '</div>';
     }
     d.innerHTML = '<div class="fd-h"><h2>Filters</h2><button type="button" class="fd-x" data-fdclose aria-label="Close filters"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>' +
-      '<div class="fd-b">' + needsDrawerHtml() + acc('area', 'Area') + acc('cat', 'Category') + '</div>' +
+      '<div class="fd-b">' + needsDrawerHtml() + (hasFullFilters() ? acc('area', 'Area') + acc('cat', 'Category') : '') + '</div>' +
       '<div class="fd-f">' + (act ? '<button type="button" class="btn" data-fdclear>Clear all</button>' : '') + '<button type="button" class="btn primary" data-fdclose>Show ' + plural(n) + '</button></div>';
   }
   function openDrawer(): void {
@@ -1132,7 +1156,8 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
 
   function groupOf(l: Lead): string {
     const w = claim(l);
-    if (isEnded(w.status)) return 'closed';
+    if (w.status === 'Won') return 'closed'; /* the Paid section */
+    if (isEnded(w.status)) return 'lost'; /* Lost and invalid leads */
     if (w.status !== 'Follow Up' || !w.next) return 'none';
     const d = diffDays(w.next);
     return d < 0 ? 'od' : (d === 0 ? 'today' : 'later');
@@ -1145,7 +1170,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
         const x = claim(a);
         const y = claim(b);
         if (g[0] === 'od' || g[0] === 'later' || g[0] === 'today') return x.next < y.next ? -1 : (x.next > y.next ? 1 : a.name.localeCompare(b.name));
-        if (g[0] === 'closed') return y.last - x.last;
+        if (g[0] === 'closed' || g[0] === 'lost') return y.last - x.last;
         return a.name.localeCompare(b.name);
       });
       if (items.length) out.push({ key: g[0], title: g[1], items });
@@ -1200,14 +1225,15 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     let n = 0;
     const body = groups.map((g) => {
       const closed = g.key === 'closed';
-      if (closed) n = 0; /* closed leads are numbered from 1 on their own */
+      const lost = g.key === 'lost';
+      if (closed || lost) n = 0; /* Paid and Lost leads are each numbered from 1 on their own */
       const verifiedInGroup = closed ? g.items.filter((x) => claim(x).verified === 1).length : 0;
       const paidInGroup = closed ? g.items.filter((x) => claim(x).verified !== 2).length : 0;
-      const head = closed ? '<button type="button" class="qsec closed-t" data-closedtoggle aria-expanded="' + state.closedOpen + '">Paid · ' + paidInGroup + (paidInGroup > 0 ? ' (' + verifiedInGroup + ' verified)' : '') + CHEV + '</button>' : '<div class="qsec' + (g.key === 'od' ? ' od' : '') + '">' + g.title + ' · ' + g.items.length + '</div>';
+      const head = lost ? '<button type="button" class="qsec lost-t" data-losttoggle aria-expanded="' + state.lostOpen + '">Lost · ' + g.items.length + CHEV + '</button>' : closed ? '<button type="button" class="qsec closed-t" data-closedtoggle aria-expanded="' + state.closedOpen + '">Paid · ' + paidInGroup + (paidInGroup > 0 ? ' (' + verifiedInGroup + ' verified)' : '') + CHEV + '</button>' : '<div class="qsec' + (g.key === 'od' ? ' od' : '') + '">' + g.title + ' · ' + g.items.length + '</div>';
       return head + g.items.map((l) => {
         const w = claim(l);
         n++;
-        const fu = '<span class="fu ' + (closed ? '' : g.key) + '">' + (closed || !w.next || w.status !== 'Follow Up' ? '' : esc(fuText(w.next))) + '</span>';
+        const fu = '<span class="fu ' + (closed || lost ? '' : g.key) + '">' + (closed || lost || !w.next || w.status !== 'Follow Up' ? '' : esc(fuText(w.next))) + '</span>';
         const hasAct = (g.key === 'od' || g.key === 'today');
         const pNum = isScale() ? (l.personalNumber || l.phone) : l.phone;
         const dg = pNum ? pNum.replace(/\D/g, '') : '';
@@ -1221,11 +1247,11 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
                 ? '<span class="v-lead-badge v-lead-false" title="Rejected by Manager"><svg viewBox="0 0 8 8" class="v-mb-ic" aria-hidden="true"><path d="M1 1l6 6M7 1L1 7"/></svg>Rejected</span>'
                 : '<span class="v-lead-badge v-lead-pending" title="Awaiting Manager Verification"><svg viewBox="0 0 8 8" class="v-mb-ic" aria-hidden="true"><circle cx="4" cy="4" r="3"/></svg>Pending</span>')
           : '';
-        return '<div class="item-wrap' + (hasAct ? ' has-act' : '') + (closed ? ' closed-item' : '') + '"><button class="item" role="listitem" data-pick="' + l.id + '" aria-current="' + (l.id === state.selected) + '"><span class="no num">' + n + '</span>' +
+        return '<div class="item-wrap' + (hasAct ? ' has-act' : '') + (closed ? ' closed-item' : '') + (lost ? ' lost-item' : '') + '"><button class="item" role="listitem" data-pick="' + l.id + '" aria-current="' + (l.id === state.selected) + '"><span class="no num">' + n + '</span>' +
           '<span class="name">' + esc(toTitleCase(l.name)) + vBadge + '</span><span class="m-sub">' + subTxt + '</span><span class="st">' + assignedStagePreview(w) + '</span><span class="stgt" aria-label="Current stage is ' + esc(SL(w.status)) + '">' + assignedStagePreview(w) + '</span>' + fu + '<span class="last">' + esc(ucfirst(agoText(w.last))) + '</span></button>' + acts + '</div>';
       }).join('');
     }).join('');
-    h += '<div class="split' + (state.showDetail ? ' show-detail' : '') + '"><div class="list' + (state.closedOpen ? ' closed-open' : '') + '" role="list"><div class="qhead" aria-hidden="true"><span>Sr.</span><span>' + (isScale() ? 'Lead' : 'Store') + '</span><span>Stage</span><span>Follow-up</span><span class="c-last">Last touched</span><span></span></div>' + body + '</div>' + detail(cur) + '</div>';
+    h += '<div class="split' + (state.showDetail ? ' show-detail' : '') + '"><div class="list' + (state.closedOpen ? ' closed-open' : '') + (state.lostOpen ? ' lost-open' : '') + '" role="list"><div class="qhead" aria-hidden="true"><span>Sr.</span><span>' + (isScale() ? 'Lead' : 'Store') + '</span><span>Stage</span><span>Follow-up</span><span class="c-last">Last touched</span><span></span></div>' + body + '</div>' + detail(cur) + '</div>';
     view.innerHTML = h;
     const ta = maybeEl('note', HTMLTextAreaElement);
     if (ta && draft) ta.value = draft;
@@ -1641,7 +1667,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
       '<div class="pf-card"><span class="pav" aria-hidden="true">' + esc(u.ini) + '</span><div class="pf-who"><b>' + esc(u.name) + '</b><span class="sm">' + esc(DATA.me.email) + '</span><span class="sm">Salesperson</span></div></div>' +
       statStrip(m.filter((l) => assignedIn(l, start)).length, contacted, won, true, 'This month in ' + s.name, verifiedWon) +
       '<p class="pf-cap">This month · ' + esc(s.name) + '</p>' +
-      '<h3 class="pf-h">Services</h3><div class="pf-list">' + services + '</div>' +
+      (canSwitchService() ? '<h3 class="pf-h">Services</h3><div class="pf-list">' + services + '</div>' : '') +
       '<h3 class="pf-h">Work</h3><div class="pf-list">' +
         pfRow(ptile('note'), '<span>My notes</span><span class="sm">' + allNotes().length + (allNotes().length === 1 ? ' note' : ' notes') + '</span>', '', 'data-pf="notes"') +
         pfRow(ptile('chart'), '<span>Monthly report</span><span class="sm">Your numbers, month by month</span>', '', 'data-pf="report"') + '</div>' +
@@ -2064,6 +2090,7 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
 
   /* ---------- wiring ---------- */
   function render(): void {
+    if (TAB_ORDER.indexOf(state.tab) < 0) state.tab = 'info'; /* a tab this person does not have */
     chrome();
     const draw: Record<Tab, () => void> = { info: renderInfo, assigned: renderAssigned, kpi: renderKpi, coupons: renderCoupons, profile: renderProfile };
     draw[state.tab]();
@@ -2341,6 +2368,12 @@ function boot(DATA: Bootstrap, GBC: GbcData): void {
     const qf = closestOf(e, '[data-qf]');
     if (qf) {
       state.qf = state.qf === ds(qf, 'qf') ? '' : ds(qf, 'qf');
+      renderAssigned();
+      return;
+    }
+    const lt = closestOf(e, '[data-losttoggle]');
+    if (lt) {
+      state.lostOpen = !state.lostOpen;
       renderAssigned();
       return;
     }
